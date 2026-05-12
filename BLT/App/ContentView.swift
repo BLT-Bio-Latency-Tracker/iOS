@@ -1,18 +1,25 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var route: AppRoute = .onboarding
+    @AppStorage(AppStorageKey.hasCompletedOnboarding)
+    private var hasCompletedOnboarding = false
+
+    @State private var route: AppRoute
     @StateObject private var authFlowViewModel = AuthFlowViewModel()
+
+    init() {
+        let initialRoute: AppRoute = UserDefaults.standard.bool(
+            forKey: AppStorageKey.hasCompletedOnboarding
+        ) ? .login : .onboarding
+
+        _route = State(initialValue: initialRoute)
+    }
 
     var body: some View {
         ZStack {
             switch route {
             case .onboarding:
-                OnboardingView {
-                    withAnimation(.easeInOut(duration: 0.35)) {
-                        route = .login
-                    }
-                }
+                OnboardingView(onFinish: completeOnboarding)
                 .transition(.asymmetric(
                     insertion: .move(edge: .leading),
                     removal: .move(edge: .leading)
@@ -51,10 +58,22 @@ struct ContentView: View {
             }
         }
     }
+
+    private func completeOnboarding() {
+        hasCompletedOnboarding = true
+
+        withAnimation(.easeInOut(duration: 0.35)) {
+            route = .login
+        }
+    }
 }
 
 private enum AppRoute {
     case onboarding
     case login
     case termsAgreement
+}
+
+private enum AppStorageKey {
+    static let hasCompletedOnboarding = "hasCompletedOnboarding"
 }
