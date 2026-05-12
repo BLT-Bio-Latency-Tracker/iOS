@@ -2,7 +2,9 @@ import SwiftUI
 
 struct TermsAgreementView: View {
     var onBack: () -> Void = {}
-    var onNext: () -> Void = {}
+    var onNext: (TermsAgreementState) -> Void = { _ in }
+    var isProcessing = false
+    var errorMessage: String?
 
     @State private var isTermsAgreed = false
     @State private var isPrivacyAgreed = false
@@ -17,7 +19,7 @@ struct TermsAgreementView: View {
     private let designHeight: CGFloat = 812
 
     private var isRequiredAgreed: Bool {
-        isTermsAgreed && isPrivacyAgreed && isAgeAgreed
+        termsAgreementState.isRequiredAgreed
     }
 
     private var isAllAgreed: Bool {
@@ -28,6 +30,18 @@ struct TermsAgreementView: View {
         isMarketingAgreed &&
         isPushAgreed &&
         isEmailAgreed
+    }
+
+    private var termsAgreementState: TermsAgreementState {
+        TermsAgreementState(
+            serviceTerms: isTermsAgreed,
+            privacyPolicy: isPrivacyAgreed,
+            ageOver14: isAgeAgreed,
+            healthDataAnalytics: isHealthDataAgreed,
+            marketing: isMarketingAgreed,
+            notification: isPushAgreed,
+            email: isEmailAgreed
+        )
     }
 
     var body: some View {
@@ -62,6 +76,15 @@ struct TermsAgreementView: View {
                         .opacity(isMarketingAgreed ? 1 : 0.45)
 
                     Spacer(minLength: 0)
+
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.system(size: 11 * scale, weight: .medium))
+                            .foregroundStyle(Color(red: 1, green: 0.45, blue: 0.45))
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.horizontal, contentInset)
+                            .padding(.bottom, 10 * scale)
+                    }
 
                     nextButton(scale: scale)
                         .padding(.horizontal, contentInset)
@@ -248,10 +271,10 @@ struct TermsAgreementView: View {
 
     private func nextButton(scale: CGFloat) -> some View {
         Button {
-            guard isRequiredAgreed else { return }
-            onNext()
+            guard isRequiredAgreed, !isProcessing else { return }
+            onNext(termsAgreementState)
         } label: {
-            Text("확인 · 다음 단계로")
+            Text(isProcessing ? "Apple 로그인 진행 중" : "동의하고 Apple로 계속하기")
                 .font(.system(size: 15 * scale, weight: .bold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -274,7 +297,7 @@ struct TermsAgreementView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
         }
         .buttonStyle(.plain)
-        .disabled(!isRequiredAgreed)
+        .disabled(!isRequiredAgreed || isProcessing)
     }
 
     private func toggleAllAgreement() {
