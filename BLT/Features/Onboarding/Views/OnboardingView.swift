@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct OnboardingView: View {
+    var onFinish: () -> Void = {}
+
     @State private var currentPage = 0
     @State private var transitionDirection = 1
     @State private var isStartButtonHighlighted = false
@@ -81,7 +83,7 @@ struct OnboardingView: View {
 
             Spacer()
 
-            Button(action: {}) {
+            Button(action: onFinish) {
                 Text("건너뛰기")
                     .font(.system(size: 13 * scale, weight: .medium))
                     .foregroundStyle(.white.opacity(0.7))
@@ -133,6 +135,8 @@ struct OnboardingView: View {
     private func primaryButtonTapped() {
         if currentPage < pageCount - 1 {
             moveToPage(currentPage + 1)
+        } else {
+            onFinish()
         }
     }
 
