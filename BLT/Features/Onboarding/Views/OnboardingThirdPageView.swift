@@ -1,9 +1,6 @@
 import SwiftUI
 
 struct OnboardingThirdPageView: View {
-    var onStart: () -> Void = {}
-    var onSkip: () -> Void = {}
-
     private let designWidth: CGFloat = 375
     private let designHeight: CGFloat = 812
 
@@ -13,16 +10,9 @@ struct OnboardingThirdPageView: View {
             let horizontalInset = max(24, (proxy.size.width - 327 * scale) / 2)
 
             ZStack {
-                Color(red: 0.039, green: 0.055, blue: 0.153)
-                    .ignoresSafeArea()
-
                 VStack(spacing: 0) {
-                    header(scale: scale)
-                        .padding(.top, 64 * scale)
-                        .padding(.horizontal, horizontalInset)
-
                     recommendationGraphic(size: 255 * scale)
-                        .padding(.top, 51 * scale)
+                        .padding(.top, 130 * scale)
 
                     VStack(alignment: .leading, spacing: 0) {
                         Text("오늘 가장 어려운 일을\n언제 할지 알려드려요")
@@ -43,52 +33,9 @@ struct OnboardingThirdPageView: View {
                     .padding(.top, 45 * scale)
 
                     Spacer(minLength: 0)
-
-                    pageIndicator
-                        .padding(.bottom, 20 * scale)
-
-                    Button(action: onStart) {
-                        Text("시작하기")
-                            .font(.system(size: 16 * scale, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 52 * scale)
-                            .background(
-                                LinearGradient(
-                                    colors: [
-                                        Color(red: 0.49, green: 0.36, blue: 1),
-                                        Color(red: 0.13, green: 0.83, blue: 0.93)
-                                    ],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, horizontalInset)
-                    .padding(.bottom, max(32, 32 * scale))
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
-        }
-        .preferredColorScheme(.dark)
-    }
-
-    private func header(scale: CGFloat) -> some View {
-        HStack {
-            Text("3 / 3")
-                .font(.system(size: 12 * scale, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.55))
-
-            Spacer()
-
-            Button(action: onSkip) {
-                Text("건너뛰기")
-                    .font(.system(size: 13 * scale, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.7))
-            }
-            .buttonStyle(.plain)
         }
     }
 
@@ -189,18 +136,4 @@ struct OnboardingThirdPageView: View {
         }
     }
 
-    private var pageIndicator: some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(.white.opacity(0.2))
-                .frame(width: 8, height: 8)
-            Circle()
-                .fill(.white.opacity(0.2))
-                .frame(width: 8, height: 8)
-            Circle()
-                .fill(Color(red: 0.486, green: 0.361, blue: 1))
-                .frame(width: 8, height: 8)
-        }
-        .frame(maxWidth: .infinity, minHeight: 8, maxHeight: 8)
-    }
 }

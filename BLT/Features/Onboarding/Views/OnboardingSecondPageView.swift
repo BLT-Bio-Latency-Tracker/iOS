@@ -1,9 +1,6 @@
 import SwiftUI
 
 struct OnboardingSecondPageView: View {
-    var onNext: () -> Void = {}
-    var onSkip: () -> Void = {}
-
     private let designWidth: CGFloat = 375
     private let designHeight: CGFloat = 812
 
@@ -13,16 +10,9 @@ struct OnboardingSecondPageView: View {
             let horizontalInset = max(24, (proxy.size.width - 327 * scale) / 2)
 
             ZStack {
-                Color(red: 0.039, green: 0.055, blue: 0.153)
-                    .ignoresSafeArea()
-
                 VStack(spacing: 0) {
-                    header(scale: scale)
-                        .padding(.top, 64 * scale)
-                        .padding(.horizontal, horizontalInset)
-
                     sleepPVTGraphic(size: 255 * scale)
-                        .padding(.top, 51 * scale)
+                        .padding(.top, 130 * scale)
 
                     VStack(alignment: .leading, spacing: 0) {
                         Text("수면과 30초 반응속도로\n당신의 뇌를 측정합니다")
@@ -43,43 +33,9 @@ struct OnboardingSecondPageView: View {
                     .padding(.top, 45 * scale)
 
                     Spacer(minLength: 0)
-
-                    pageIndicator
-                        .padding(.bottom, 20 * scale)
-
-                    Button(action: onNext) {
-                        Text("다음")
-                            .font(.system(size: 16 * scale, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 52 * scale)
-                            .background(Color(red: 0.486, green: 0.361, blue: 1))
-                            .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, horizontalInset)
-                    .padding(.bottom, max(32, 32 * scale))
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
-        }
-        .preferredColorScheme(.dark)
-    }
-
-    private func header(scale: CGFloat) -> some View {
-        HStack {
-            Text("2 / 3")
-                .font(.system(size: 12 * scale, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.55))
-
-            Spacer()
-
-            Button(action: onSkip) {
-                Text("건너뛰기")
-                    .font(.system(size: 13 * scale, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.7))
-            }
-            .buttonStyle(.plain)
         }
     }
 
@@ -132,18 +88,4 @@ struct OnboardingSecondPageView: View {
             .frame(width: width, height: height)
     }
 
-    private var pageIndicator: some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(.white.opacity(0.2))
-                .frame(width: 8, height: 8)
-            Circle()
-                .fill(Color(red: 0.486, green: 0.361, blue: 1))
-                .frame(width: 8, height: 8)
-            Circle()
-                .fill(.white.opacity(0.2))
-                .frame(width: 8, height: 8)
-        }
-        .frame(maxWidth: .infinity, minHeight: 8, maxHeight: 8)
-    }
 }
