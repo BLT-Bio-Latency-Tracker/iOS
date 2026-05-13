@@ -5,6 +5,7 @@ struct ContentView: View {
     private var hasCompletedOnboarding = false
 
     @State private var route: AppRoute
+    @State private var profileSetupDraft = ProfileSetupDraft()
     @StateObject private var authFlowViewModel = AuthFlowViewModel()
 
     init() {
@@ -77,9 +78,33 @@ struct ContentView: View {
 
             case .profileSetup:
                 ProfileSetupView(
+                    setupDraft: $profileSetupDraft,
                     onBack: {
                         withAnimation(.easeInOut(duration: 0.35)) {
                             route = .healthPermission
+                        }
+                    },
+                    onNext: {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            route = .startReady
+                        }
+                    },
+                    onSkip: {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            route = .startReady
+                        }
+                    }
+                )
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing),
+                        removal: .move(edge: .leading)
+                    ))
+
+            case .startReady:
+                StartReadyView(
+                    onBack: {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            route = .profileSetup
                         }
                     }
                 )
@@ -106,6 +131,7 @@ private enum AppRoute {
     case termsAgreement
     case healthPermission
     case profileSetup
+    case startReady
 }
 
 private enum AppStorageKey {
