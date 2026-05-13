@@ -1,4 +1,3 @@
-import AuthenticationServices
 import SwiftUI
 
 struct LoginView: View {
@@ -100,21 +99,23 @@ struct LoginView: View {
     }
 
     private func appleLoginButton(scale: CGFloat) -> some View {
-        ZStack {
-            SignInWithAppleButton(.continue) { _ in
-            } onCompletion: { _ in
-            }
-            .signInWithAppleButtonStyle(.white)
-            .frame(height: 52 * scale)
-            .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
-            .allowsHitTesting(false)
+        Button(action: onAppleButtonTapped) {
+            HStack(spacing: 14 * scale) {
+                Image(systemName: "apple.logo")
+                    .font(.system(size: 22 * scale, weight: .medium))
+                    .foregroundStyle(Color(red: 0.039, green: 0.055, blue: 0.153))
 
-            Button(action: onAppleButtonTapped) {
-                Color.clear
+                Text("Apple로 계속하기")
+                    .font(.system(size: 16 * scale, weight: .semibold))
+                    .foregroundStyle(Color(red: 0.039, green: 0.055, blue: 0.153))
             }
-            .contentShape(Rectangle())
-            .accessibilityLabel("Apple로 계속하기")
+            .frame(maxWidth: .infinity)
+            .frame(height: 52 * scale)
+            .background(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Apple로 계속하기")
         .frame(height: 52 * scale)
     }
 }
