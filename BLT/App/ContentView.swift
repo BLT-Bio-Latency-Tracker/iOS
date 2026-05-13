@@ -4,21 +4,29 @@ struct ContentView: View {
     @AppStorage(AppStorageKey.hasCompletedOnboarding)
     private var hasCompletedOnboarding = false
 
-    @State private var route: AppRoute
+    @State private var route: AppRoute = .splash
     @State private var profileSetupDraft = ProfileSetupDraft()
     @StateObject private var authFlowViewModel = AuthFlowViewModel()
 
+    private let routeAfterSplash: AppRoute
+
     init() {
-        let initialRoute: AppRoute = UserDefaults.standard.bool(
+        routeAfterSplash = UserDefaults.standard.bool(
             forKey: AppStorageKey.hasCompletedOnboarding
         ) ? .login : .onboarding
-
-        _route = State(initialValue: initialRoute)
     }
 
     var body: some View {
         ZStack {
             switch route {
+            case .splash:
+                SplashView {
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        route = routeAfterSplash
+                    }
+                }
+                .transition(.opacity)
+
             case .onboarding:
                 OnboardingView(onFinish: completeOnboarding)
                 .transition(.asymmetric(
@@ -126,6 +134,7 @@ struct ContentView: View {
 }
 
 private enum AppRoute {
+    case splash
     case onboarding
     case login
     case termsAgreement
