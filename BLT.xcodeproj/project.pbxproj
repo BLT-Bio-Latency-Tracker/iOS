@@ -188,6 +188,14 @@
 				TargetAttributes = {
 					EA0450272F9F8ADE00FF9111 = {
 						CreatedOnToolsVersion = 26.3;
+						SystemCapabilities = {
+							com.apple.HealthKit = {
+								enabled = 1;
+							};
+							com.apple.SignInWithApple = {
+								enabled = 1;
+							};
+						};
 					};
 					EA0450342F9F8ADE00FF9111 = {
 						CreatedOnToolsVersion = 26.3;
@@ -416,6 +424,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BLT/Info.plist;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "수면 데이터와 심박변이도 데이터를 사용해 Brain ROI 측정 정확도를 높입니다.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "BLT는 건강 데이터를 직접 쓰지 않지만, HealthKit 권한 요청을 위해 사용 목적을 안내합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -426,7 +436,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = BLT.com.BLT;
+				PRODUCT_BUNDLE_IDENTIFIER = BLT.com;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -452,6 +462,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BLT/Info.plist;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "수면 데이터와 심박변이도 데이터를 사용해 Brain ROI 측정 정확도를 높입니다.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "BLT는 건강 데이터를 직접 쓰지 않지만, HealthKit 권한 요청을 위해 사용 목적을 안내합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -462,7 +474,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = BLT.com.BLT;
+				PRODUCT_BUNDLE_IDENTIFIER = BLT.com;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

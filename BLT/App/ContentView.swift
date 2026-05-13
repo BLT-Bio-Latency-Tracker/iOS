@@ -45,7 +45,15 @@ struct ContentView: View {
                     },
                     onNext: { termsAgreement in
                         Task {
-                            await authFlowViewModel.signInWithApple(termsAgreement: termsAgreement)
+                            let isSignedIn = await authFlowViewModel.signInWithApple(
+                                termsAgreement: termsAgreement
+                            )
+
+                            guard isSignedIn else { return }
+
+                            withAnimation(.easeInOut(duration: 0.35)) {
+                                route = .healthPermission
+                            }
                         }
                     },
                     isProcessing: authFlowViewModel.isSigningIn,
@@ -55,6 +63,24 @@ struct ContentView: View {
                     insertion: .move(edge: .trailing),
                     removal: .move(edge: .leading)
                 ))
+
+            case .healthPermission:
+                HealthPermissionView { _ in
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        route = .profileSetup
+                    }
+                }
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing),
+                        removal: .move(edge: .leading)
+                    ))
+
+            case .profileSetup:
+                ProfileSetupView()
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing),
+                        removal: .move(edge: .leading)
+                    ))
             }
         }
     }
@@ -72,6 +98,8 @@ private enum AppRoute {
     case onboarding
     case login
     case termsAgreement
+    case healthPermission
+    case profileSetup
 }
 
 private enum AppStorageKey {

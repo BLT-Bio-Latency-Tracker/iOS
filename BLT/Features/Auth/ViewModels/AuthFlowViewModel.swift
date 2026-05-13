@@ -30,10 +30,10 @@ final class AuthFlowViewModel: ObservableObject {
         self.termsAPIService = termsAPIService
     }
 
-    func signInWithApple(termsAgreement: TermsAgreementState) async {
+    func signInWithApple(termsAgreement: TermsAgreementState) async -> Bool {
         guard termsAgreement.isRequiredAgreed else {
             errorMessage = "필수 약관에 모두 동의해주세요."
-            return
+            return false
         }
 
         isSigningIn = true
@@ -49,17 +49,19 @@ final class AuthFlowViewModel: ObservableObject {
             latestTermsAgreementRequest = termsAgreement.termsRequest
 
             guard NetworkClient.shared.baseURL != nil else {
-                return
+                return true
             }
 
             _ = try await authAPIService.login(appleResult.loginRequest)
             // TODO: 서버 baseURL과 토큰 저장 방식 확정 후 termsAPIService.submitTerms(...)를 연결합니다.
+            return true
         } catch {
             guard !isAppleLoginCanceled(error) else {
-                return
+                return false
             }
 
             errorMessage = error.localizedDescription
+            return false
         }
     }
 
