@@ -76,7 +76,13 @@ struct ContentView: View {
                     ))
 
             case .profileSetup:
-                ProfileSetupView()
+                ProfileSetupView(
+                    onBack: {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            route = .healthPermission
+                        }
+                    }
+                )
                     .transition(.asymmetric(
                         insertion: .move(edge: .trailing),
                         removal: .move(edge: .leading)
