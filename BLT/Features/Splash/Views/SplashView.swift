@@ -55,7 +55,7 @@ struct SplashView: View {
                 isLogoVisible = true
             }
 
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.15) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                 onFinish()
             }
         }
