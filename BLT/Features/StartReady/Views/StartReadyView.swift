@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct StartReadyView: View {
     var onBack: () -> Void = {}
@@ -49,8 +50,14 @@ struct StartReadyView: View {
         }
         .preferredColorScheme(.dark)
         .onAppear {
+            UIImpactFeedbackGenerator(style: .light).prepare()
+
             withAnimation(.spring(response: 0.9, dampingFraction: 0.82).delay(0.42)) {
                 isSymbolVisible = true
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.42) {
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
             }
         }
     }
@@ -157,6 +164,7 @@ struct StartReadyView: View {
 
     private func startButton(scale: CGFloat) -> some View {
         Button {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.85)
             onStart()
         } label: {
             Text("BLT 시작하기")
