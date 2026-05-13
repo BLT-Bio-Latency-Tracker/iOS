@@ -1,32 +1,41 @@
 import SwiftUI
 
+struct ProfileSetupDraft {
+    var birthYear: Int?
+    var gender: ProfileSetupGender?
+    var wakeUpTime: Date?
+    var jobGroup: ProfileSetupJobGroup?
+
+    var isComplete: Bool {
+        birthYear != nil && gender != nil && wakeUpTime != nil && jobGroup != nil
+    }
+}
+
+enum ProfileSetupGender: String, CaseIterable, Identifiable {
+    case male = "남"
+    case female = "여"
+    case other = "기타"
+    case preferNotToSay = "응답 안함"
+
+    var id: String { rawValue }
+}
+
+enum ProfileSetupJobGroup: String, CaseIterable, Identifiable {
+    case knowledge = "지식 노동"
+    case field = "현장 노동"
+    case student = "학생"
+    case other = "기타"
+
+    var id: String { rawValue }
+}
+
 struct ProfileSetupView: View {
-    enum Gender: String, CaseIterable, Identifiable {
-        case male = "남"
-        case female = "여"
-        case other = "기타"
-        case preferNotToSay = "응답 안함"
-
-        var id: String { rawValue }
-    }
-
-    enum JobGroup: String, CaseIterable, Identifiable {
-        case knowledge = "지식 노동"
-        case field = "현장 노동"
-        case student = "학생"
-        case other = "기타"
-
-        var id: String { rawValue }
-    }
+    @Binding var setupDraft: ProfileSetupDraft
 
     var onBack: () -> Void = {}
     var onNext: () -> Void = {}
     var onSkip: () -> Void = {}
 
-    @State private var birthYear: Int?
-    @State private var gender: Gender?
-    @State private var wakeUpTime: Date?
-    @State private var jobGroup: JobGroup?
     @State private var activePicker: ActivePicker?
 
     private let designWidth: CGFloat = 375
@@ -34,7 +43,7 @@ struct ProfileSetupView: View {
     private let birthYears = Array((1940...2026).reversed())
 
     private var canMoveNext: Bool {
-        birthYear != nil && gender != nil && wakeUpTime != nil && jobGroup != nil
+        setupDraft.isComplete
     }
 
     var body: some View {
@@ -126,7 +135,7 @@ struct ProfileSetupView: View {
         VStack(alignment: .leading, spacing: 20 * scale) {
             dropdownSection(
                 title: "출생 연도",
-                value: birthYear.map(String.init) ?? "선택해주세요",
+                value: setupDraft.birthYear.map(String.init) ?? "선택해주세요",
                 scale: scale
             ) {
                 activePicker = .birthYear
@@ -136,7 +145,7 @@ struct ProfileSetupView: View {
 
             dropdownSection(
                 title: "평균 기상 시간",
-                value: wakeUpTime.map(formattedWakeUpTime) ?? "선택해주세요",
+                value: setupDraft.wakeUpTime.map(formattedWakeUpTime) ?? "선택해주세요",
                 scale: scale
             ) {
                 activePicker = .wakeUpTime
@@ -186,13 +195,13 @@ struct ProfileSetupView: View {
             sectionTitle("성별", scale: scale)
 
             HStack(spacing: 7 * scale) {
-                ForEach(Gender.allCases) { item in
+                ForEach(ProfileSetupGender.allCases) { item in
                     selectableChip(
                         item.rawValue,
-                        isSelected: gender == item,
+                        isSelected: setupDraft.gender == item,
                         scale: scale
                     ) {
-                        gender = item
+                        setupDraft.gender = item
                     }
                 }
             }
@@ -204,18 +213,18 @@ struct ProfileSetupView: View {
             sectionTitle("직업군", scale: scale)
 
             HStack(spacing: 0) {
-                ForEach(JobGroup.allCases) { item in
+                ForEach(ProfileSetupJobGroup.allCases) { item in
                     Button {
-                        jobGroup = item
+                        setupDraft.jobGroup = item
                     } label: {
                         Text(item.rawValue)
-                            .font(.system(size: 12 * scale, weight: jobGroup == item ? .semibold : .medium))
-                            .foregroundStyle(.white.opacity(jobGroup == item ? 1 : 0.6))
+                            .font(.system(size: 12 * scale, weight: setupDraft.jobGroup == item ? .semibold : .medium))
+                            .foregroundStyle(.white.opacity(setupDraft.jobGroup == item ? 1 : 0.6))
                             .frame(maxWidth: .infinity)
                             .frame(height: 28 * scale)
                             .background(
                                 RoundedRectangle(cornerRadius: 6 * scale, style: .continuous)
-                                    .fill(jobGroup == item ? Color(red: 0.486, green: 0.361, blue: 1) : .clear)
+                                    .fill(setupDraft.jobGroup == item ? Color(red: 0.486, green: 0.361, blue: 1) : .clear)
                             )
                     }
                     .buttonStyle(.plain)
@@ -321,8 +330,8 @@ struct ProfileSetupView: View {
             switch picker {
             case .birthYear:
                 Picker("출생 연도", selection: Binding(
-                    get: { birthYear ?? 2000 },
-                    set: { birthYear = $0 }
+                    get: { setupDraft.birthYear ?? 2000 },
+                    set: { setupDraft.birthYear = $0 }
                 )) {
                     ForEach(birthYears, id: \.self) { year in
                         Text(String(year))
@@ -335,8 +344,8 @@ struct ProfileSetupView: View {
                 DatePicker(
                     "평균 기상 시간",
                     selection: Binding(
-                        get: { wakeUpTime ?? defaultWakeUpTime },
-                        set: { wakeUpTime = $0 }
+                        get: { setupDraft.wakeUpTime ?? defaultWakeUpTime },
+                        set: { setupDraft.wakeUpTime = $0 }
                     ),
                     displayedComponents: .hourAndMinute
                 )
@@ -364,9 +373,9 @@ struct ProfileSetupView: View {
     private func confirmPickerSelection(_ picker: ActivePicker) {
         switch picker {
         case .birthYear:
-            birthYear = birthYear ?? 2000
+            setupDraft.birthYear = setupDraft.birthYear ?? 2000
         case .wakeUpTime:
-            wakeUpTime = wakeUpTime ?? defaultWakeUpTime
+            setupDraft.wakeUpTime = setupDraft.wakeUpTime ?? defaultWakeUpTime
         }
     }
 }

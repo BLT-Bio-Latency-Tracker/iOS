@@ -5,6 +5,7 @@ struct ContentView: View {
     private var hasCompletedOnboarding = false
 
     @State private var route: AppRoute
+    @State private var profileSetupDraft = ProfileSetupDraft()
     @StateObject private var authFlowViewModel = AuthFlowViewModel()
 
     init() {
@@ -77,6 +78,7 @@ struct ContentView: View {
 
             case .profileSetup:
                 ProfileSetupView(
+                    setupDraft: $profileSetupDraft,
                     onBack: {
                         withAnimation(.easeInOut(duration: 0.35)) {
                             route = .healthPermission
