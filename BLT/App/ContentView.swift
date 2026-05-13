@@ -81,6 +81,29 @@ struct ContentView: View {
                         withAnimation(.easeInOut(duration: 0.35)) {
                             route = .healthPermission
                         }
+                    },
+                    onNext: {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            route = .startReady
+                        }
+                    },
+                    onSkip: {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            route = .startReady
+                        }
+                    }
+                )
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing),
+                        removal: .move(edge: .leading)
+                    ))
+
+            case .startReady:
+                StartReadyView(
+                    onBack: {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            route = .profileSetup
+                        }
                     }
                 )
                     .transition(.asymmetric(
@@ -106,6 +129,7 @@ private enum AppRoute {
     case termsAgreement
     case healthPermission
     case profileSetup
+    case startReady
 }
 
 private enum AppStorageKey {
