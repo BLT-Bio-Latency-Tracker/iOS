@@ -274,7 +274,7 @@ struct TermsAgreementView: View {
             guard isRequiredAgreed, !isProcessing else { return }
             onNext(termsAgreementState)
         } label: {
-            Text(isProcessing ? "Apple 로그인 진행 중" : "동의하고 Apple로 계속하기")
+            Text(isProcessing ? "처리 중" : "동의하고 계속하기")
                 .font(.system(size: 15 * scale, weight: .bold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)

@@ -35,11 +35,21 @@ struct ContentView: View {
                 ))
 
             case .login:
-                LoginView {
-                    withAnimation(.easeInOut(duration: 0.35)) {
-                        route = .termsAgreement
-                    }
-                }
+                LoginView(
+                    onAppleButtonTapped: {
+                        Task {
+                            let isAuthenticated = await authFlowViewModel.authenticateWithApple()
+
+                            guard isAuthenticated else { return }
+
+                            withAnimation(.easeInOut(duration: 0.35)) {
+                                route = .termsAgreement
+                            }
+                        }
+                    },
+                    isProcessing: authFlowViewModel.isSigningIn,
+                    errorMessage: authFlowViewModel.errorMessage
+                )
                 .transition(.asymmetric(
                     insertion: .move(edge: .trailing),
                     removal: .move(edge: .leading)
@@ -54,11 +64,11 @@ struct ContentView: View {
                     },
                     onNext: { termsAgreement in
                         Task {
-                            let isSignedIn = await authFlowViewModel.signInWithApple(
-                                termsAgreement: termsAgreement
+                            let isCompleted = await authFlowViewModel.completeTermsAgreement(
+                                termsAgreement
                             )
 
-                            guard isSignedIn else { return }
+                            guard isCompleted else { return }
 
                             withAnimation(.easeInOut(duration: 0.35)) {
                                 route = .healthPermission
