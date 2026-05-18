@@ -2,6 +2,8 @@ import SwiftUI
 
 struct LoginView: View {
     var onAppleButtonTapped: () -> Void = {}
+    var isProcessing = false
+    var errorMessage: String?
 
     private let designWidth: CGFloat = 375
     private let designHeight: CGFloat = 812
@@ -41,7 +43,17 @@ struct LoginView: View {
 
                     Spacer(minLength: 0)
 
-                    appleLoginButton(scale: scale)
+                    VStack(spacing: 10 * scale) {
+                        appleLoginButton(scale: scale)
+
+                        if let errorMessage {
+                            Text(errorMessage)
+                                .font(.system(size: 11 * scale, weight: .medium))
+                                .foregroundStyle(Color(red: 1, green: 0.45, blue: 0.45))
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
                         .padding(.horizontal, horizontalInset)
                         .padding(.bottom, 28 * scale)
 
@@ -105,7 +117,7 @@ struct LoginView: View {
                     .font(.system(size: 22 * scale, weight: .medium))
                     .foregroundStyle(Color(red: 0.039, green: 0.055, blue: 0.153))
 
-                Text("Apple로 계속하기")
+                Text(isProcessing ? "Apple 로그인 진행 중" : "Apple로 계속하기")
                     .font(.system(size: 16 * scale, weight: .semibold))
                     .foregroundStyle(Color(red: 0.039, green: 0.055, blue: 0.153))
             }
@@ -115,6 +127,8 @@ struct LoginView: View {
             .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
         }
         .buttonStyle(.plain)
+        .disabled(isProcessing)
+        .opacity(isProcessing ? 0.75 : 1)
         .accessibilityLabel("Apple로 계속하기")
         .frame(height: 52 * scale)
     }

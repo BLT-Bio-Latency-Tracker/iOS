@@ -54,9 +54,9 @@ struct TermsAgreementView: View {
                     .ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: 0) {
-                    backButton(scale: scale)
+                    header(scale: scale)
                         .padding(.top, max(proxy.safeAreaInsets.top - 24 * scale, 8 * scale))
-                        .padding(.leading, contentInset)
+                        .padding(.horizontal, contentInset)
 
                     titleSection(scale: scale)
                         .padding(.top, 18 * scale)
@@ -105,19 +105,25 @@ struct TermsAgreementView: View {
         }
     }
 
-    private func backButton(scale: CGFloat) -> some View {
-        Button(action: onBack) {
-            ZStack {
-                Circle()
-                    .stroke(.white.opacity(0.15), lineWidth: 1)
-                    .frame(width: 32 * scale, height: 32 * scale)
+    private func header(scale: CGFloat) -> some View {
+        HStack {
+            Spacer()
 
-                Text("←")
-                    .font(.system(size: 16 * scale, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.7))
-            }
+            pageIndicator(scale: scale)
         }
-        .buttonStyle(.plain)
+    }
+
+    private func pageIndicator(scale: CGFloat) -> some View {
+        Text("1 / 3")
+            .font(.system(size: 11 * scale, weight: .semibold))
+            .foregroundStyle(Color(red: 0.486, green: 0.361, blue: 1))
+            .frame(width: 56 * scale, height: 22 * scale)
+            .background(Color(red: 0.486, green: 0.361, blue: 1).opacity(0.18))
+            .clipShape(Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(Color(red: 0.486, green: 0.361, blue: 1).opacity(0.4), lineWidth: 1)
+            }
     }
 
     private func titleSection(scale: CGFloat) -> some View {
@@ -274,7 +280,7 @@ struct TermsAgreementView: View {
             guard isRequiredAgreed, !isProcessing else { return }
             onNext(termsAgreementState)
         } label: {
-            Text(isProcessing ? "Apple 로그인 진행 중" : "동의하고 Apple로 계속하기")
+            Text(isProcessing ? "처리 중" : "동의하고 계속하기")
                 .font(.system(size: 15 * scale, weight: .bold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
