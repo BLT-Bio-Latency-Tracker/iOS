@@ -88,7 +88,7 @@ struct HealthPermissionView: View {
         HStack {
             Spacer()
 
-            Text("1 / 2")
+            Text("2 / 3")
                 .font(.system(size: 11 * scale, weight: .semibold))
                 .foregroundStyle(Color(red: 0.486, green: 0.361, blue: 1))
                 .frame(width: 56 * scale, height: 22 * scale)

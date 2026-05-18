@@ -104,7 +104,7 @@ struct ProfileSetupView: View {
 
             Spacer()
 
-            Text("2 / 2")
+            Text("3 / 3")
                 .font(.system(size: 11 * scale, weight: .semibold))
                 .foregroundStyle(Color(red: 0.486, green: 0.361, blue: 1))
                 .frame(width: 56 * scale, height: 22 * scale)
