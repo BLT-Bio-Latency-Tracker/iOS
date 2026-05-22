@@ -46,13 +46,22 @@ struct TodayViewState {
             comparisonSummary: "일주일 만에 최고치예요",
             sleep: TodaySleepData(
                 totalSleepText: "6h 40m",
+                totalMinutes: 400,
                 differenceText: "▼ 8%",
                 differenceDirection: .negative,
                 stages: [
                     TodaySleepStage(kind: .core, startRatio: 0.00, ratio: 0.60),
                     TodaySleepStage(kind: .deep, startRatio: 0.60, ratio: 0.18),
                     TodaySleepStage(kind: .rem, startRatio: 0.78, ratio: 0.22)
-                ]
+                ],
+                coreMinutes: 240,
+                deepMinutes: 72,
+                remMinutes: 88,
+                awakeMinutes: 35,
+                inBedMinutes: 460,
+                bedStartText: "23:08",
+                bedEndText: "06:48",
+                awakeCount: 2
             ),
             pvt: TodayPVTData(
                 averageMs: 312,

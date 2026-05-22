@@ -2,9 +2,18 @@ import Foundation
 
 struct TodaySleepData {
     let totalSleepText: String
+    let totalMinutes: Int
     let differenceText: String?
     let differenceDirection: TodaySleepDifferenceDirection?
     let stages: [TodaySleepStage]
+    let coreMinutes: Int
+    let deepMinutes: Int
+    let remMinutes: Int
+    let awakeMinutes: Int
+    let inBedMinutes: Int
+    let bedStartText: String
+    let bedEndText: String
+    let awakeCount: Int
 }
 
 enum TodaySleepDifferenceDirection {
@@ -20,7 +29,7 @@ struct TodaySleepStage: Identifiable {
     let ratio: Double
 }
 
-enum TodaySleepStageKind {
+enum TodaySleepStageKind: Hashable {
     case core
     case deep
     case rem
