@@ -4,7 +4,7 @@ struct ContentView: View {
     @AppStorage(AppStorageKey.hasCompletedOnboarding)
     private var hasCompletedOnboarding = false
 
-    @State private var route: AppRoute = .splash
+    @State private var route: AppRoute = .home
     @State private var profileSetupDraft = ProfileSetupDraft()
     @StateObject private var authFlowViewModel = AuthFlowViewModel()
 
@@ -124,12 +124,21 @@ struct ContentView: View {
                         withAnimation(.easeInOut(duration: 0.35)) {
                             route = .profileSetup
                         }
+                    },
+                    onStart: {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            route = .home
+                        }
                     }
                 )
                     .transition(.asymmetric(
                         insertion: .move(edge: .trailing),
                         removal: .move(edge: .leading)
                     ))
+
+            case .home:
+                MainTabView()
+                    .transition(.opacity)
             }
         }
     }
@@ -151,6 +160,7 @@ private enum AppRoute {
     case healthPermission
     case profileSetup
     case startReady
+    case home
 }
 
 private enum AppStorageKey {
