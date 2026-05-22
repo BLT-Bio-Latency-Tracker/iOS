@@ -1,34 +1,5 @@
 import SwiftUI
 
-struct ProfileSetupDraft {
-    var birthYear: Int?
-    var gender: ProfileSetupGender?
-    var wakeUpTime: Date?
-    var jobGroup: ProfileSetupJobGroup?
-
-    var isComplete: Bool {
-        birthYear != nil && gender != nil && wakeUpTime != nil && jobGroup != nil
-    }
-}
-
-enum ProfileSetupGender: String, CaseIterable, Identifiable {
-    case male = "남"
-    case female = "여"
-    case other = "기타"
-    case preferNotToSay = "응답 안함"
-
-    var id: String { rawValue }
-}
-
-enum ProfileSetupJobGroup: String, CaseIterable, Identifiable {
-    case knowledge = "지식 노동"
-    case field = "현장 노동"
-    case student = "학생"
-    case other = "기타"
-
-    var id: String { rawValue }
-}
-
 struct ProfileSetupView: View {
     @Binding var setupDraft: ProfileSetupDraft
 
