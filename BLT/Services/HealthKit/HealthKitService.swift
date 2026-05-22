@@ -29,6 +29,9 @@ struct HealthKitSleepSummary {
     let deepMinutes: Int
     let remMinutes: Int
     let awakeMinutes: Int
+    let inBedMinutes: Int
+    let bedStartAt: Date
+    let bedEndAt: Date
     let stageSegments: [HealthKitSleepStageSegment]
 }
 
@@ -36,6 +39,7 @@ struct HealthKitSleepStageSegment {
     let kind: HealthKitSleepStageKind
     let startRatio: Double
     let durationRatio: Double
+    let durationMinutes: Int
 }
 
 enum HealthKitSleepStageKind {
@@ -189,6 +193,9 @@ final class HealthKitService {
             deepMinutes: minutesAfterMerging(deepIntervals),
             remMinutes: minutesAfterMerging(remIntervals),
             awakeMinutes: minutesAfterMerging(awakeIntervals),
+            inBedMinutes: Int((sleepSession.duration / 60).rounded()),
+            bedStartAt: sleepSession.start,
+            bedEndAt: sleepSession.end,
             stageSegments: sleepStageSegments(
                 from: samples,
                 in: sleepSession,
@@ -234,7 +241,8 @@ final class HealthKitService {
             return HealthKitSleepStageSegment(
                 kind: segment.kind,
                 startRatio: min(max(startRatio, 0), 1),
-                durationRatio: min(max(durationRatio, 0), 1)
+                durationRatio: min(max(durationRatio, 0), 1),
+                durationMinutes: Int((segment.interval.duration / 60).rounded())
             )
         }
     }

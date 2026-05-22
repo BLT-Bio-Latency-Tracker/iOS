@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MainTabView: View {
     @State private var selectedTab: MainTab = .home
+    @State private var isTabBarHidden = false
 
     var body: some View {
         ZStack {
@@ -11,26 +12,33 @@ struct MainTabView: View {
             selectedContent
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     Color.clear
-                        .frame(height: 76)
+                        .frame(height: isTabBarHidden ? 0 : 76)
                 }
 
-            VStack {
-                Spacer()
+            if !isTabBarHidden {
+                VStack {
+                    Spacer()
 
-                MainTabBar(selectedTab: $selectedTab)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 4)
+                    MainTabBar(selectedTab: $selectedTab)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 4)
+                }
+                .ignoresSafeArea(.keyboard, edges: .bottom)
             }
-            .ignoresSafeArea(.keyboard, edges: .bottom)
         }
         .preferredColorScheme(.dark)
+        .onChange(of: selectedTab) { _, _ in
+            isTabBarHidden = false
+        }
     }
 
     @ViewBuilder
     private var selectedContent: some View {
         switch selectedTab {
         case .today:
-            TodayView()
+            TodayView { isHidden in
+                isTabBarHidden = isHidden
+            }
 
         case .home:
             HomeView()

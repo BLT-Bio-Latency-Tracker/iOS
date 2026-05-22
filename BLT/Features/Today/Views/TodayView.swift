@@ -2,7 +2,9 @@ import SwiftUI
 
 struct TodayView: View {
     @StateObject private var viewModel = TodayViewModel()
+    @State private var isSleepDetailPresented = false
 
+    var onSleepDetailVisibilityChanged: (Bool) -> Void = { _ in }
     var onMeasureAgain: () -> Void = {}
     var onConnectHealthKit: () -> Void = {}
 
@@ -10,60 +12,74 @@ struct TodayView: View {
     private let designHeight: CGFloat = 844
 
     var body: some View {
-        GeometryReader { proxy in
-            let scale = proxy.size.width / designWidth
-            let contentWidth = max(0, proxy.size.width - 40 * scale)
-            let horizontalInset = (proxy.size.width - contentWidth) / 2
-            let topPadding = max(36 * scale, 60 * scale - proxy.safeAreaInsets.top)
+        NavigationStack {
+            GeometryReader { proxy in
+                let scale = proxy.size.width / designWidth
+                let contentWidth = max(0, proxy.size.width - 40 * scale)
+                let horizontalInset = (proxy.size.width - contentWidth) / 2
+                let topPadding = max(36 * scale, 60 * scale - proxy.safeAreaInsets.top)
 
-            ZStack {
-                Color.todayBackground
-                    .ignoresSafeArea()
+                ZStack {
+                    Color.todayBackground
+                        .ignoresSafeArea()
 
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        Text("오늘의 결과")
-                            .font(.system(size: 16 * scale, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, topPadding)
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 0) {
+                            Text("오늘의 결과")
+                                .font(.system(size: 16 * scale, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.top, topPadding)
 
-                        roiIndexCard(scale: scale)
-                            .padding(.top, 25 * scale)
+                            roiIndexCard(scale: scale)
+                                .padding(.top, 25 * scale)
 
-                        comparisonNotice(scale: scale)
-                            .padding(.top, 16 * scale)
+                            comparisonNotice(scale: scale)
+                                .padding(.top, 16 * scale)
 
-                        comparisonPicker(scale: scale)
-                            .padding(.top, 18 * scale)
-                            .padding(.horizontal, 11 * scale)
+                            comparisonPicker(scale: scale)
+                                .padding(.top, 18 * scale)
+                                .padding(.horizontal, 11 * scale)
 
-                        if let sleep = viewModel.state.sleep {
-                            sleepConnectedCard(sleep, scale: scale)
-                                .padding(.top, 20 * scale)
-                        } else {
-                            sleepDisconnectedCard(scale: scale)
-                                .padding(.top, 20 * scale)
+                            if let sleep = viewModel.state.sleep {
+                                sleepConnectedCard(sleep, scale: scale)
+                                    .padding(.top, 20 * scale)
+                            } else {
+                                sleepDisconnectedCard(scale: scale)
+                                    .padding(.top, 20 * scale)
+                            }
+
+                            pvtCard(scale: scale)
+                                .padding(.top, 9 * scale)
+
+                            measureAgainButton(scale: scale)
+                                .padding(.top, 24 * scale)
+                                .padding(.bottom, 36 * scale)
                         }
-
-                        pvtCard(scale: scale)
-                            .padding(.top, 9 * scale)
-
-                        measureAgainButton(scale: scale)
-                            .padding(.top, 24 * scale)
-                            .padding(.bottom, 36 * scale)
+                        .padding(.horizontal, horizontalInset)
                     }
-                    .padding(.horizontal, horizontalInset)
+                    .refreshable {
+                        await viewModel.loadHealthKitSleepSummary()
+                    }
                 }
-                .refreshable {
-                    await viewModel.loadHealthKitSleepSummary()
+                .frame(width: proxy.size.width, height: proxy.size.height)
+            }
+            .navigationDestination(isPresented: $isSleepDetailPresented) {
+                if let sleep = viewModel.state.sleep {
+                    SleepDetailView(sleep: sleep) {
+                        isSleepDetailPresented = false
+                    }
+                    .navigationBarBackButtonHidden(true)
+                    .toolbar(.hidden, for: .navigationBar)
                 }
             }
-            .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .preferredColorScheme(.dark)
         .task {
             await viewModel.loadHealthKitSleepSummary()
+        }
+        .onChange(of: isSleepDetailPresented) { _, newValue in
+            onSleepDetailVisibilityChanged(newValue)
         }
     }
 
@@ -225,7 +241,9 @@ struct TodayView: View {
 
                 Spacer()
 
-                Button {} label: {
+                Button {
+                    isSleepDetailPresented = true
+                } label: {
                     HStack(spacing: 2 * scale) {
                         Text("상세 분석")
                         Text("›")

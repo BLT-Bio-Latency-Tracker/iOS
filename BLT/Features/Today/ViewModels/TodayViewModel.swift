@@ -42,9 +42,20 @@ final class TodayViewModel: ObservableObject {
             state = state.replacingSleep(
                 TodaySleepData(
                     totalSleepText: totalSleepText(from: sleep.summary.totalMinutes),
+                    totalMinutes: sleep.summary.totalMinutes,
                     differenceText: sleepDifference.text,
                     differenceDirection: sleepDifference.direction,
-                    stages: sleepStages(from: sleep.summary)
+                    stages: sleepStages(from: sleep.summary),
+                    coreMinutes: sleep.summary.coreMinutes,
+                    deepMinutes: sleep.summary.deepMinutes,
+                    remMinutes: sleep.summary.remMinutes,
+                    awakeMinutes: sleep.summary.awakeMinutes,
+                    inBedMinutes: sleep.summary.inBedMinutes,
+                    bedStartText: timeFormatter.string(from: sleep.summary.bedStartAt),
+                    bedEndText: timeFormatter.string(from: sleep.summary.bedEndAt),
+                    awakeCount: sleep.summary.stageSegments.filter {
+                        $0.kind == .awake && $0.durationMinutes > 2
+                    }.count
                 ),
                 scoreMode: .full,
                 roiStatusText: state.roiStatusText == "PVT만 반영" ? "안정적인 방전 상태" : state.roiStatusText
