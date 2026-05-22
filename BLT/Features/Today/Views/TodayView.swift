@@ -1,0 +1,516 @@
+import SwiftUI
+
+struct TodayView: View {
+    @StateObject private var viewModel = TodayViewModel()
+
+    var onMeasureAgain: () -> Void = {}
+    var onConnectHealthKit: () -> Void = {}
+
+    private let designWidth: CGFloat = 390
+    private let designHeight: CGFloat = 844
+
+    var body: some View {
+        GeometryReader { proxy in
+            let scale = proxy.size.width / designWidth
+            let contentWidth = max(0, proxy.size.width - 40 * scale)
+            let horizontalInset = (proxy.size.width - contentWidth) / 2
+            let topPadding = max(36 * scale, 60 * scale - proxy.safeAreaInsets.top)
+
+            ZStack {
+                Color.todayBackground
+                    .ignoresSafeArea()
+
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        Text("오늘의 결과")
+                            .font(.system(size: 16 * scale, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, topPadding)
+
+                        roiIndexCard(scale: scale)
+                            .padding(.top, 25 * scale)
+
+                        comparisonNotice(scale: scale)
+                            .padding(.top, 16 * scale)
+
+                        comparisonPicker(scale: scale)
+                            .padding(.top, 18 * scale)
+                            .padding(.horizontal, 11 * scale)
+
+                        if let sleep = viewModel.state.sleep {
+                            sleepConnectedCard(sleep, scale: scale)
+                                .padding(.top, 20 * scale)
+                        } else {
+                            sleepDisconnectedCard(scale: scale)
+                                .padding(.top, 20 * scale)
+                        }
+
+                        pvtCard(scale: scale)
+                            .padding(.top, 9 * scale)
+
+                        measureAgainButton(scale: scale)
+                            .padding(.top, 24 * scale)
+                            .padding(.bottom, 36 * scale)
+                    }
+                    .padding(.horizontal, horizontalInset)
+                }
+                .refreshable {
+                    await viewModel.loadHealthKitSleepSummary()
+                }
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        .preferredColorScheme(.dark)
+        .task {
+            await viewModel.loadHealthKitSleepSummary()
+        }
+    }
+
+    private func roiIndexCard(scale: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(viewModel.roiIndexTitle)
+                .font(.system(size: 9.5 * scale, weight: .semibold))
+                .tracking(1.5 * scale)
+                .foregroundStyle(viewModel.state.isSleepDataConnected ? .white.opacity(0.55) : Color.todayCaution)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+
+            HStack(alignment: .center, spacing: 20 * scale) {
+                Text("\(viewModel.state.score)")
+                    .font(.system(size: 54 * scale, weight: .heavy))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .frame(width: 78 * scale, alignment: .leading)
+
+                roiChangeBadge(scale: scale)
+                    .padding(.top, 7 * scale)
+
+                Spacer()
+            }
+            .padding(.top, 2 * scale)
+
+            Text(viewModel.roiFooterText)
+                .font(.system(size: 11 * scale, weight: .medium))
+                .foregroundStyle(viewModel.state.isSleepDataConnected ? .white.opacity(0.85) : Color.todayMutedText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .padding(.top, viewModel.state.isSleepDataConnected ? 0 : 2 * scale)
+        }
+        .padding(.horizontal, 16 * scale)
+        .padding(.top, 9 * scale)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 120 * scale)
+        .background {
+            LinearGradient(
+                colors: [
+                    Color.todayPrimary.opacity(0.32),
+                    Color.todayCyan.opacity(0.18)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 22 * scale, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22 * scale, style: .continuous)
+                .stroke(.white.opacity(0.1), lineWidth: 1)
+        }
+    }
+
+    private func roiChangeBadge(scale: CGFloat) -> some View {
+        Text("▲ \(viewModel.state.roiChangePercent)%")
+            .font(.system(size: 11 * scale, weight: .bold))
+            .foregroundStyle(Color.todayPositive)
+            .frame(width: 76 * scale, height: 22 * scale)
+            .background(Color.todayPositive.opacity(0.18))
+            .clipShape(Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(Color.todayPositive.opacity(0.4), lineWidth: 1)
+            }
+    }
+
+    private func comparisonNotice(scale: CGFloat) -> some View {
+        let isConnected = viewModel.state.isSleepDataConnected
+
+        return HStack(spacing: isConnected ? 0 : 8 * scale) {
+            if !isConnected {
+                Text("⚠")
+                    .font(.system(size: 14 * scale, weight: .regular))
+                    .foregroundStyle(Color.todayCaution)
+                    .frame(width: 22 * scale)
+            }
+
+            VStack(alignment: .leading, spacing: 6 * scale) {
+                Text(viewModel.comparisonSummaryTitle)
+                    .font(.system(size: isConnected ? 13 * scale : 11 * scale, weight: isConnected ? .semibold : .medium))
+                    .foregroundStyle(isConnected ? Color.todayPositive : .white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+
+                if let subtitle = viewModel.comparisonSummarySubtitle {
+                    Text(subtitle)
+                        .font(.system(size: 11 * scale, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.65))
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, isConnected ? 16 * scale : 14 * scale)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: isConnected ? 56 * scale : 40 * scale)
+        .background(isConnected ? Color.todayPositive.opacity(0.14) : Color.todayCaution.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 12 * scale, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12 * scale, style: .continuous)
+                .stroke(isConnected ? Color.todayPositive.opacity(0.35) : Color.todayCaution.opacity(0.5), lineWidth: 1)
+        }
+    }
+
+    private func comparisonPicker(scale: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 9 * scale) {
+            Text("비교 기준")
+                .font(.system(size: 11 * scale, weight: .semibold))
+                .tracking(0.4 * scale)
+                .foregroundStyle(Color.todayMutedText)
+
+            HStack(spacing: 0) {
+                ForEach(TodayComparisonType.allCases) { type in
+                    Button {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                            viewModel.selectedComparison = type
+                        }
+                    } label: {
+                        Text(type.title)
+                            .font(.system(size: 12 * scale, weight: viewModel.selectedComparison == type ? .semibold : .regular))
+                            .foregroundStyle(viewModel.selectedComparison == type ? .white : Color.todayMutedText)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 32 * scale)
+                            .background {
+                                if viewModel.selectedComparison == type {
+                                    Capsule()
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [Color.todayPrimary, Color.todayCyan],
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            )
+                                        )
+                                }
+                            }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(4 * scale)
+            .frame(height: 40 * scale)
+            .background(Color.todayCard)
+            .clipShape(Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(Color.todayBorder, lineWidth: 1)
+            }
+        }
+    }
+
+    private func sleepConnectedCard(_ sleep: TodaySleepData, scale: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("🛌  수면 데이터")
+                    .font(.system(size: 11 * scale, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.85))
+
+                Spacer()
+
+                Button {} label: {
+                    HStack(spacing: 2 * scale) {
+                        Text("상세 분석")
+                        Text("›")
+                    }
+                    .font(.system(size: 12 * scale, weight: .medium))
+                    .foregroundStyle(Color.todayCyan)
+                }
+                .buttonStyle(.plain)
+            }
+
+            HStack(alignment: .bottom, spacing: 10 * scale) {
+                Text(sleep.totalSleepText)
+                    .font(.system(size: 28 * scale, weight: .heavy))
+                    .foregroundStyle(.white)
+
+                if let differenceText = sleep.differenceText {
+                    Text(differenceText)
+                        .font(.system(size: 10 * scale, weight: .bold))
+                        .foregroundStyle(sleepDifferenceForeground(for: sleep.differenceDirection))
+                        .padding(.horizontal, 7 * scale)
+                        .frame(height: 20 * scale)
+                        .background(sleepDifferenceBackground(for: sleep.differenceDirection))
+                        .clipShape(Capsule())
+                        .offset(y: -4 * scale)
+                }
+            }
+            .padding(.top, 10 * scale)
+
+            SleepStageBar(stages: sleep.stages, scale: scale)
+                .frame(height: 7 * scale)
+                .padding(.top, 12 * scale)
+        }
+        .padding(.horizontal, 16 * scale)
+        .padding(.top, 11 * scale)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 112 * scale)
+        .background(Color.todayCard)
+        .clipShape(RoundedRectangle(cornerRadius: 16 * scale, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16 * scale, style: .continuous)
+                .stroke(.white.opacity(0.08), lineWidth: 1)
+        }
+    }
+
+    private func sleepDisconnectedCard(scale: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 4 * scale) {
+                Text("🌙")
+                    .font(.system(size: 15 * scale))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .frame(width: 24 * scale, alignment: .leading)
+
+                Text("수면 데이터")
+                    .font(.system(size: 12 * scale, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.7))
+
+                Spacer()
+
+                Text("🔒 미연동")
+                    .font(.system(size: 10 * scale, weight: .semibold))
+                    .foregroundStyle(Color.todayMutedText)
+                    .frame(width: 60 * scale, height: 22 * scale)
+                    .background(Color.todayBorder)
+                    .clipShape(Capsule())
+            }
+
+            Text("수면 데이터를 연동하면 전체 점수와\n수면 단계 분석을 확인할 수 있어요")
+                .font(.system(size: 11 * scale, weight: .regular))
+                .foregroundStyle(Color.todayMutedText)
+                .lineSpacing(2 * scale)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 11 * scale)
+
+            Button(action: onConnectHealthKit) {
+                Text("HealthKit 연동하기")
+                    .font(.system(size: 11 * scale, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 30 * scale)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.todayPrimary, Color.todayCyan],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 8 * scale, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 9 * scale)
+        }
+        .padding(.horizontal, 16 * scale)
+        .padding(.top, 6 * scale)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 120 * scale)
+        .background(Color.todayCard)
+        .clipShape(RoundedRectangle(cornerRadius: 16 * scale, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16 * scale, style: .continuous)
+                .stroke(Color.todayPrimary.opacity(0.5), lineWidth: 1.5)
+        }
+    }
+
+    private func pvtCard(scale: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                HStack(spacing: 8 * scale) {
+                    Text("⚡")
+                        .font(.system(size: 15 * scale))
+
+                    Text("PVT 검사")
+                        .font(.system(size: 12 * scale, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+
+                Spacer()
+
+                Button {} label: {
+                    HStack(spacing: 2 * scale) {
+                        Text("상세 분석")
+                        Text("›")
+                    }
+                    .font(.system(size: 12 * scale, weight: .medium))
+                    .foregroundStyle(Color.todayCyan)
+                }
+                .buttonStyle(.plain)
+            }
+
+            HStack(alignment: .lastTextBaseline, spacing: 10 * scale) {
+                Text("\(viewModel.state.pvt.averageMs)")
+                    .font(.system(size: 28 * scale, weight: .bold))
+                    .foregroundStyle(.white)
+
+                Text("ms 평균")
+                    .font(.system(size: 11 * scale, weight: .regular))
+                    .foregroundStyle(Color.todayMutedText)
+                    .padding(.bottom, 4 * scale)
+
+                Spacer()
+
+                Text(viewModel.state.pvt.changeText)
+                    .font(.system(size: 10 * scale, weight: .bold))
+                    .foregroundStyle(Color.todayPositive)
+                    .padding(.horizontal, 8 * scale)
+                    .frame(height: 20 * scale)
+                    .background(Color.todayPositive.opacity(0.18))
+                    .clipShape(Capsule())
+
+                Text(viewModel.state.pvt.highlightText)
+                    .font(.system(size: 9 * scale, weight: .semibold))
+                    .foregroundStyle(Color.todayCyan)
+                    .padding(.horizontal, 10 * scale)
+                    .frame(height: 20 * scale)
+                    .background(Color.todayCyan.opacity(0.12))
+                    .clipShape(Capsule())
+                    .overlay {
+                        Capsule()
+                            .stroke(Color.todayCyan.opacity(0.85), lineWidth: 1)
+                    }
+            }
+            .padding(.top, 10 * scale)
+
+            PVTTrialBar(trials: viewModel.state.pvt.trials, scale: scale)
+                .frame(height: 16 * scale)
+                .padding(.top, 10 * scale)
+        }
+        .padding(.horizontal, 16 * scale)
+        .padding(.top, 10 * scale)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 112 * scale)
+        .background(Color.todayCard)
+        .clipShape(RoundedRectangle(cornerRadius: 16 * scale, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16 * scale, style: .continuous)
+                .stroke(Color.todayBorder, lineWidth: 1)
+        }
+    }
+
+    private func measureAgainButton(scale: CGFloat) -> some View {
+        Button(action: onMeasureAgain) {
+            Text("다시 측정하기")
+                .font(.system(size: 16 * scale, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50 * scale)
+                .background(
+                    LinearGradient(
+                        colors: [Color.todayPrimary, Color.todayCyan],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 16 * scale, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func sleepDifferenceForeground(for direction: TodaySleepDifferenceDirection?) -> Color {
+        switch direction {
+        case .positive:
+            return Color.todayPositive
+        case .negative:
+            return Color.todayNegative
+        case .neutral, .none:
+            return Color.todayMutedText
+        }
+    }
+
+    private func sleepDifferenceBackground(for direction: TodaySleepDifferenceDirection?) -> Color {
+        sleepDifferenceForeground(for: direction).opacity(0.18)
+    }
+}
+
+private struct SleepStageBar: View {
+    let stages: [TodaySleepStage]
+    let scale: CGFloat
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                ForEach(stages) { stage in
+                    color(for: stage.kind)
+                        .frame(width: max(proxy.size.width * stage.ratio, 1))
+                        .offset(x: proxy.size.width * stage.startRatio)
+                }
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .leading)
+            .background(.white.opacity(0.08))
+            .clipShape(Capsule())
+        }
+    }
+
+    private func color(for kind: TodaySleepStageKind) -> Color {
+        switch kind {
+        case .core:
+            return Color.todayCyan.opacity(0.72)
+        case .deep:
+            return Color.todayPrimary
+        case .rem:
+            return Color.todaySleepRem
+        case .awake:
+            return Color.todayNegative
+        }
+    }
+
+}
+
+private struct PVTTrialBar: View {
+    let trials: [Int]
+    let scale: CGFloat
+
+    var body: some View {
+        GeometryReader { proxy in
+            let bestValue = trials.min()
+            let maxValue = max(trials.max() ?? 1, 1)
+            let itemCount = CGFloat(max(trials.count, 1))
+            let barWidth = min(24 * scale, proxy.size.width / (itemCount * 1.8))
+            let spacing = itemCount > 1
+                ? max(8 * scale, (proxy.size.width - (barWidth * itemCount)) / (itemCount - 1))
+                : 0
+
+            HStack(alignment: .bottom, spacing: spacing) {
+                ForEach(Array(trials.enumerated()), id: \.offset) { _, value in
+                    let heightRatio = CGFloat(value) / CGFloat(maxValue)
+
+                    RoundedRectangle(cornerRadius: 3 * scale, style: .continuous)
+                        .fill(value == bestValue ? Color.todayCyan : Color.todayPVTBar)
+                        .frame(width: barWidth, height: max(8 * scale, 20 * scale * heightRatio))
+                }
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .bottomLeading)
+        }
+    }
+}
+
+private extension Color {
+    static let todayBackground = Color(red: 0.039, green: 0.055, blue: 0.153)
+    static let todayCard = Color(red: 0.078, green: 0.098, blue: 0.216)
+    static let todayBorder = Color(red: 0.11, green: 0.133, blue: 0.29)
+    static let todayPrimary = Color(red: 0.486, green: 0.361, blue: 1)
+    static let todayCyan = Color(red: 0.133, green: 0.827, blue: 0.933)
+    static let todayPositive = Color(red: 0.063, green: 0.725, blue: 0.506)
+    static let todayNegative = Color(red: 0.937, green: 0.267, blue: 0.267)
+    static let todayCaution = Color(red: 0.961, green: 0.62, blue: 0.043)
+    static let todayMutedText = Color(red: 0.62, green: 0.66, blue: 0.82)
+    static let todayPVTBar = Color(red: 0.42, green: 0.46, blue: 0.62).opacity(0.6)
+    static let todaySleepRem = Color(red: 0.83, green: 0.56, blue: 0.02)
+}

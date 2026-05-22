@@ -30,11 +30,7 @@ struct MainTabView: View {
     private var selectedContent: some View {
         switch selectedTab {
         case .today:
-            MainTabPlaceholderView(
-                title: "Today",
-                subtitle: "오늘의 측정 흐름을 준비 중이에요",
-                systemImage: "calendar"
-            )
+            TodayView()
 
         case .home:
             HomeView()
