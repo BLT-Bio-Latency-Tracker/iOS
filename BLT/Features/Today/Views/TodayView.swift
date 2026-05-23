@@ -384,24 +384,28 @@ struct TodayView: View {
 
                 Spacer()
 
-                Text(viewModel.state.pvt.changeText)
-                    .font(.system(size: 10 * scale, weight: .bold))
-                    .foregroundStyle(Color.todayPositive)
-                    .padding(.horizontal, 8 * scale)
-                    .frame(height: 20 * scale)
-                    .background(Color.todayPositive.opacity(0.18))
-                    .clipShape(Capsule())
+                if let changeText = viewModel.state.pvt.changeText {
+                    Text(changeText)
+                        .font(.system(size: 10 * scale, weight: .bold))
+                        .foregroundStyle(Color.todayPositive)
+                        .padding(.horizontal, 8 * scale)
+                        .frame(height: 20 * scale)
+                        .background(Color.todayPositive.opacity(0.18))
+                        .clipShape(Capsule())
+                }
 
-                Text(viewModel.state.pvt.highlightText)
-                    .font(.system(size: 9 * scale, weight: .semibold))
-                    .foregroundStyle(Color.todayCyan)
-                    .padding(.horizontal, 10 * scale)
-                    .frame(height: 20 * scale)
-                    .background(Color.todayCyan.opacity(0.12))
-                    .clipShape(Capsule())
-                    .overlay {
-                        Capsule()
-                            .stroke(Color.todayCyan.opacity(0.85), lineWidth: 1)
+                if let highlightText = viewModel.state.pvt.highlightText {
+                    Text(highlightText)
+                        .font(.system(size: 9 * scale, weight: .semibold))
+                        .foregroundStyle(Color.todayCyan)
+                        .padding(.horizontal, 10 * scale)
+                        .frame(height: 20 * scale)
+                        .background(Color.todayCyan.opacity(0.12))
+                        .clipShape(Capsule())
+                        .overlay {
+                            Capsule()
+                                .stroke(Color.todayCyan.opacity(0.85), lineWidth: 1)
+                        }
                     }
             }
             .padding(.top, 10 * scale)
@@ -498,7 +502,6 @@ private struct PVTTrialBar: View {
     var body: some View {
         GeometryReader { proxy in
             let bestValue = trials.min()
-            let maxValue = max(trials.max() ?? 1, 1)
             let itemCount = CGFloat(max(trials.count, 1))
             let barWidth = min(24 * scale, proxy.size.width / (itemCount * 1.8))
             let spacing = itemCount > 1
@@ -507,11 +510,13 @@ private struct PVTTrialBar: View {
 
             HStack(alignment: .bottom, spacing: spacing) {
                 ForEach(Array(trials.enumerated()), id: \.offset) { _, value in
-                    let heightRatio = CGFloat(value) / CGFloat(maxValue)
+                    let maximumMilliseconds: CGFloat = 500
+                    let clampedValue = min(max(CGFloat(value), 0), maximumMilliseconds)
+                    let heightRatio = clampedValue / maximumMilliseconds
 
                     RoundedRectangle(cornerRadius: 3 * scale, style: .continuous)
                         .fill(value == bestValue ? Color.todayCyan : Color.todayPVTBar)
-                        .frame(width: barWidth, height: max(8 * scale, 20 * scale * heightRatio))
+                        .frame(width: barWidth, height: max(4 * scale, proxy.size.height * heightRatio))
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .bottomLeading)

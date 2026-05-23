@@ -31,6 +31,19 @@ struct TodayViewState {
         )
     }
 
+    func replacingPVT(_ pvt: TodayPVTData, measuredAt: Date) -> TodayViewState {
+        TodayViewState(
+            score: score,
+            scoreMode: scoreMode,
+            roiStatusText: roiStatusText,
+            roiChangePercent: roiChangePercent,
+            measuredAt: measuredAt,
+            comparisonSummary: comparisonSummary,
+            sleep: sleep,
+            pvt: pvt
+        )
+    }
+
     static let sleepConnectedPlaceholder: TodayViewState = {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current

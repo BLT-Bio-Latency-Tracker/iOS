@@ -7,12 +7,15 @@ final class TodayViewModel: ObservableObject {
     @Published var selectedComparison: TodayComparisonType
 
     private let healthKitService: HealthKitService
+    private let pvtResultStore: PVTResultStore
     private let timeFormatter: DateFormatter
+    private var cancellables = Set<AnyCancellable>()
 
     init(
         state: TodayViewState? = nil,
         selectedComparison: TodayComparisonType = .yesterday,
-        healthKitService: HealthKitService? = nil
+        healthKitService: HealthKitService? = nil,
+        pvtResultStore: PVTResultStore? = nil
     ) {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ko_KR")
@@ -20,15 +23,23 @@ final class TodayViewModel: ObservableObject {
         formatter.dateFormat = "HH:mm"
         self.timeFormatter = formatter
         self.healthKitService = healthKitService ?? HealthKitService()
+        self.pvtResultStore = pvtResultStore ?? PVTResultStore.shared
 
         self.state = state ?? TodayViewState.sleepConnectedPlaceholder
         self.selectedComparison = selectedComparison
+
+        bindPVTResultStore()
+        applyLatestPVTResultIfNeeded()
     }
 
     func loadHealthKitSleepSummary() async {
         do {
             guard let sleep = try await latestAvailableSleepSummary(from: Date()) else {
-                state = TodayViewState.sleepDisconnectedPlaceholder
+                state = state.replacingSleep(
+                    nil,
+                    scoreMode: .pvtOnly,
+                    roiStatusText: "PVT만 반영"
+                )
                 return
             }
 
@@ -61,7 +72,11 @@ final class TodayViewModel: ObservableObject {
                 roiStatusText: state.roiStatusText == "PVT만 반영" ? "안정적인 방전 상태" : state.roiStatusText
             )
         } catch {
-            state = TodayViewState.sleepDisconnectedPlaceholder
+            state = state.replacingSleep(
+                nil,
+                scoreMode: .pvtOnly,
+                roiStatusText: "PVT만 반영"
+            )
         }
     }
 
@@ -95,6 +110,35 @@ final class TodayViewModel: ObservableObject {
         let hours = totalMinutes / 60
         let minutes = totalMinutes % 60
         return "\(hours)h \(minutes)m"
+    }
+
+    private func bindPVTResultStore() {
+        pvtResultStore.$latestSummary
+            .combineLatest(pvtResultStore.$measuredAt)
+            .sink { [weak self] summary, measuredAt in
+                self?.applyPVTSummary(summary, measuredAt: measuredAt)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func applyLatestPVTResultIfNeeded() {
+        applyPVTSummary(pvtResultStore.latestSummary, measuredAt: pvtResultStore.measuredAt)
+    }
+
+    private func applyPVTSummary(_ summary: PVTSummary?, measuredAt: Date?) {
+        guard let summary, let averageMs = summary.averageMilliseconds else {
+            return
+        }
+
+        state = state.replacingPVT(
+            TodayPVTData(
+                averageMs: averageMs,
+                changeText: nil,
+                highlightText: "직전 측정",
+                trials: summary.trials.map(\.reactionTimeMilliseconds)
+            ),
+            measuredAt: measuredAt ?? Date()
+        )
     }
 
     private func latestAvailableSleepSummary(

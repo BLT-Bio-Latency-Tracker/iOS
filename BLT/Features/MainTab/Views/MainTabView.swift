@@ -3,6 +3,7 @@ import SwiftUI
 struct MainTabView: View {
     @State private var selectedTab: MainTab = .home
     @State private var isTabBarHidden = false
+    @State private var isPVTMeasurementPresented = false
 
     var body: some View {
         ZStack {
@@ -30,18 +31,42 @@ struct MainTabView: View {
         .onChange(of: selectedTab) { _, _ in
             isTabBarHidden = false
         }
+        .fullScreenCover(isPresented: $isPVTMeasurementPresented) {
+            PVTReadyView(
+                onClose: {
+                    isPVTMeasurementPresented = false
+                },
+                onComplete: { summary in
+                    PVTResultStore.shared.save(summary)
+                    selectedTab = .today
+                    isPVTMeasurementPresented = false
+                },
+                onAbort: {
+                    selectedTab = .home
+                    isPVTMeasurementPresented = false
+                }
+            )
+            .ignoresSafeArea()
+        }
     }
 
     @ViewBuilder
     private var selectedContent: some View {
         switch selectedTab {
         case .today:
-            TodayView { isHidden in
-                isTabBarHidden = isHidden
-            }
+            TodayView(
+                onSleepDetailVisibilityChanged: { isHidden in
+                    isTabBarHidden = isHidden
+                },
+                onMeasureAgain: {
+                    isPVTMeasurementPresented = true
+                }
+            )
 
         case .home:
-            HomeView()
+            HomeView {
+                isPVTMeasurementPresented = true
+            }
 
         case .history:
             MainTabPlaceholderView(
