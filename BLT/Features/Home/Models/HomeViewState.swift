@@ -13,6 +13,26 @@ struct HomeViewState {
     let nextRecommendation: HomeNextRecommendation
     let timelineSegments: [HomeTimelineSegment]
 
+    func replacingMeasurementSummary(
+        measuredAt: Date? = nil,
+        sleepSummary: String? = nil,
+        pvtSummary: String? = nil
+    ) -> HomeViewState {
+        HomeViewState(
+            userName: userName,
+            profileInitial: profileInitial,
+            brainROI: brainROI,
+            roiStatusText: roiStatusText,
+            roiChangePercent: roiChangePercent,
+            measuredAt: measuredAt ?? self.measuredAt,
+            sleepSummary: sleepSummary ?? self.sleepSummary,
+            pvtSummary: pvtSummary ?? self.pvtSummary,
+            recommendation: recommendation,
+            nextRecommendation: nextRecommendation,
+            timelineSegments: timelineSegments
+        )
+    }
+
     static let placeholder: HomeViewState = {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
@@ -53,4 +73,3 @@ struct HomeViewState {
         )
     }()
 }
-

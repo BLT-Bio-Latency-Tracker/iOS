@@ -48,6 +48,9 @@ struct HomeView: View {
         .onReceive(timer) { date in
             viewModel.updateCurrentDate(date)
         }
+        .task {
+            await viewModel.loadHealthKitSleepSummary()
+        }
     }
 
     private func header(scale: CGFloat) -> some View {
