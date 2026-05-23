@@ -3,6 +3,7 @@ import SwiftUI
 struct TodayView: View {
     @StateObject private var viewModel = TodayViewModel()
     @State private var isSleepDetailPresented = false
+    @State private var isPVTDetailPresented = false
 
     var onSleepDetailVisibilityChanged: (Bool) -> Void = { _ in }
     var onMeasureAgain: () -> Void = {}
@@ -73,13 +74,23 @@ struct TodayView: View {
                     .toolbar(.hidden, for: .navigationBar)
                 }
             }
+            .navigationDestination(isPresented: $isPVTDetailPresented) {
+                PVTDetailView(summary: viewModel.latestPVTSummary) {
+                    isPVTDetailPresented = false
+                }
+                .navigationBarBackButtonHidden(true)
+                .toolbar(.hidden, for: .navigationBar)
+            }
         }
         .preferredColorScheme(.dark)
         .task {
             await viewModel.loadHealthKitSleepSummary()
         }
-        .onChange(of: isSleepDetailPresented) { _, newValue in
-            onSleepDetailVisibilityChanged(newValue)
+        .onChange(of: isSleepDetailPresented) { _, _ in
+            notifyDetailVisibilityChanged()
+        }
+        .onChange(of: isPVTDetailPresented) { _, _ in
+            notifyDetailVisibilityChanged()
         }
     }
 
@@ -361,7 +372,9 @@ struct TodayView: View {
 
                 Spacer()
 
-                Button {} label: {
+                Button {
+                    isPVTDetailPresented = true
+                } label: {
                     HStack(spacing: 2 * scale) {
                         Text("상세 분석")
                         Text("›")
@@ -458,6 +471,10 @@ struct TodayView: View {
 
     private func sleepDifferenceBackground(for direction: TodaySleepDifferenceDirection?) -> Color {
         sleepDifferenceForeground(for: direction).opacity(0.18)
+    }
+
+    private func notifyDetailVisibilityChanged() {
+        onSleepDetailVisibilityChanged(isSleepDetailPresented || isPVTDetailPresented)
     }
 }
 

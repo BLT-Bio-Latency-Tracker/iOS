@@ -15,12 +15,14 @@ final class PVTTestViewModel: ObservableObject {
     @Published private(set) var currentElapsedMilliseconds = 0
     @Published private(set) var isShowingFalseStart = false
     @Published private(set) var isShowingSlowLapse = false
+    @Published private(set) var falseStartCount = 0
 
     let totalTrials: Int
     let lapseThresholdMilliseconds: Int
     let excludesLapsesFromAverage: Bool
     let autoLapseMilliseconds: Int
 
+    private let environmentCalibration: PVTEnvironmentCalibrationResult?
     private let delayRange: ClosedRange<Double>
     private var stimulusTimer: DispatchSourceTimer?
     private var stimulusTimeoutTimer: DispatchSourceTimer?
@@ -38,12 +40,14 @@ final class PVTTestViewModel: ObservableObject {
         lapseThresholdMilliseconds: Int = 500,
         excludesLapsesFromAverage: Bool = true,
         autoLapseMilliseconds: Int = 5000,
+        environmentCalibration: PVTEnvironmentCalibrationResult? = nil,
         delayRange: ClosedRange<Double> = 2...10
     ) {
         self.totalTrials = totalTrials
         self.lapseThresholdMilliseconds = lapseThresholdMilliseconds
         self.excludesLapsesFromAverage = excludesLapsesFromAverage
         self.autoLapseMilliseconds = autoLapseMilliseconds
+        self.environmentCalibration = environmentCalibration
         self.delayRange = delayRange
     }
 
@@ -67,7 +71,9 @@ final class PVTTestViewModel: ObservableObject {
         PVTSummary(
             trials: trials,
             lapseThresholdMilliseconds: lapseThresholdMilliseconds,
-            excludesLapsesFromAverage: excludesLapsesFromAverage
+            excludesLapsesFromAverage: excludesLapsesFromAverage,
+            falseStartCount: falseStartCount,
+            environmentCalibration: environmentCalibration
         )
     }
 
@@ -76,6 +82,7 @@ final class PVTTestViewModel: ObservableObject {
         currentElapsedMilliseconds = 0
         isShowingFalseStart = false
         isShowingSlowLapse = false
+        falseStartCount = 0
         phase = .waiting
         scheduleNextStimulus()
     }
@@ -175,6 +182,7 @@ final class PVTTestViewModel: ObservableObject {
 
         isShowingFalseStart = true
         isShowingSlowLapse = false
+        falseStartCount += 1
         currentElapsedMilliseconds = 0
         phase = .waiting
         scheduleNextStimulus()
