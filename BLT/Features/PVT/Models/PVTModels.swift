@@ -17,15 +17,21 @@ struct PVTSummary: Equatable {
     let trials: [PVTTrial]
     let lapseThresholdMilliseconds: Int
     let excludesLapsesFromAverage: Bool
+    let falseStartCount: Int
+    let environmentCalibration: PVTEnvironmentCalibrationResult?
 
     nonisolated init(
         trials: [PVTTrial],
         lapseThresholdMilliseconds: Int,
-        excludesLapsesFromAverage: Bool
+        excludesLapsesFromAverage: Bool,
+        falseStartCount: Int = 0,
+        environmentCalibration: PVTEnvironmentCalibrationResult? = nil
     ) {
         self.trials = trials
         self.lapseThresholdMilliseconds = lapseThresholdMilliseconds
         self.excludesLapsesFromAverage = excludesLapsesFromAverage
+        self.falseStartCount = falseStartCount
+        self.environmentCalibration = environmentCalibration
     }
 
     var bestMilliseconds: Int? {
@@ -47,5 +53,21 @@ struct PVTSummary: Equatable {
 
     var lapseCount: Int {
         trials.filter(\.isLapse).count
+    }
+}
+
+struct PVTEnvironmentCalibrationResult: Codable, Equatable {
+    let maxTimerDriftMilliseconds: Int
+    let unstableFrameCount: Int
+    let isLowPowerModeEnabled: Bool
+
+    nonisolated init(
+        maxTimerDriftMilliseconds: Int,
+        unstableFrameCount: Int,
+        isLowPowerModeEnabled: Bool
+    ) {
+        self.maxTimerDriftMilliseconds = maxTimerDriftMilliseconds
+        self.unstableFrameCount = unstableFrameCount
+        self.isLowPowerModeEnabled = isLowPowerModeEnabled
     }
 }

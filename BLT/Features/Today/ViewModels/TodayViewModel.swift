@@ -4,6 +4,7 @@ import Combine
 @MainActor
 final class TodayViewModel: ObservableObject {
     @Published private(set) var state: TodayViewState
+    @Published private(set) var latestPVTSummary: PVTSummary?
     @Published var selectedComparison: TodayComparisonType
 
     private let healthKitService: HealthKitService
@@ -130,6 +131,7 @@ final class TodayViewModel: ObservableObject {
             return
         }
 
+        latestPVTSummary = summary
         state = state.replacingPVT(
             TodayPVTData(
                 averageMs: averageMs,

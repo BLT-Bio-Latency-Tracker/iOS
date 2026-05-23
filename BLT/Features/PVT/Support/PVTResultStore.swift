@@ -48,19 +48,25 @@ private struct StoredPVTResult: Codable {
     let trials: [StoredPVTTrial]
     let lapseThresholdMilliseconds: Int
     let excludesLapsesFromAverage: Bool
+    let falseStartCount: Int?
+    let environmentCalibration: PVTEnvironmentCalibrationResult?
 
     nonisolated init(summary: PVTSummary, measuredAt: Date) {
         self.measuredAt = measuredAt
         self.trials = summary.trials.map(StoredPVTTrial.init)
         self.lapseThresholdMilliseconds = summary.lapseThresholdMilliseconds
         self.excludesLapsesFromAverage = summary.excludesLapsesFromAverage
+        self.falseStartCount = summary.falseStartCount
+        self.environmentCalibration = summary.environmentCalibration
     }
 
     var summary: PVTSummary {
         PVTSummary(
             trials: trials.map(\.trial),
             lapseThresholdMilliseconds: lapseThresholdMilliseconds,
-            excludesLapsesFromAverage: excludesLapsesFromAverage
+            excludesLapsesFromAverage: excludesLapsesFromAverage,
+            falseStartCount: falseStartCount ?? 0,
+            environmentCalibration: environmentCalibration
         )
     }
 }

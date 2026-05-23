@@ -27,6 +27,7 @@ struct PVTEnvironmentCalibrationView: View {
 
             case .measurement:
                 PVTMeasurementContainerView(
+                    environmentCalibration: calibrator.result,
                     onComplete: { summary in
                         calibrator.restoreBrightness()
                         step = .calculation(summary)
@@ -188,6 +189,7 @@ struct PVTEnvironmentCalibrationView: View {
 private final class PVTEnvironmentCalibrator: NSObject, ObservableObject {
     @Published private(set) var progress: CGFloat = 0
     @Published private(set) var isFinished = false
+    @Published private(set) var result: PVTEnvironmentCalibrationResult?
 
     private var originalBrightness: CGFloat?
     private var startTime: CFTimeInterval = 0
@@ -266,6 +268,11 @@ private final class PVTEnvironmentCalibrator: NSObject, ObservableObject {
 
     private func complete() {
         progress = 1
+        result = PVTEnvironmentCalibrationResult(
+            maxTimerDriftMilliseconds: Int((maxTimerDelay * 1000).rounded()),
+            unstableFrameCount: unstableFrameCount,
+            isLowPowerModeEnabled: isLowPowerModeEnabled
+        )
         isFinished = true
         stop()
     }
