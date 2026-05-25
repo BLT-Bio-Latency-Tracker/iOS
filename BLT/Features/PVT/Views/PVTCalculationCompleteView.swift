@@ -169,41 +169,25 @@ struct PVTCalculationCompleteView: View {
     @MainActor
     private func loadSleepText() async {
         do {
-            guard let sleepSummary = try await latestAvailableSleepSummary(from: Date()) else {
-                sleepText = "--"
-                return
-            }
+            let resolvedSleep = try await healthKitService.fetchDisplaySleepSummary(for: Date())
 
-            sleepText = durationText(from: sleepSummary.totalMinutes)
+            switch resolvedSleep.status {
+            case .available:
+                sleepText = durationText(from: resolvedSleep.summary?.totalMinutes ?? 0)
+            case .noSleep:
+                sleepText = "0h"
+            case .syncing, .noWearableData, .notConnected:
+                sleepText = "--"
+            }
         } catch {
             sleepText = "--"
         }
-    }
-
-    private func latestAvailableSleepSummary(from date: Date) async throws -> HealthKitSleepSummary? {
-        if let summary = try await healthKitService.fetchSleepSummary(for: date) {
-            return summary
-        }
-
-        guard let fallbackDate = Calendar.pvtCompleteKorea.date(byAdding: .day, value: -1, to: date) else {
-            return nil
-        }
-
-        return try await healthKitService.fetchSleepSummary(for: fallbackDate)
     }
 
     private func durationText(from minutes: Int) -> String {
         let hours = minutes / 60
         let remainingMinutes = minutes % 60
         return "\(hours)h \(remainingMinutes)m"
-    }
-}
-
-private extension Calendar {
-    static var pvtCompleteKorea: Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
-        return calendar
     }
 }
 

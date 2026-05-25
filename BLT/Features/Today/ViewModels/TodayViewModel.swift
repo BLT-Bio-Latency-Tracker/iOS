@@ -9,6 +9,7 @@ final class TodayViewModel: ObservableObject {
 
     private let healthKitService: HealthKitService
     private let pvtResultStore: PVTResultStore
+    private let calendar: Calendar
     private let timeFormatter: DateFormatter
     private var cancellables = Set<AnyCancellable>()
 
@@ -18,9 +19,13 @@ final class TodayViewModel: ObservableObject {
         healthKitService: HealthKitService? = nil,
         pvtResultStore: PVTResultStore? = nil
     ) {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+        self.calendar = calendar
+
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ko_KR")
-        formatter.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+        formatter.timeZone = calendar.timeZone
         formatter.dateFormat = "HH:mm"
         self.timeFormatter = formatter
         self.healthKitService = healthKitService ?? HealthKitService()
@@ -30,66 +35,100 @@ final class TodayViewModel: ObservableObject {
         self.selectedComparison = selectedComparison
 
         bindPVTResultStore()
+        bindHealthKitSleepUpdates()
+        startHealthKitSleepObservationIfNeeded()
         applyLatestPVTResultIfNeeded()
     }
 
     func loadHealthKitSleepSummary() async {
         do {
-            guard let sleep = try await latestAvailableSleepSummary(from: Date()) else {
+            let sleep = try await healthKitService.fetchDisplaySleepSummary(for: Date())
+
+            let previousDate = Calendar.bltKorea.date(byAdding: .day, value: -1, to: sleep.date) ?? sleep.date
+            let previousSummary = try? await healthKitService.fetchSleepSummary(for: previousDate)
+
+            guard let summary = sleep.summary else {
                 state = state.replacingSleep(
-                    nil,
+                    placeholderSleepData(for: sleep.status, previousSummary: previousSummary),
+                    sleepStatus: todaySleepDataStatus(from: sleep.status),
                     scoreMode: .pvtOnly,
                     roiStatusText: "PVT만 반영"
                 )
                 return
             }
 
-            let previousDate = Calendar.bltKorea.date(byAdding: .day, value: -1, to: sleep.date) ?? sleep.date
-            let previousSummary = try? await healthKitService.fetchSleepSummary(for: previousDate)
             let sleepDifference = sleepDifferenceText(
-                todayMinutes: sleep.summary.totalMinutes,
+                todayMinutes: summary.totalMinutes,
                 yesterdayMinutes: previousSummary?.totalMinutes
             )
 
             state = state.replacingSleep(
                 TodaySleepData(
-                    totalSleepText: totalSleepText(from: sleep.summary.totalMinutes),
-                    totalMinutes: sleep.summary.totalMinutes,
+                    totalSleepText: totalSleepText(from: summary.totalMinutes),
+                    totalMinutes: summary.totalMinutes,
                     differenceText: sleepDifference.text,
                     differenceDirection: sleepDifference.direction,
-                    stages: sleepStages(from: sleep.summary),
-                    coreMinutes: sleep.summary.coreMinutes,
-                    deepMinutes: sleep.summary.deepMinutes,
-                    remMinutes: sleep.summary.remMinutes,
-                    awakeMinutes: sleep.summary.awakeMinutes,
-                    inBedMinutes: sleep.summary.inBedMinutes,
-                    bedStartText: timeFormatter.string(from: sleep.summary.bedStartAt),
-                    bedEndText: timeFormatter.string(from: sleep.summary.bedEndAt),
-                    awakeCount: sleep.summary.stageSegments.filter {
+                    stages: sleepStages(from: summary),
+                    coreMinutes: summary.coreMinutes,
+                    deepMinutes: summary.deepMinutes,
+                    remMinutes: summary.remMinutes,
+                    awakeMinutes: summary.awakeMinutes,
+                    inBedMinutes: summary.inBedMinutes,
+                    bedStartText: timeFormatter.string(from: summary.bedStartAt),
+                    bedEndText: timeFormatter.string(from: summary.bedEndAt),
+                    awakeCount: summary.stageSegments.filter {
                         $0.kind == .awake && $0.durationMinutes > 2
                     }.count
                 ),
+                sleepStatus: .available,
                 scoreMode: .full,
                 roiStatusText: state.roiStatusText == "PVT만 반영" ? "안정적인 방전 상태" : state.roiStatusText
             )
         } catch {
             state = state.replacingSleep(
                 nil,
+                sleepStatus: .notConnected,
                 scoreMode: .pvtOnly,
                 roiStatusText: "PVT만 반영"
             )
         }
     }
 
+    func refreshPVTResult() {
+        applyLatestPVTResultIfNeeded()
+    }
+
     var measuredTimeText: String {
         timeFormatter.string(from: state.measuredAt)
     }
 
+    var measuredTimeLabel: String {
+        measurementTimeLabel(for: state.measuredAt, referenceDate: Date())
+    }
+
     var roiFooterText: String {
-        if state.isSleepDataConnected {
-            return "\(state.roiStatusText) · \(measuredTimeText) 측정"
+        guard state.hasTodayPVTData else {
+            switch state.sleepStatus {
+            case .available:
+                return "\(state.roiStatusText) · 오늘 PVT 측정 데이터 없음"
+            case .noSleep:
+                return "수면 0h · 오늘 PVT 측정 데이터 없음"
+            case .syncing:
+                return "수면 동기화 대기 중 · 오늘 PVT 측정 데이터 없음"
+            case .noWearableData:
+                return "수면 기록 없음 · 오늘 PVT 측정 데이터 없음"
+            case .notConnected:
+                return "수면 미연동 · 오늘 PVT 측정 데이터 없음"
+            }
         }
-        return "오늘 \(measuredTimeText) 측정 · PVT만 반영"
+
+        if state.sleepStatus == .available {
+            return "\(state.roiStatusText) · \(measuredTimeLabel) 측정"
+        }
+        if state.sleepStatus == .noSleep {
+            return "\(measuredTimeLabel) 측정 · 수면 0h + PVT 반영"
+        }
+        return "\(measuredTimeLabel) 측정 · PVT만 반영"
     }
 
     var roiIndexTitle: String {
@@ -97,20 +136,54 @@ final class TodayViewModel: ObservableObject {
     }
 
     var comparisonSummaryTitle: String {
-        guard state.isSleepDataConnected else {
+        switch state.sleepStatus {
+        case .available:
+            return "✨ 어제보다 \(state.roiChangePercent)% 향상!"
+        case .notConnected:
             return "수면 데이터가 없어 종합 점수 산출 불가 · 연동 시 +35%"
+        case .syncing:
+            return "수면 데이터 동기화 대기 중"
+        case .noSleep:
+            return "오늘 수면 시간이 0h로 기록됐어요"
+        case .noWearableData:
+            return "수면 기록을 찾을 수 없어요"
         }
-        return "✨ 어제보다 \(state.roiChangePercent)% 향상!"
     }
 
     var comparisonSummarySubtitle: String? {
-        state.isSleepDataConnected ? state.comparisonSummary : nil
+        switch state.sleepStatus {
+        case .available:
+            return state.comparisonSummary
+        case .syncing:
+            return "HealthKit 반영까지 시간이 걸릴 수 있어요"
+        case .noSleep:
+            return "밤샘 또는 실제 미수면 상태로 처리합니다"
+        case .noWearableData:
+            return "Apple Watch 착용 또는 수면 집중모드 기록을 확인해주세요"
+        case .notConnected:
+            return nil
+        }
     }
 
     private func totalSleepText(from totalMinutes: Int) -> String {
         let hours = totalMinutes / 60
         let minutes = totalMinutes % 60
         return "\(hours)h \(minutes)m"
+    }
+
+    private func measurementTimeLabel(for measuredAt: Date, referenceDate: Date) -> String {
+        let timeText = timeFormatter.string(from: measuredAt)
+
+        if calendar.isDate(measuredAt, inSameDayAs: referenceDate) {
+            return "오늘 \(timeText)"
+        }
+
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: referenceDate),
+              calendar.isDate(measuredAt, inSameDayAs: yesterday) else {
+            return timeText
+        }
+
+        return "어제 \(timeText)"
     }
 
     private func bindPVTResultStore() {
@@ -122,43 +195,52 @@ final class TodayViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
+    private func bindHealthKitSleepUpdates() {
+        NotificationCenter.default.publisher(for: HealthKitService.sleepDataDidChangeNotification)
+            .debounce(for: .seconds(0.5), scheduler: RunLoop.main)
+            .sink { [weak self] _ in
+                Task {
+                    await self?.loadHealthKitSleepSummary()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    private func startHealthKitSleepObservationIfNeeded() {
+        try? healthKitService.startObservingSleepChanges()
+    }
+
     private func applyLatestPVTResultIfNeeded() {
         applyPVTSummary(pvtResultStore.latestSummary, measuredAt: pvtResultStore.measuredAt)
     }
 
     private func applyPVTSummary(_ summary: PVTSummary?, measuredAt: Date?) {
-        guard let summary, let averageMs = summary.averageMilliseconds else {
+        guard let result = pvtResultStore.displayResult(for: Date()),
+              let averageMs = result.summary.averageMilliseconds else {
+            latestPVTSummary = nil
+            state = state.replacingPVT(
+                TodayPVTData(
+                    averageMs: 0,
+                    changeText: nil,
+                    highlightText: nil,
+                    trials: []
+                ),
+                pvtStatus: .noMeasurement
+            )
             return
         }
 
-        latestPVTSummary = summary
+        latestPVTSummary = result.summary
         state = state.replacingPVT(
             TodayPVTData(
                 averageMs: averageMs,
                 changeText: nil,
                 highlightText: "직전 측정",
-                trials: summary.trials.map(\.reactionTimeMilliseconds)
+                trials: result.summary.trials.map(\.reactionTimeMilliseconds)
             ),
-            measuredAt: measuredAt ?? Date()
+            pvtStatus: .available,
+            measuredAt: result.measuredAt
         )
-    }
-
-    private func latestAvailableSleepSummary(
-        from date: Date
-    ) async throws -> (date: Date, summary: HealthKitSleepSummary)? {
-        if let summary = try await healthKitService.fetchSleepSummary(for: date) {
-            return (date, summary)
-        }
-
-        guard let fallbackDate = Calendar.bltKorea.date(byAdding: .day, value: -1, to: date) else {
-            return nil
-        }
-
-        guard let fallbackSummary = try await healthKitService.fetchSleepSummary(for: fallbackDate) else {
-            return nil
-        }
-
-        return (fallbackDate, fallbackSummary)
     }
 
     private func sleepDifferenceText(
@@ -182,6 +264,49 @@ final class TodayViewModel: ObservableObject {
         }
 
         return ("0%", .neutral)
+    }
+
+    private func placeholderSleepData(
+        for status: HealthKitSleepDataStatus,
+        previousSummary: HealthKitSleepSummary?
+    ) -> TodaySleepData? {
+        guard status == .noSleep else { return nil }
+
+        let sleepDifference = sleepDifferenceText(
+            todayMinutes: 0,
+            yesterdayMinutes: previousSummary?.totalMinutes
+        )
+
+        return TodaySleepData(
+            totalSleepText: "0h",
+            totalMinutes: 0,
+            differenceText: sleepDifference.text,
+            differenceDirection: sleepDifference.direction,
+            stages: [],
+            coreMinutes: 0,
+            deepMinutes: 0,
+            remMinutes: 0,
+            awakeMinutes: 0,
+            inBedMinutes: 0,
+            bedStartText: "--:--",
+            bedEndText: "--:--",
+            awakeCount: 0
+        )
+    }
+
+    private func todaySleepDataStatus(from status: HealthKitSleepDataStatus) -> TodaySleepDataStatus {
+        switch status {
+        case .available:
+            return .available
+        case .notConnected:
+            return .notConnected
+        case .syncing:
+            return .syncing
+        case .noSleep:
+            return .noSleep
+        case .noWearableData:
+            return .noWearableData
+        }
     }
 
     private func sleepStages(from summary: HealthKitSleepSummary) -> [TodaySleepStage] {

@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 struct TodayView: View {
@@ -9,6 +10,7 @@ struct TodayView: View {
     var onMeasureAgain: () -> Void = {}
     var onConnectHealthKit: () -> Void = {}
 
+    private let refreshTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
     private let designWidth: CGFloat = 390
     private let designHeight: CGFloat = 844
 
@@ -45,8 +47,11 @@ struct TodayView: View {
                             if let sleep = viewModel.state.sleep {
                                 sleepConnectedCard(sleep, scale: scale)
                                     .padding(.top, 20 * scale)
-                            } else {
+                            } else if viewModel.state.sleepStatus == .notConnected {
                                 sleepDisconnectedCard(scale: scale)
+                                    .padding(.top, 20 * scale)
+                            } else {
+                                sleepUnavailableCard(scale: scale)
                                     .padding(.top, 20 * scale)
                             }
 
@@ -60,6 +65,7 @@ struct TodayView: View {
                         .padding(.horizontal, horizontalInset)
                     }
                     .refreshable {
+                        viewModel.refreshPVTResult()
                         await viewModel.loadHealthKitSleepSummary()
                     }
                 }
@@ -84,7 +90,14 @@ struct TodayView: View {
         }
         .preferredColorScheme(.dark)
         .task {
+            viewModel.refreshPVTResult()
             await viewModel.loadHealthKitSleepSummary()
+        }
+        .onAppear {
+            viewModel.refreshPVTResult()
+        }
+        .onReceive(refreshTimer) { _ in
+            viewModel.refreshPVTResult()
         }
         .onChange(of: isSleepDetailPresented) { _, _ in
             notifyDetailVisibilityChanged()
@@ -159,20 +172,17 @@ struct TodayView: View {
     }
 
     private func comparisonNotice(scale: CGFloat) -> some View {
-        let isConnected = viewModel.state.isSleepDataConnected
+        let isPositive = viewModel.state.sleepStatus == .available
+        let foregroundColor = comparisonNoticeForeground
+        let backgroundColor = comparisonNoticeBackground
 
-        return HStack(spacing: isConnected ? 0 : 8 * scale) {
-            if !isConnected {
-                Text("⚠")
-                    .font(.system(size: 14 * scale, weight: .regular))
-                    .foregroundStyle(Color.todayCaution)
-                    .frame(width: 22 * scale)
-            }
+        return HStack(spacing: isPositive ? 0 : 8 * scale) {
+            comparisonNoticeIcon(scale: scale)
 
             VStack(alignment: .leading, spacing: 6 * scale) {
                 Text(viewModel.comparisonSummaryTitle)
-                    .font(.system(size: isConnected ? 13 * scale : 11 * scale, weight: isConnected ? .semibold : .medium))
-                    .foregroundStyle(isConnected ? Color.todayPositive : .white)
+                    .font(.system(size: isPositive ? 13 * scale : 11 * scale, weight: isPositive ? .semibold : .medium))
+                    .foregroundStyle(foregroundColor)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
 
@@ -186,14 +196,24 @@ struct TodayView: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, isConnected ? 16 * scale : 14 * scale)
+        .padding(.horizontal, isPositive ? 16 * scale : 14 * scale)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: isConnected ? 56 * scale : 40 * scale)
-        .background(isConnected ? Color.todayPositive.opacity(0.14) : Color.todayCaution.opacity(0.12))
+        .frame(height: isPositive ? 56 * scale : 44 * scale)
+        .background(backgroundColor.opacity(0.12))
         .clipShape(RoundedRectangle(cornerRadius: 12 * scale, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 12 * scale, style: .continuous)
-                .stroke(isConnected ? Color.todayPositive.opacity(0.35) : Color.todayCaution.opacity(0.5), lineWidth: 1)
+                .stroke(backgroundColor.opacity(isPositive ? 0.35 : 0.5), lineWidth: 1)
+        }
+    }
+
+    @ViewBuilder
+    private func comparisonNoticeIcon(scale: CGFloat) -> some View {
+        if viewModel.state.sleepStatus != .available {
+            Text(comparisonNoticeIconText)
+                .font(.system(size: 14 * scale, weight: .regular))
+                .foregroundStyle(comparisonNoticeForeground)
+                .frame(width: 22 * scale)
         }
     }
 
@@ -358,6 +378,47 @@ struct TodayView: View {
         }
     }
 
+    private func sleepUnavailableCard(scale: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 4 * scale) {
+                Text("🌙")
+                    .font(.system(size: 15 * scale))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .frame(width: 24 * scale, alignment: .leading)
+
+                Text("수면 데이터")
+                    .font(.system(size: 12 * scale, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.7))
+
+                Spacer()
+
+                Text(sleepStatusBadgeText)
+                    .font(.system(size: 10 * scale, weight: .semibold))
+                    .foregroundStyle(comparisonNoticeForeground)
+                    .frame(width: 76 * scale, height: 22 * scale)
+                    .background(comparisonNoticeBackground.opacity(0.14))
+                    .clipShape(Capsule())
+            }
+
+            Text(sleepUnavailableMessage)
+                .font(.system(size: 11 * scale, weight: .regular))
+                .foregroundStyle(Color.todayMutedText)
+                .lineSpacing(2 * scale)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 12 * scale)
+        }
+        .padding(.horizontal, 16 * scale)
+        .padding(.top, 12 * scale)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 92 * scale)
+        .background(Color.todayCard)
+        .clipShape(RoundedRectangle(cornerRadius: 16 * scale, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16 * scale, style: .continuous)
+                .stroke(comparisonNoticeBackground.opacity(0.45), lineWidth: 1.2)
+        }
+    }
+
     private func pvtCard(scale: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
@@ -372,60 +433,79 @@ struct TodayView: View {
 
                 Spacer()
 
-                Button {
-                    isPVTDetailPresented = true
-                } label: {
-                    HStack(spacing: 2 * scale) {
-                        Text("상세 분석")
-                        Text("›")
-                    }
-                    .font(.system(size: 12 * scale, weight: .medium))
-                    .foregroundStyle(Color.todayCyan)
-                }
-                .buttonStyle(.plain)
-            }
-
-            HStack(alignment: .lastTextBaseline, spacing: 10 * scale) {
-                Text("\(viewModel.state.pvt.averageMs)")
-                    .font(.system(size: 28 * scale, weight: .bold))
-                    .foregroundStyle(.white)
-
-                Text("ms 평균")
-                    .font(.system(size: 11 * scale, weight: .regular))
-                    .foregroundStyle(Color.todayMutedText)
-                    .padding(.bottom, 4 * scale)
-
-                Spacer()
-
-                if let changeText = viewModel.state.pvt.changeText {
-                    Text(changeText)
-                        .font(.system(size: 10 * scale, weight: .bold))
-                        .foregroundStyle(Color.todayPositive)
-                        .padding(.horizontal, 8 * scale)
-                        .frame(height: 20 * scale)
-                        .background(Color.todayPositive.opacity(0.18))
-                        .clipShape(Capsule())
-                }
-
-                if let highlightText = viewModel.state.pvt.highlightText {
-                    Text(highlightText)
-                        .font(.system(size: 9 * scale, weight: .semibold))
-                        .foregroundStyle(Color.todayCyan)
-                        .padding(.horizontal, 10 * scale)
-                        .frame(height: 20 * scale)
-                        .background(Color.todayCyan.opacity(0.12))
-                        .clipShape(Capsule())
-                        .overlay {
-                            Capsule()
-                                .stroke(Color.todayCyan.opacity(0.85), lineWidth: 1)
+                if viewModel.state.hasTodayPVTData {
+                    Button {
+                        isPVTDetailPresented = true
+                    } label: {
+                        HStack(spacing: 2 * scale) {
+                            Text("상세 분석")
+                            Text("›")
                         }
+                        .font(.system(size: 12 * scale, weight: .medium))
+                        .foregroundStyle(Color.todayCyan)
                     }
+                    .buttonStyle(.plain)
+                }
             }
-            .padding(.top, 10 * scale)
 
-            PVTTrialBar(trials: viewModel.state.pvt.trials, scale: scale)
-                .frame(height: 16 * scale)
+            if viewModel.state.hasTodayPVTData {
+                HStack(alignment: .lastTextBaseline, spacing: 10 * scale) {
+                    Text("\(viewModel.state.pvt.averageMs)")
+                        .font(.system(size: 28 * scale, weight: .bold))
+                        .foregroundStyle(.white)
+
+                    Text("ms 평균")
+                        .font(.system(size: 11 * scale, weight: .regular))
+                        .foregroundStyle(Color.todayMutedText)
+                        .padding(.bottom, 4 * scale)
+
+                    Spacer()
+
+                    if let changeText = viewModel.state.pvt.changeText {
+                        Text(changeText)
+                            .font(.system(size: 10 * scale, weight: .bold))
+                            .foregroundStyle(Color.todayPositive)
+                            .padding(.horizontal, 8 * scale)
+                            .frame(height: 20 * scale)
+                            .background(Color.todayPositive.opacity(0.18))
+                            .clipShape(Capsule())
+                    }
+
+                    if let highlightText = viewModel.state.pvt.highlightText {
+                        Text(highlightText)
+                            .font(.system(size: 9 * scale, weight: .semibold))
+                            .foregroundStyle(Color.todayCyan)
+                            .padding(.horizontal, 10 * scale)
+                            .frame(height: 20 * scale)
+                            .background(Color.todayCyan.opacity(0.12))
+                            .clipShape(Capsule())
+                            .overlay {
+                                Capsule()
+                                    .stroke(Color.todayCyan.opacity(0.85), lineWidth: 1)
+                            }
+                        }
+                }
                 .padding(.top, 10 * scale)
+
+                PVTTrialBar(trials: viewModel.state.pvt.trials, scale: scale)
+                    .frame(height: 16 * scale)
+                    .padding(.top, 10 * scale)
+            } else {
+                VStack(alignment: .leading, spacing: 6 * scale) {
+                    Text("오늘 PVT 측정 데이터가 없어요")
+                        .font(.system(size: 18 * scale, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+
+                    Text("다시 측정하기로 오늘의 반응 속도를 업데이트하세요")
+                        .font(.system(size: 11 * scale, weight: .medium))
+                        .foregroundStyle(Color.todayMutedText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+                .padding(.top, 18 * scale)
+            }
         }
         .padding(.horizontal, 16 * scale)
         .padding(.top, 10 * scale)
@@ -475,6 +555,56 @@ struct TodayView: View {
 
     private func notifyDetailVisibilityChanged() {
         onSleepDetailVisibilityChanged(isSleepDetailPresented || isPVTDetailPresented)
+    }
+
+    private var comparisonNoticeIconText: String {
+        switch viewModel.state.sleepStatus {
+        case .available:
+            return ""
+        case .notConnected, .noWearableData:
+            return "⚠"
+        case .syncing:
+            return "⏳"
+        case .noSleep:
+            return "🌙"
+        }
+    }
+
+    private var comparisonNoticeForeground: Color {
+        switch viewModel.state.sleepStatus {
+        case .available:
+            return Color.todayPositive
+        case .syncing:
+            return Color.todayCyan
+        case .noSleep, .notConnected, .noWearableData:
+            return Color.todayCaution
+        }
+    }
+
+    private var comparisonNoticeBackground: Color {
+        comparisonNoticeForeground
+    }
+
+    private var sleepStatusBadgeText: String {
+        switch viewModel.state.sleepStatus {
+        case .syncing:
+            return "동기화 대기"
+        case .noWearableData:
+            return "기록 없음"
+        case .available, .notConnected, .noSleep:
+            return ""
+        }
+    }
+
+    private var sleepUnavailableMessage: String {
+        switch viewModel.state.sleepStatus {
+        case .syncing:
+            return "HealthKit에 오늘 수면 데이터가 아직 반영되지 않았어요.\n잠시 후 아래로 당겨 새로고침해보세요."
+        case .noWearableData:
+            return "오늘 수면 기록이 없어요.\nApple Watch 착용 또는 수면 집중모드 기록을 확인해주세요."
+        case .available, .notConnected, .noSleep:
+            return ""
+        }
     }
 }
 

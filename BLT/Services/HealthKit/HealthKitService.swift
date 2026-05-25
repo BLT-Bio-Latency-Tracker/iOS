@@ -35,6 +35,20 @@ struct HealthKitSleepSummary {
     let stageSegments: [HealthKitSleepStageSegment]
 }
 
+struct HealthKitResolvedSleepSummary {
+    let date: Date
+    let status: HealthKitSleepDataStatus
+    let summary: HealthKitSleepSummary?
+}
+
+enum HealthKitSleepDataStatus {
+    case available
+    case notConnected
+    case syncing
+    case noSleep
+    case noWearableData
+}
+
 struct HealthKitSleepStageSegment {
     let kind: HealthKitSleepStageKind
     let startRatio: Double
@@ -50,7 +64,25 @@ enum HealthKitSleepStageKind {
 }
 
 final class HealthKitService {
+    static let sleepDataDidChangeNotification = Notification.Name("HealthKitService.sleepDataDidChange")
+
+    private enum UserDefaultsKey {
+        static let hasRequestedSleepDataConnection = "healthKit.hasRequestedSleepDataConnection"
+    }
+
     private let healthStore = HKHealthStore()
+    private let userDefaults: UserDefaults
+    private var sleepObserverQuery: HKObserverQuery?
+
+    init(userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
+    }
+
+    private static var koreaCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+        return calendar
+    }
 
     var isHealthDataAvailable: Bool {
         HKHealthStore.isHealthDataAvailable()
@@ -74,10 +106,36 @@ final class HealthKitService {
             read: [sleepType, hrvType]
         )
 
+        userDefaults.set(true, forKey: UserDefaultsKey.hasRequestedSleepDataConnection)
         return .requested
     }
 
+    func markSleepDataConnectionSkipped() {
+        userDefaults.set(false, forKey: UserDefaultsKey.hasRequestedSleepDataConnection)
+    }
+
     func fetchSleepSummary(for date: Date = Date()) async throws -> HealthKitSleepSummary? {
+        guard isHealthDataAvailable else {
+            throw HealthKitServiceError.unavailable
+        }
+
+        let queryInterval = Self.sleepQueryInterval(for: date)
+        let sleepSamples = try await fetchSleepSamples(in: queryInterval)
+
+        return Self.makeSleepSummary(
+            from: sleepSamples,
+            for: date,
+            queryInterval: queryInterval
+        )
+    }
+
+    func fetchLatestSleepSummary(for date: Date = Date()) async throws -> HealthKitSleepSummary? {
+        try await fetchSleepSummary(for: date)
+    }
+
+    func startObservingSleepChanges() throws {
+        guard sleepObserverQuery == nil else { return }
+
         guard isHealthDataAvailable else {
             throw HealthKitServiceError.unavailable
         }
@@ -86,7 +144,98 @@ final class HealthKitService {
             throw HealthKitServiceError.missingSleepType
         }
 
+        let query = HKObserverQuery(sampleType: sleepType, predicate: nil) { _, completionHandler, error in
+            defer { completionHandler() }
+
+            guard error == nil else {
+                return
+            }
+
+            NotificationCenter.default.post(
+                name: Self.sleepDataDidChangeNotification,
+                object: nil
+            )
+        }
+
+        sleepObserverQuery = query
+        healthStore.execute(query)
+        healthStore.enableBackgroundDelivery(for: sleepType, frequency: .immediate) { _, _ in }
+    }
+
+    func fetchDisplaySleepSummary(for date: Date = Date()) async throws -> HealthKitResolvedSleepSummary {
+        if sleepDataConnectionPreference == false {
+            return HealthKitResolvedSleepSummary(
+                date: date,
+                status: .notConnected,
+                summary: nil
+            )
+        }
+
         let queryInterval = Self.sleepQueryInterval(for: date)
+        let sleepSamples = try await fetchSleepSamples(in: queryInterval)
+
+        if let summary = Self.makeSleepSummary(
+            from: sleepSamples,
+            for: date,
+            queryInterval: queryInterval
+        ) {
+            return HealthKitResolvedSleepSummary(
+                date: date,
+                status: .available,
+                summary: summary
+            )
+        }
+
+        if Self.allowsPreviousDayDisplay(for: date),
+           let fallbackDate = Self.koreaCalendar.date(byAdding: .day, value: -1, to: date),
+           let fallbackSummary = try await fetchSleepSummary(for: fallbackDate) {
+            return HealthKitResolvedSleepSummary(
+                date: fallbackDate,
+                status: .available,
+                summary: fallbackSummary
+            )
+        }
+
+        if Self.allowsSleepDataSyncWait(for: date) {
+            return HealthKitResolvedSleepSummary(
+                date: date,
+                status: .syncing,
+                summary: nil
+            )
+        }
+
+        let status: HealthKitSleepDataStatus = sleepSamples.contains { sample in
+            guard let sleepValue = HKCategoryValueSleepAnalysis(rawValue: sample.value) else {
+                return false
+            }
+
+            return sleepValue.isSleepSessionValue
+        } ? .noSleep : .noWearableData
+
+        return HealthKitResolvedSleepSummary(
+            date: date,
+            status: status,
+            summary: nil
+        )
+    }
+
+    private var sleepDataConnectionPreference: Bool? {
+        guard userDefaults.object(forKey: UserDefaultsKey.hasRequestedSleepDataConnection) != nil else {
+            return nil
+        }
+
+        return userDefaults.bool(forKey: UserDefaultsKey.hasRequestedSleepDataConnection)
+    }
+
+    private func fetchSleepSamples(in queryInterval: DateInterval) async throws -> [HKCategorySample] {
+        guard isHealthDataAvailable else {
+            throw HealthKitServiceError.unavailable
+        }
+
+        guard let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else {
+            throw HealthKitServiceError.missingSleepType
+        }
+
         let predicate = HKQuery.predicateForSamples(
             withStart: queryInterval.start,
             end: queryInterval.end,
@@ -106,32 +255,28 @@ final class HealthKitService {
                 }
 
                 let sleepSamples = (samples as? [HKCategorySample]) ?? []
-                let summary = Self.makeSleepSummary(
-                    from: sleepSamples,
-                    for: date,
-                    queryInterval: queryInterval
-                )
-                continuation.resume(returning: summary)
+                continuation.resume(returning: sleepSamples)
             }
 
             healthStore.execute(query)
         }
     }
 
-    func fetchLatestSleepSummary(for date: Date = Date()) async throws -> HealthKitSleepSummary? {
-        try await fetchSleepSummary(for: date)
-    }
-
     private static func sleepQueryInterval(for date: Date) -> DateInterval {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
-
-        let startOfDay = calendar.startOfDay(for: date)
-        let queryStart = calendar.date(byAdding: .hour, value: -12, to: startOfDay) ?? startOfDay
-        let sleepWindowEnd = calendar.date(byAdding: .hour, value: 12, to: startOfDay) ?? date
+        let startOfDay = koreaCalendar.startOfDay(for: date)
+        let queryStart = koreaCalendar.date(byAdding: .hour, value: -12, to: startOfDay) ?? startOfDay
+        let sleepWindowEnd = koreaCalendar.date(byAdding: .hour, value: 12, to: startOfDay) ?? date
         let queryEnd = min(sleepWindowEnd, Date())
 
         return DateInterval(start: queryStart, end: queryEnd)
+    }
+
+    private static func allowsSleepDataSyncWait(for date: Date) -> Bool {
+        koreaCalendar.component(.hour, from: date) < 6
+    }
+
+    private static func allowsPreviousDayDisplay(for date: Date) -> Bool {
+        koreaCalendar.component(.hour, from: date) < 6
     }
 
     private static func makeSleepSummary(
@@ -252,8 +397,7 @@ final class HealthKitService {
         for date: Date,
         queryInterval: DateInterval
     ) -> DateInterval? {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+        let calendar = koreaCalendar
         let targetDay = calendar.startOfDay(for: date)
 
         let sessionIntervals = samples.compactMap { sample -> DateInterval? in

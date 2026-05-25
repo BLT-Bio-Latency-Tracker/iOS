@@ -6,3 +6,8 @@ struct TodayPVTData {
     let highlightText: String?
     let trials: [Int]
 }
+
+enum TodayPVTDataStatus {
+    case available
+    case noMeasurement
+}

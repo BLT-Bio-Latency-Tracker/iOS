@@ -8,14 +8,21 @@ struct TodayViewState {
     let measuredAt: Date
     let comparisonSummary: String
     let sleep: TodaySleepData?
+    let sleepStatus: TodaySleepDataStatus
     let pvt: TodayPVTData
+    let pvtStatus: TodayPVTDataStatus
 
     var isSleepDataConnected: Bool {
-        sleep != nil
+        sleepStatus == .available || sleepStatus == .noSleep
+    }
+
+    var hasTodayPVTData: Bool {
+        pvtStatus == .available
     }
 
     func replacingSleep(
         _ sleep: TodaySleepData?,
+        sleepStatus: TodaySleepDataStatus,
         scoreMode: TodayScoreMode,
         roiStatusText: String
     ) -> TodayViewState {
@@ -27,20 +34,28 @@ struct TodayViewState {
             measuredAt: measuredAt,
             comparisonSummary: comparisonSummary,
             sleep: sleep,
-            pvt: pvt
+            sleepStatus: sleepStatus,
+            pvt: pvt,
+            pvtStatus: pvtStatus
         )
     }
 
-    func replacingPVT(_ pvt: TodayPVTData, measuredAt: Date) -> TodayViewState {
+    func replacingPVT(
+        _ pvt: TodayPVTData,
+        pvtStatus: TodayPVTDataStatus,
+        measuredAt: Date? = nil
+    ) -> TodayViewState {
         TodayViewState(
             score: score,
             scoreMode: scoreMode,
             roiStatusText: roiStatusText,
             roiChangePercent: roiChangePercent,
-            measuredAt: measuredAt,
+            measuredAt: measuredAt ?? self.measuredAt,
             comparisonSummary: comparisonSummary,
             sleep: sleep,
-            pvt: pvt
+            sleepStatus: sleepStatus,
+            pvt: pvt,
+            pvtStatus: pvtStatus
         )
     }
 
@@ -76,12 +91,14 @@ struct TodayViewState {
                 bedEndText: "06:48",
                 awakeCount: 2
             ),
+            sleepStatus: .available,
             pvt: TodayPVTData(
                 averageMs: 312,
                 changeText: "▲ 18ms",
                 highlightText: "✨ 일주일 최고",
                 trials: [250, 292, 278, 340, 230, 270, 218]
-            )
+            ),
+            pvtStatus: .noMeasurement
         )
     }()
 
@@ -99,12 +116,14 @@ struct TodayViewState {
             measuredAt: measuredAt,
             comparisonSummary: "",
             sleep: nil,
+            sleepStatus: .notConnected,
             pvt: TodayPVTData(
                 averageMs: 312,
                 changeText: "▲ 18ms",
                 highlightText: "✨ 일주일 최고",
                 trials: [250, 292, 278, 340, 230, 270, 218]
-            )
+            ),
+            pvtStatus: .noMeasurement
         )
     }()
 }
@@ -112,4 +131,12 @@ struct TodayViewState {
 enum TodayScoreMode {
     case full
     case pvtOnly
+}
+
+enum TodaySleepDataStatus {
+    case available
+    case notConnected
+    case syncing
+    case noSleep
+    case noWearableData
 }

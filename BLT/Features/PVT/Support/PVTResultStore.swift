@@ -22,6 +22,21 @@ final class PVTResultStore: ObservableObject {
         persist(summary: summary, measuredAt: measuredAt)
     }
 
+    func displayResult(for date: Date = Date()) -> PVTDisplayResult? {
+        guard let latestSummary, let measuredAt else {
+            return nil
+        }
+
+        guard Self.isInCurrentMeasurementDay(measuredAt, referenceDate: date) else {
+            return nil
+        }
+
+        return PVTDisplayResult(
+            summary: latestSummary,
+            measuredAt: measuredAt
+        )
+    }
+
     private func restoreLatestResult() {
         guard let data = userDefaults.data(forKey: storageKey),
               let storedResult = try? JSONDecoder().decode(StoredPVTResult.self, from: data) else {
@@ -41,6 +56,36 @@ final class PVTResultStore: ObservableObject {
 
         userDefaults.set(data, forKey: storageKey)
     }
+
+    private static func isInCurrentMeasurementDay(_ measuredAt: Date, referenceDate: Date) -> Bool {
+        let start = measurementDayStart(for: referenceDate)
+        guard let end = koreaCalendar.date(byAdding: .day, value: 1, to: start) else {
+            return false
+        }
+
+        return measuredAt >= start && measuredAt < end
+    }
+
+    private static func measurementDayStart(for date: Date) -> Date {
+        let startOfDay = koreaCalendar.startOfDay(for: date)
+        let hour = koreaCalendar.component(.hour, from: date)
+        let baseDay = hour < 6
+            ? koreaCalendar.date(byAdding: .day, value: -1, to: startOfDay) ?? startOfDay
+            : startOfDay
+
+        return koreaCalendar.date(byAdding: .hour, value: 6, to: baseDay) ?? baseDay
+    }
+
+    private static var koreaCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+        return calendar
+    }
+}
+
+struct PVTDisplayResult {
+    let summary: PVTSummary
+    let measuredAt: Date
 }
 
 private struct StoredPVTResult: Codable {
