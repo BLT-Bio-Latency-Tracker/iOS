@@ -9,6 +9,7 @@ struct HomeViewState {
     let measuredAt: Date
     let sleepSummary: String
     let pvtSummary: String
+    let pvtStatus: HomePVTDataStatus
     let recommendation: HomeRecommendation
     let nextRecommendation: HomeNextRecommendation
     let timelineSegments: [HomeTimelineSegment]
@@ -16,7 +17,8 @@ struct HomeViewState {
     func replacingMeasurementSummary(
         measuredAt: Date? = nil,
         sleepSummary: String? = nil,
-        pvtSummary: String? = nil
+        pvtSummary: String? = nil,
+        pvtStatus: HomePVTDataStatus? = nil
     ) -> HomeViewState {
         HomeViewState(
             userName: userName,
@@ -27,6 +29,7 @@ struct HomeViewState {
             measuredAt: measuredAt ?? self.measuredAt,
             sleepSummary: sleepSummary ?? self.sleepSummary,
             pvtSummary: pvtSummary ?? self.pvtSummary,
+            pvtStatus: pvtStatus ?? self.pvtStatus,
             recommendation: recommendation,
             nextRecommendation: nextRecommendation,
             timelineSegments: timelineSegments
@@ -53,7 +56,8 @@ struct HomeViewState {
             roiChangePercent: 12,
             measuredAt: measuredAt,
             sleepSummary: "Sleep 6h 40m",
-            pvtSummary: "PVT 312ms",
+            pvtSummary: "PVT 미측정",
+            pvtStatus: .noMeasurement,
             recommendation: HomeRecommendation(
                 helperText: "지금이 가장 집중력이 좋은 시간이에요",
                 title: "Deep Work · 09-12",
@@ -72,4 +76,9 @@ struct HomeViewState {
             ]
         )
     }()
+}
+
+enum HomePVTDataStatus {
+    case available
+    case noMeasurement
 }
