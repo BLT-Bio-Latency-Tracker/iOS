@@ -168,7 +168,7 @@ struct ProfileSetupView: View {
             HStack(spacing: 7 * scale) {
                 ForEach(ProfileSetupGender.allCases) { item in
                     selectableChip(
-                        item.rawValue,
+                        item.displayName,
                         isSelected: setupDraft.gender == item,
                         scale: scale
                     ) {
@@ -223,27 +223,16 @@ struct ProfileSetupView: View {
             Text(title)
                 .font(.system(size: 13 * scale, weight: .medium))
                 .foregroundStyle(.white.opacity(isSelected ? 1 : 0.7))
-                .padding(.horizontal, chipHorizontalPadding(for: title, scale: scale))
+                .frame(maxWidth: .infinity)
                 .frame(height: 36 * scale)
                 .background(isSelected ? Color(red: 0.486, green: 0.361, blue: 1) : Color(red: 0.078, green: 0.098, blue: 0.216))
-                .clipShape(Capsule())
+                .clipShape(RoundedRectangle(cornerRadius: 12 * scale, style: .continuous))
                 .overlay {
-                    Capsule()
+                    RoundedRectangle(cornerRadius: 12 * scale, style: .continuous)
                         .stroke(isSelected ? .clear : .white.opacity(0.08), lineWidth: 1)
                 }
         }
         .buttonStyle(.plain)
-    }
-
-    private func chipHorizontalPadding(for title: String, scale: CGFloat) -> CGFloat {
-        switch title {
-        case "남", "여":
-            return 24 * scale
-        case "기타":
-            return 22 * scale
-        default:
-            return 26 * scale
-        }
     }
 
     private func sectionTitle(_ title: String, scale: CGFloat) -> some View {
