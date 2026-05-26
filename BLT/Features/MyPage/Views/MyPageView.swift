@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MyPageView: View {
     @StateObject private var viewModel = MyPageViewModel()
-    @State private var editDestination: MyPageEditDestination?
+    @State private var editRoute: MyPageEditRoute?
 
     let onBack: () -> Void
 
@@ -56,11 +56,25 @@ struct MyPageView: View {
         .task {
             await viewModel.fetchMyPage()
         }
-        .fullScreenCover(item: $editDestination) { destination in
-            MyPageEditPlaceholderView(destination: destination) {
-                editDestination = nil
+        .fullScreenCover(item: $editRoute) { route in
+            switch route {
+            case .profile(let state):
+                MyPageProfileEditView(
+                    state: state,
+                    onBack: {
+                        editRoute = nil
+                    },
+                    onSave: { draft in
+                        _ = draft.patchRequest(comparedTo: state)
+                    }
+                )
+                .ignoresSafeArea()
+            case .notification:
+                MyPageEditPlaceholderView(destination: .notification) {
+                    editRoute = nil
+                }
+                .ignoresSafeArea()
             }
-            .ignoresSafeArea()
         }
     }
 
@@ -151,7 +165,7 @@ struct MyPageView: View {
             trailing: profileMissingText(for: state),
             scale: scale,
             action: {
-                editDestination = .profile
+                editRoute = .profile(state)
             }
         ) {
             infoRows([
@@ -169,7 +183,7 @@ struct MyPageView: View {
             trailing: nil,
             scale: scale,
             action: {
-                editDestination = .notification
+                editRoute = .notification
             }
         ) {
             infoRows([
@@ -308,6 +322,20 @@ private struct MyPageRow {
     let title: String
     let value: String
     let isWarning: Bool
+}
+
+private enum MyPageEditRoute: Identifiable {
+    case profile(MyPageState)
+    case notification
+
+    var id: String {
+        switch self {
+        case .profile:
+            return "profile"
+        case .notification:
+            return "notification"
+        }
+    }
 }
 
 private enum MyPageEditDestination: String, Identifiable {

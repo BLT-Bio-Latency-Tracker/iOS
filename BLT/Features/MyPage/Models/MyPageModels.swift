@@ -45,6 +45,22 @@ struct MyPageNotificationSettings {
     let bedtimeText: String?
 }
 
+struct MyPageProfilePatchRequest {
+    let name: String?
+    let birthYear: Int?
+    let gender: ProfileSetupGender?
+    let wakeUpTimeText: String?
+    let jobGroup: ProfileSetupJobGroup?
+
+    var isEmpty: Bool {
+        name == nil
+            && birthYear == nil
+            && gender == nil
+            && wakeUpTimeText == nil
+            && jobGroup == nil
+    }
+}
+
 extension MyPageState {
     static let serverPlaceholder = MyPageState(
         user: MyPageUser(
