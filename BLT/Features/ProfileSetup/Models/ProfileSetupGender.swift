@@ -1,11 +1,19 @@
 import Foundation
 
 enum ProfileSetupGender: String, CaseIterable, Identifiable {
-    case male = "남"
-    case female = "여"
-    case other = "기타"
-    case preferNotToSay = "응답 안함"
+    case male = "MALE"
+    case female = "FEMALE"
 
     var id: String { rawValue }
-}
 
+    var serverValue: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .male:
+            return "남"
+        case .female:
+            return "여"
+        }
+    }
+}
