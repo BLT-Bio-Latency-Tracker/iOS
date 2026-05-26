@@ -4,7 +4,7 @@ struct ContentView: View {
     @AppStorage(AppStorageKey.hasCompletedOnboarding)
     private var hasCompletedOnboarding = false
 
-    @State private var route: AppRoute = .home
+    @State private var route: AppRoute = .splash
     @State private var profileSetupDraft = ProfileSetupDraft()
     @StateObject private var authFlowViewModel = AuthFlowViewModel()
 

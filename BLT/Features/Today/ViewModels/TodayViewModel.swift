@@ -5,6 +5,7 @@ import Combine
 final class TodayViewModel: ObservableObject {
     @Published private(set) var state: TodayViewState
     @Published private(set) var latestPVTSummary: PVTSummary?
+    @Published private(set) var isRequestingHealthKitAuthorization = false
     @Published var selectedComparison: TodayComparisonType
 
     private let healthKitService: HealthKitService
@@ -96,6 +97,29 @@ final class TodayViewModel: ObservableObject {
 
     func refreshPVTResult() {
         applyLatestPVTResultIfNeeded()
+    }
+
+    func connectHealthKit() async {
+        guard !isRequestingHealthKitAuthorization else { return }
+
+        isRequestingHealthKitAuthorization = true
+
+        defer {
+            isRequestingHealthKitAuthorization = false
+        }
+
+        do {
+            _ = try await healthKitService.requestSleepAndHRVAuthorization()
+            startHealthKitSleepObservationIfNeeded()
+            await loadHealthKitSleepSummary()
+        } catch {
+            state = state.replacingSleep(
+                nil,
+                sleepStatus: .notConnected,
+                scoreMode: .pvtOnly,
+                roiStatusText: "PVT만 반영"
+            )
+        }
     }
 
     var measuredTimeText: String {
