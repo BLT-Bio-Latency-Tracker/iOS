@@ -69,11 +69,7 @@ struct MainTabView: View {
             }
 
         case .history:
-            MainTabPlaceholderView(
-                title: "History",
-                subtitle: "측정 기록과 변화 추이를 준비 중이에요",
-                systemImage: "chart.line.uptrend.xyaxis"
-            )
+            HistoryView()
         }
     }
 }
