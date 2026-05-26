@@ -8,7 +8,6 @@ struct TodayView: View {
 
     var onSleepDetailVisibilityChanged: (Bool) -> Void = { _ in }
     var onMeasureAgain: () -> Void = {}
-    var onConnectHealthKit: () -> Void = {}
 
     private let refreshTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
     private let designWidth: CGFloat = 390
@@ -352,8 +351,12 @@ struct TodayView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 11 * scale)
 
-            Button(action: onConnectHealthKit) {
-                Text("HealthKit 연동하기")
+            Button {
+                Task {
+                    await viewModel.connectHealthKit()
+                }
+            } label: {
+                Text(viewModel.isRequestingHealthKitAuthorization ? "요청 중" : "HealthKit 연동하기")
                     .font(.system(size: 11 * scale, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -368,6 +371,8 @@ struct TodayView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8 * scale, style: .continuous))
             }
             .buttonStyle(.plain)
+            .disabled(viewModel.isRequestingHealthKitAuthorization)
+            .opacity(viewModel.isRequestingHealthKitAuthorization ? 0.7 : 1)
             .padding(.top, 9 * scale)
         }
         .padding(.horizontal, 16 * scale)
