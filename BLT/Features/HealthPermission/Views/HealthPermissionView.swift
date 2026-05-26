@@ -179,7 +179,16 @@ struct HealthPermissionView: View {
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 52 * scale)
-                .background(Color(red: 0.486, green: 0.361, blue: 1))
+                .background(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.49, green: 0.36, blue: 1),
+                            Color(red: 0.13, green: 0.83, blue: 0.93)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
                 .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
         }
         .buttonStyle(.plain)
