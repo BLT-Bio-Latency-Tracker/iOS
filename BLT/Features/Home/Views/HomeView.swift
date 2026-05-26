@@ -7,6 +7,7 @@ struct HomeView: View {
 
     var onPVTStart: () -> Void = {}
     var onNotificationTap: () -> Void = {}
+    var onProfileTap: () -> Void = {}
 
     private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
     private let designWidth: CGFloat = 390
@@ -88,7 +89,7 @@ struct HomeView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("알림")
 
-                Button {} label: {
+                Button(action: onProfileTap) {
                     Text(viewModel.state.profileInitial)
                         .font(.system(size: 20 * scale, weight: .bold))
                         .foregroundStyle(.white)
@@ -97,6 +98,7 @@ struct HomeView: View {
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("마이페이지")
             }
         }
     }

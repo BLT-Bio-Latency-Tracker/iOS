@@ -5,6 +5,7 @@ struct MainTabView: View {
     @State private var isTabBarHidden = false
     @State private var isPVTMeasurementPresented = false
     @State private var isNotificationPresented = false
+    @State private var isMyPagePresented = false
 
     var body: some View {
         ZStack {
@@ -55,6 +56,12 @@ struct MainTabView: View {
             }
             .ignoresSafeArea()
         }
+        .fullScreenCover(isPresented: $isMyPagePresented) {
+            MyPageView {
+                isMyPagePresented = false
+            }
+            .ignoresSafeArea()
+        }
     }
 
     @ViewBuilder
@@ -77,6 +84,9 @@ struct MainTabView: View {
                 },
                 onNotificationTap: {
                     isNotificationPresented = true
+                },
+                onProfileTap: {
+                    isMyPagePresented = true
                 }
             )
 
