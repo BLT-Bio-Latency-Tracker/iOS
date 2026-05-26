@@ -101,7 +101,7 @@ struct PVTEnvironmentCalibrationView: View {
                         progressBar(scale: scale)
                             .padding(.top, 48 * scale)
 
-                        Text("\(Int((calibrator.progress * 100).rounded()))%")
+                        Text(String(format: "%d%%", Int((calibrator.progress * 100).rounded())))
                             .font(.system(size: 11 * scale, weight: .semibold))
                             .foregroundStyle(.white.opacity(0.6))
                             .padding(.top, 14 * scale)

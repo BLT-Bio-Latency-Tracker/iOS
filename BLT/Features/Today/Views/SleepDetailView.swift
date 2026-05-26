@@ -140,10 +140,10 @@ struct SleepDetailView: View {
                 .foregroundStyle(.white.opacity(0.85))
 
             VStack(spacing: 8 * scale) {
-                metricRow(title: "수면 효율", value: "\(sleepEfficiencyPercent)%", scale: scale)
-                metricRow(title: "REM 비율", value: "\(stagePercent(sleep.remMinutes, denominator: max(sleep.totalMinutes, 1)))%", scale: scale)
-                metricRow(title: "깊은 수면 비율", value: "\(stagePercent(sleep.deepMinutes, denominator: max(sleep.totalMinutes, 1)))%", scale: scale)
-                metricRow(title: "깬 횟수", value: "\(sleep.awakeCount)회", scale: scale)
+                metricRow(title: "수면 효율", value: String(format: "%d%%", sleepEfficiencyPercent), scale: scale)
+                metricRow(title: "REM 비율", value: String(format: "%d%%", stagePercent(sleep.remMinutes, denominator: max(sleep.totalMinutes, 1))), scale: scale)
+                metricRow(title: "깊은 수면 비율", value: String(format: "%d%%", stagePercent(sleep.deepMinutes, denominator: max(sleep.totalMinutes, 1))), scale: scale)
+                metricRow(title: "깬 횟수", value: String(format: "%d회", sleep.awakeCount), scale: scale)
                 metricRow(title: "총 침대 시간", value: durationText(from: sleep.inBedMinutes), scale: scale)
             }
             .padding(.top, 17 * scale)
@@ -204,7 +204,7 @@ struct SleepDetailView: View {
         color: Color,
         denominator: Int
     ) -> some View {
-        Text("\(title) \(stagePercent(minutes, denominator: denominator))%")
+        Text(String(format: "%@ %d%%", title, stagePercent(minutes, denominator: denominator)))
             .foregroundStyle(color)
             .lineLimit(1)
             .minimumScaleFactor(0.7)

@@ -138,7 +138,7 @@ final class TodayViewModel: ObservableObject {
     var comparisonSummaryTitle: String {
         switch state.sleepStatus {
         case .available:
-            return "✨ 어제보다 \(state.roiChangePercent)% 향상!"
+            return String(format: "✨ 어제보다 %d%% 향상!", state.roiChangePercent)
         case .notConnected:
             return "수면 데이터가 없어 종합 점수 산출 불가 · 연동 시 +35%"
         case .syncing:
@@ -256,11 +256,11 @@ final class TodayViewModel: ObservableObject {
         )
 
         if changePercent > 0 {
-            return ("▲ \(changePercent)%", .positive)
+            return (String(format: "▲ %d%%", changePercent), .positive)
         }
 
         if changePercent < 0 {
-            return ("▼ \(abs(changePercent))%", .negative)
+            return (String(format: "▼ %d%%", abs(changePercent)), .negative)
         }
 
         return ("0%", .neutral)

@@ -88,56 +88,15 @@ struct MainTabView: View {
 
 private struct MainTabBar: View {
     @Binding var selectedTab: MainTab
-    @Namespace private var selectedTabNamespace
+    @GestureState private var isPressing = false
+    @State private var pulsingTab: MainTab?
 
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(MainTab.allCases) { tab in
-                Button {
-                    withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) {
-                        selectedTab = tab
-                    }
-                } label: {
-                    MainTabItem(
-                        tab: tab,
-                        isSelected: selectedTab == tab,
-                        namespace: selectedTabNamespace
-                    )
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text(tab.title))
-                .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 7)
-        .frame(height: 60)
-        .modifier(MainTabBarBackground())
-    }
-}
+        GeometryReader { proxy in
+            let itemWidth = proxy.size.width / CGFloat(MainTab.allCases.count)
+            let selectedIndex = CGFloat(MainTab.allCases.firstIndex(of: selectedTab) ?? 0)
 
-private struct MainTabItem: View {
-    let tab: MainTab
-    let isSelected: Bool
-    let namespace: Namespace.ID
-
-    var body: some View {
-        VStack(spacing: 3) {
-            Image(systemName: isSelected ? tab.selectedSystemImage : tab.systemImage)
-                .font(.system(size: tab == .home ? 19 : 17, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-                .frame(width: 30, height: 23)
-
-            Text(tab.title)
-                .font(.system(size: 10, weight: isSelected ? .semibold : .medium))
-                .lineLimit(1)
-        }
-        .foregroundStyle(isSelected ? Color.white : Color.bltTabMuted)
-        .frame(height: 46)
-        .frame(maxWidth: .infinity)
-        .background {
-            if isSelected {
+            ZStack(alignment: .leading) {
                 Capsule()
                     .fill(
                         LinearGradient(
@@ -147,10 +106,80 @@ private struct MainTabItem: View {
                         )
                     )
                     .shadow(color: Color.bltTabPrimary.opacity(0.28), radius: 14, x: 0, y: 8)
-                    .matchedGeometryEffect(id: "selected-tab-background", in: namespace)
+                    .frame(width: itemWidth, height: 46)
+                    .offset(x: itemWidth * selectedIndex)
+                    .animation(.spring(response: 0.34, dampingFraction: 0.82), value: selectedTab)
+
+                HStack(spacing: 0) {
+                    ForEach(MainTab.allCases) { tab in
+                        Button {
+                            withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) {
+                                selectedTab = tab
+                            }
+                            triggerPulse(for: tab)
+                        } label: {
+                            MainTabItem(
+                                tab: tab,
+                                isSelected: selectedTab == tab,
+                                isPulsing: pulsingTab == tab
+                            )
+                            .frame(width: itemWidth)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Text(tab.title))
+                        .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
+                    }
+                }
             }
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
-        .scaleEffect(isSelected ? 1.02 : 1)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
+        .frame(height: 60)
+        .modifier(MainTabBarBackground())
+        .compositingGroup()
+        .scaleEffect(isPressing ? 1.018 : 1)
+        .animation(.spring(response: 0.18, dampingFraction: 0.78), value: isPressing)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .updating($isPressing) { _, state, _ in
+                    state = true
+                }
+        )
+    }
+
+    private func triggerPulse(for tab: MainTab) {
+        pulsingTab = tab
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            guard pulsingTab == tab else { return }
+            pulsingTab = nil
+        }
+    }
+}
+
+private struct MainTabItem: View {
+    let tab: MainTab
+    let isSelected: Bool
+    let isPulsing: Bool
+
+    var body: some View {
+        VStack(spacing: 3) {
+            Image(systemName: isSelected ? tab.selectedSystemImage : tab.systemImage)
+                .font(.system(size: tab == .home ? 19 : 17, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .frame(width: 30, height: 23)
+                .scaleEffect(isPulsing ? 1.16 : 1)
+
+            Text(tab.title)
+                .font(.system(size: 10, weight: isSelected ? .semibold : .medium))
+                .lineLimit(1)
+                .scaleEffect(isPulsing ? 1.05 : 1)
+        }
+        .foregroundStyle(isSelected ? Color.white : Color.bltTabMuted)
+        .frame(height: 46)
+        .frame(maxWidth: .infinity)
+        .animation(.spring(response: 0.2, dampingFraction: 0.62), value: isPulsing)
     }
 }
 
@@ -163,8 +192,7 @@ private struct MainTabBarBackground: ViewModifier {
                         .fill(Color.white.opacity(0.03))
                         .glassEffect(
                             .regular
-                                .tint(Color.bltTabCard.opacity(0.68))
-                                .interactive(),
+                                .tint(Color.bltTabCard.opacity(0.68)),
                             in: Capsule()
                         )
                 }

@@ -113,7 +113,7 @@ struct HomeView: View {
                     .tracking(0.6 * scale)
                     .foregroundStyle(Color.bltMutedText)
 
-                Text("\(viewModel.state.brainROI)")
+                Text(String(viewModel.state.brainROI))
                     .font(.system(size: 14 * scale, weight: .bold))
                     .foregroundStyle(.white)
                     .padding(.leading, 4 * scale)
@@ -126,7 +126,7 @@ struct HomeView: View {
 
                 Spacer(minLength: 8 * scale)
 
-                Text("▲ \(viewModel.state.roiChangePercent)%")
+                Text(String(format: "▲ %d%%", viewModel.state.roiChangePercent))
                     .font(.system(size: 13 * scale, weight: .semibold))
                     .foregroundStyle(Color.bltPositive)
                     .lineLimit(1)

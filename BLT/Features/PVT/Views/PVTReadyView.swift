@@ -165,7 +165,7 @@ struct PVTReadyView: View {
 
     private func instructionRow(index: Int, text: String, scale: CGFloat) -> some View {
         HStack(spacing: 12 * scale) {
-            Text("\(index)")
+            Text(String(index))
                 .font(.system(size: 11 * scale, weight: .bold))
                 .foregroundStyle(Color.pvtReadyPrimary)
                 .frame(width: 22 * scale, height: 22 * scale)
