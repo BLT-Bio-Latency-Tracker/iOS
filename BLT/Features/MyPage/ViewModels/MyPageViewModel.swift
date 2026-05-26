@@ -51,4 +51,26 @@ final class MyPageViewModel: ObservableObject {
             return false
         }
     }
+
+    func updateNotificationSettings(_ request: MyPageNotificationPatchRequest) async -> Bool {
+        guard !request.isEmpty else { return true }
+
+        do {
+            try await service.updateNotificationSettings(request)
+            return true
+        } catch {
+            errorMessage = "알림 설정을 저장하지 못했어요."
+            return false
+        }
+    }
+
+    func applyNotificationSettings(_ settings: MyPageNotificationSettings) {
+        guard let state else { return }
+
+        self.state = MyPageState(
+            user: state.user,
+            profile: state.profile,
+            notificationSettings: settings
+        )
+    }
 }

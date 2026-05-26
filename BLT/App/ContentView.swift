@@ -137,7 +137,11 @@ struct ContentView: View {
                     ))
 
             case .home:
-                MainTabView()
+                MainTabView {
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        route = .login
+                    }
+                }
                     .transition(.opacity)
             }
         }

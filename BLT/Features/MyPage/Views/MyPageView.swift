@@ -3,8 +3,10 @@ import SwiftUI
 struct MyPageView: View {
     @StateObject private var viewModel = MyPageViewModel()
     @State private var editRoute: MyPageEditRoute?
+    @State private var showsWithdrawalAlert = false
 
     let onBack: () -> Void
+    var onWithdraw: () -> Void = {}
 
     private let designWidth: CGFloat = 390
 
@@ -56,6 +58,15 @@ struct MyPageView: View {
         .task {
             await viewModel.fetchMyPage()
         }
+        .alert("정말 탈퇴하시겠습니까?", isPresented: $showsWithdrawalAlert) {
+            Button("취소", role: .cancel) {}
+
+            Button("탈퇴하기", role: .destructive) {
+                onWithdraw()
+            }
+        } message: {
+            Text("탈퇴 시 모든 수면 데이터 및 PVT 기록이 영구 삭제되며 복구할 수 없습니다.")
+        }
         .fullScreenCover(item: $editRoute) { route in
             switch route {
             case .profile(let state):
@@ -69,10 +80,17 @@ struct MyPageView: View {
                     }
                 )
                 .ignoresSafeArea()
-            case .notification:
-                MyPageEditPlaceholderView(destination: .notification) {
-                    editRoute = nil
-                }
+            case .notification(let settings):
+                MyPageNotificationEditView(
+                    settings: settings,
+                    onBack: {
+                        editRoute = nil
+                    },
+                    onSave: { draft in
+                        _ = draft.patchRequest(comparedTo: settings)
+                        viewModel.applyNotificationSettings(draft.settingsValue)
+                    }
+                )
                 .ignoresSafeArea()
             }
         }
@@ -183,7 +201,7 @@ struct MyPageView: View {
             trailing: nil,
             scale: scale,
             action: {
-                editRoute = .notification
+                editRoute = .notification(settings)
             }
         ) {
             infoRows([
@@ -201,7 +219,14 @@ struct MyPageView: View {
                 divider(scale: scale)
                 accountRow("내 데이터 다운로드", scale: scale)
                 divider(scale: scale)
-                accountRow("회원 탈퇴", isDestructive: true, scale: scale)
+                accountRow(
+                    "회원 탈퇴",
+                    isDestructive: true,
+                    scale: scale,
+                    action: {
+                        showsWithdrawalAlert = true
+                    }
+                )
             }
         }
     }
@@ -284,19 +309,30 @@ struct MyPageView: View {
         }
     }
 
-    private func accountRow(_ title: String, isDestructive: Bool = false, scale: CGFloat) -> some View {
-        HStack {
-            Text(title)
-                .font(.system(size: 13 * scale, weight: .regular))
-                .foregroundStyle(isDestructive ? Color.myPageDanger : Color.myPageMutedText)
+    private func accountRow(
+        _ title: String,
+        isDestructive: Bool = false,
+        scale: CGFloat,
+        action: (() -> Void)? = nil
+    ) -> some View {
+        Button {
+            action?()
+        } label: {
+            HStack {
+                Text(title)
+                    .font(.system(size: 13 * scale, weight: .regular))
+                    .foregroundStyle(isDestructive ? Color.myPageDanger : Color.myPageMutedText)
 
-            Spacer()
+                Spacer()
 
-            Image(systemName: "chevron.right")
-                .font(.system(size: 11 * scale, weight: .semibold))
-                .foregroundStyle(Color.myPageSubtleText)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11 * scale, weight: .semibold))
+                    .foregroundStyle(Color.myPageSubtleText)
+            }
+            .frame(height: 32 * scale)
         }
-        .frame(height: 32 * scale)
+        .buttonStyle(.plain)
+        .disabled(action == nil)
     }
 
     private func divider(scale: CGFloat) -> some View {
@@ -326,7 +362,7 @@ private struct MyPageRow {
 
 private enum MyPageEditRoute: Identifiable {
     case profile(MyPageState)
-    case notification
+    case notification(MyPageNotificationSettings)
 
     var id: String {
         switch self {

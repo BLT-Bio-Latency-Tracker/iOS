@@ -98,6 +98,12 @@ struct TermsAgreementView: View {
             isPushAgreed = isAgreed
             isEmailAgreed = isAgreed
         }
+        .onChange(of: isPushAgreed) { _, _ in
+            updateMarketingAgreementFromChannels()
+        }
+        .onChange(of: isEmailAgreed) { _, _ in
+            updateMarketingAgreementFromChannels()
+        }
         .fullScreenCover(item: $selectedAgreementDetail) { detail in
             AgreementDetailView(detail: detail) {
                 selectedAgreementDetail = nil
@@ -258,15 +264,15 @@ struct TermsAgreementView: View {
             HStack(spacing: 10 * scale) {
                 MarketingChannelButton(
                     title: "앱 푸시",
-                    icon: "bell.fill",
+                    icon: "🔔",
                     isSelected: $isPushAgreed,
                     isEnabled: isMarketingAgreed,
                     scale: scale
                 )
 
                 MarketingChannelButton(
-                    title: "이메일",
-                    icon: "envelope.fill",
+                    title: "SMS",
+                    icon: "✉️",
                     isSelected: $isEmailAgreed,
                     isEnabled: isMarketingAgreed,
                     scale: scale
@@ -316,6 +322,12 @@ struct TermsAgreementView: View {
         isMarketingAgreed = nextValue
         isPushAgreed = nextValue
         isEmailAgreed = nextValue
+    }
+
+    private func updateMarketingAgreementFromChannels() {
+        if !isPushAgreed && !isEmailAgreed {
+            isMarketingAgreed = false
+        }
     }
 }
 
@@ -531,11 +543,7 @@ private struct MarketingChannelButton: View {
                 }
                 .frame(width: 16 * scale, height: 16 * scale)
 
-                Image(systemName: icon)
-                    .font(.system(size: 11 * scale, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.7))
-
-                Text(title)
+                Text("\(icon)  \(title)")
                     .font(.system(size: 12 * scale, weight: .medium))
                     .foregroundStyle(.white.opacity(0.7))
 

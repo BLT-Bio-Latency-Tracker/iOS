@@ -7,6 +7,8 @@ struct MainTabView: View {
     @State private var isNotificationPresented = false
     @State private var isMyPagePresented = false
 
+    var onWithdraw: () -> Void = {}
+
     var body: some View {
         ZStack {
             Color.bltTabBackground
@@ -57,9 +59,15 @@ struct MainTabView: View {
             .ignoresSafeArea()
         }
         .fullScreenCover(isPresented: $isMyPagePresented) {
-            MyPageView {
-                isMyPagePresented = false
-            }
+            MyPageView(
+                onBack: {
+                    isMyPagePresented = false
+                },
+                onWithdraw: {
+                    isMyPagePresented = false
+                    onWithdraw()
+                }
+            )
             .ignoresSafeArea()
         }
     }

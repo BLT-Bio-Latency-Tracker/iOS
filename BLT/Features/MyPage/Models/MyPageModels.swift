@@ -43,6 +43,32 @@ struct MyPageNotificationSettings {
     let isEnabled: Bool
     let measurementTimeText: String?
     let bedtimeText: String?
+    let channels: Set<MyPageNotificationChannel>
+}
+
+enum MyPageNotificationChannel: String, CaseIterable, Identifiable {
+    case appPush = "APP_PUSH"
+    case sms = "SMS"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .appPush:
+            return "앱 푸시"
+        case .sms:
+            return "SMS"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .appPush:
+            return "🔔"
+        case .sms:
+            return "✉️"
+        }
+    }
 }
 
 struct MyPageProfilePatchRequest {
@@ -58,6 +84,20 @@ struct MyPageProfilePatchRequest {
             && gender == nil
             && wakeUpTimeText == nil
             && jobGroup == nil
+    }
+}
+
+struct MyPageNotificationPatchRequest {
+    let isEnabled: Bool?
+    let measurementTimeText: String?
+    let bedtimeText: String?
+    let channels: Set<MyPageNotificationChannel>?
+
+    var isEmpty: Bool {
+        isEnabled == nil
+            && measurementTimeText == nil
+            && bedtimeText == nil
+            && channels == nil
     }
 }
 
@@ -77,7 +117,8 @@ extension MyPageState {
         notificationSettings: MyPageNotificationSettings(
             isEnabled: false,
             measurementTimeText: nil,
-            bedtimeText: nil
+            bedtimeText: nil,
+            channels: []
         )
     )
 }
