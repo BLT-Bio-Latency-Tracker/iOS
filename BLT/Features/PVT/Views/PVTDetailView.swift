@@ -81,7 +81,7 @@ struct PVTDetailView: View {
                 .foregroundStyle(.white.opacity(0.55))
 
             HStack(alignment: .lastTextBaseline, spacing: 10 * scale) {
-                Text("\(viewModel.state.averageMilliseconds)")
+                Text(String(viewModel.state.averageMilliseconds))
                     .font(.system(size: 44 * scale, weight: .heavy))
                     .foregroundStyle(.white)
                     .lineLimit(1)
@@ -100,7 +100,7 @@ struct PVTDetailView: View {
         HStack(spacing: 16 * scale) {
             statCard(
                 title: "BEST",
-                value: "\(viewModel.state.bestMilliseconds)",
+                value: String(viewModel.state.bestMilliseconds),
                 suffix: "ms",
                 valueColor: Color.pvtDetailPositive,
                 scale: scale
@@ -108,7 +108,7 @@ struct PVTDetailView: View {
 
             statCard(
                 title: "LAPSE",
-                value: "\(viewModel.state.lapseCount)",
+                value: String(viewModel.state.lapseCount),
                 suffix: "회 (>500ms)",
                 valueColor: .white,
                 scale: scale
@@ -207,7 +207,7 @@ struct PVTDetailView: View {
         VStack(spacing: 8 * scale) {
             metricRow(
                 title: "False Start",
-                value: "\(viewModel.state.falseStartCount)회",
+                value: String(format: "%d회", viewModel.state.falseStartCount),
                 valueColor: .white,
                 scale: scale
             )

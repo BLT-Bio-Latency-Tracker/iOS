@@ -31,7 +31,20 @@ final class HistoryViewModel: ObservableObject {
     }
 
     func moveToNextMonth() {
+        guard canMoveToNextMonth else { return }
         selectedMonth = calendar.date(byAdding: .month, value: 1, to: selectedMonth) ?? selectedMonth
+        reload()
+    }
+
+    func selectMonth(year: Int, month: Int) {
+        guard !isFutureMonth(year: year, month: month) else { return }
+
+        var components = DateComponents()
+        components.year = year
+        components.month = month
+        components.day = 1
+
+        selectedMonth = calendar.date(from: components).map { calendar.startOfMonth(for: $0) } ?? selectedMonth
         reload()
     }
 
@@ -47,7 +60,36 @@ final class HistoryViewModel: ObservableObject {
 
     var monthTitle: String {
         let components = calendar.dateComponents([.year, .month], from: selectedMonth)
-        return "\(components.year ?? 0)년 \(components.month ?? 1)월"
+        return String(format: "%d년 %d월", components.year ?? 0, components.month ?? 1)
+    }
+
+    var selectedYear: Int {
+        calendar.component(.year, from: selectedMonth)
+    }
+
+    var selectedMonthNumber: Int {
+        calendar.component(.month, from: selectedMonth)
+    }
+
+    var selectableYears: [Int] {
+        let currentYear = calendar.component(.year, from: Date())
+        let startYear = currentYear - 10
+        return Array(startYear...currentYear)
+    }
+
+    var canMoveToNextMonth: Bool {
+        let nextMonth = calendar.date(byAdding: .month, value: 1, to: selectedMonth) ?? selectedMonth
+        return calendar.startOfMonth(for: nextMonth) <= calendar.startOfMonth(for: Date())
+    }
+
+    func isFutureMonth(year: Int, month: Int) -> Bool {
+        var components = DateComponents()
+        components.year = year
+        components.month = month
+        components.day = 1
+
+        guard let targetMonth = calendar.date(from: components) else { return true }
+        return calendar.startOfMonth(for: targetMonth) > calendar.startOfMonth(for: Date())
     }
 
     private func reload() {

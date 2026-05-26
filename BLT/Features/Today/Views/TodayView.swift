@@ -117,7 +117,7 @@ struct TodayView: View {
                 .minimumScaleFactor(0.8)
 
             HStack(alignment: .center, spacing: 20 * scale) {
-                Text("\(viewModel.state.score)")
+                Text(String(viewModel.state.score))
                     .font(.system(size: 54 * scale, weight: .heavy))
                     .foregroundStyle(.white)
                     .lineLimit(1)
@@ -159,7 +159,7 @@ struct TodayView: View {
     }
 
     private func roiChangeBadge(scale: CGFloat) -> some View {
-        Text("▲ \(viewModel.state.roiChangePercent)%")
+        Text(String(format: "▲ %d%%", viewModel.state.roiChangePercent))
             .font(.system(size: 11 * scale, weight: .bold))
             .foregroundStyle(Color.todayPositive)
             .frame(width: 76 * scale, height: 22 * scale)
@@ -231,9 +231,13 @@ struct TodayView: View {
                             viewModel.selectedComparison = type
                         }
                     } label: {
-                        Text(type.title)
+                        Text(verbatim: type.title)
                             .font(.system(size: 12 * scale, weight: viewModel.selectedComparison == type ? .semibold : .regular))
                             .foregroundStyle(viewModel.selectedComparison == type ? .white : Color.todayMutedText)
+                            .id("today-comparison-\(type.id)")
+                            .transaction { transaction in
+                                transaction.animation = nil
+                            }
                             .frame(maxWidth: .infinity)
                             .frame(height: 32 * scale)
                             .background {
@@ -450,7 +454,7 @@ struct TodayView: View {
 
             if viewModel.state.hasTodayPVTData {
                 HStack(alignment: .lastTextBaseline, spacing: 10 * scale) {
-                    Text("\(viewModel.state.pvt.averageMs)")
+                    Text(String(viewModel.state.pvt.averageMs))
                         .font(.system(size: 28 * scale, weight: .bold))
                         .foregroundStyle(.white)
 

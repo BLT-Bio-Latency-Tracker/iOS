@@ -76,7 +76,7 @@ struct OnboardingView: View {
 
     private func header(scale: CGFloat) -> some View {
         HStack {
-            Text("\(currentPage + 1) / 3")
+            Text(String(format: "%d / 3", currentPage + 1))
                 .font(.system(size: 12 * scale, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.55))
                 .contentTransition(.numericText())
