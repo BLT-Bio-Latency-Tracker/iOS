@@ -498,7 +498,7 @@ struct TodayView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
 
-                    Text("다시 측정하기로 오늘의 반응 속도를 업데이트하세요")
+                    Text("측정하기로 오늘의 반응 속도를 기록하세요")
                         .font(.system(size: 11 * scale, weight: .medium))
                         .foregroundStyle(Color.todayMutedText)
                         .lineLimit(1)
@@ -521,7 +521,7 @@ struct TodayView: View {
 
     private func measureAgainButton(scale: CGFloat) -> some View {
         Button(action: onMeasureAgain) {
-            Text("다시 측정하기")
+            Text(viewModel.state.hasTodayPVTData ? "다시 측정하기" : "측정하기")
                 .font(.system(size: 16 * scale, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)

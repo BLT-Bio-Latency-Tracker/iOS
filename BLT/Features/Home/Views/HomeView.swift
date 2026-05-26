@@ -3,8 +3,10 @@ import Combine
 
 struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
+    @StateObject private var notificationStore = AppNotificationStore.shared
 
     var onPVTStart: () -> Void = {}
+    var onNotificationTap: () -> Void = {}
 
     private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
     private let designWidth: CGFloat = 390
@@ -67,14 +69,24 @@ struct HomeView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 8 * scale) {
-                Button {} label: {
-                    Text("🔔")
-                        .font(.system(size: 20 * scale))
-                        .frame(width: 36 * scale, height: 36 * scale)
-                        .background(Color.bltCard)
-                        .clipShape(Circle())
+                Button(action: onNotificationTap) {
+                    ZStack(alignment: .topTrailing) {
+                        Text("🔔")
+                            .font(.system(size: 20 * scale))
+                            .frame(width: 36 * scale, height: 36 * scale)
+                            .background(Color.bltCard)
+                            .clipShape(Circle())
+
+                        if notificationStore.hasUnreadNotifications {
+                            Circle()
+                                .fill(Color.bltNotificationBadge)
+                                .frame(width: 6 * scale, height: 6 * scale)
+                                .offset(x: -4 * scale, y: 4 * scale)
+                        }
+                    }
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("알림")
 
                 Button {} label: {
                     Text(viewModel.state.profileInitial)
@@ -402,6 +414,7 @@ private extension Color {
     static let bltPrimary = Color(red: 0.486, green: 0.361, blue: 1)
     static let bltCyan = Color(red: 0.133, green: 0.827, blue: 0.933)
     static let bltPositive = Color(red: 0.063, green: 0.722, blue: 0.506)
+    static let bltNotificationBadge = Color(red: 0.937, green: 0.267, blue: 0.267)
     static let bltMutedText = Color(red: 0.62, green: 0.66, blue: 0.82)
     static let bltSubtleText = Color(red: 0.42, green: 0.46, blue: 0.62)
 }

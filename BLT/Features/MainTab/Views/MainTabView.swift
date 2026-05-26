@@ -4,6 +4,7 @@ struct MainTabView: View {
     @State private var selectedTab: MainTab = .home
     @State private var isTabBarHidden = false
     @State private var isPVTMeasurementPresented = false
+    @State private var isNotificationPresented = false
 
     var body: some View {
         ZStack {
@@ -48,6 +49,12 @@ struct MainTabView: View {
             )
             .ignoresSafeArea()
         }
+        .fullScreenCover(isPresented: $isNotificationPresented) {
+            NotificationsView {
+                isNotificationPresented = false
+            }
+            .ignoresSafeArea()
+        }
     }
 
     @ViewBuilder
@@ -64,9 +71,14 @@ struct MainTabView: View {
             )
 
         case .home:
-            HomeView {
-                isPVTMeasurementPresented = true
-            }
+            HomeView(
+                onPVTStart: {
+                    isPVTMeasurementPresented = true
+                },
+                onNotificationTap: {
+                    isNotificationPresented = true
+                }
+            )
 
         case .history:
             HistoryView()
