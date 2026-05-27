@@ -7,11 +7,10 @@ struct MyPageNotificationEditView: View {
 
     let settings: MyPageNotificationSettings
     let onBack: () -> Void
-    let onSave: (MyPageNotificationEditDraft) async -> Bool
+    let onSave: (MyPageNotificationEditDraft) -> Bool
 
     @State private var draft: MyPageNotificationEditDraft
     @State private var activePicker: NotificationTimePicker?
-    @State private var isSaving = false
     @State private var isRequestingNotificationPermission = false
     @State private var showsNotificationSettingsAlert = false
     @State private var notificationPermissionMessage = ""
@@ -23,7 +22,7 @@ struct MyPageNotificationEditView: View {
     init(
         settings: MyPageNotificationSettings,
         onBack: @escaping () -> Void,
-        onSave: @escaping (MyPageNotificationEditDraft) async -> Bool
+        onSave: @escaping (MyPageNotificationEditDraft) -> Bool
     ) {
         self.settings = settings
         self.onBack = onBack
@@ -290,18 +289,13 @@ struct MyPageNotificationEditView: View {
     private func saveButton(scale: CGFloat) -> some View {
         Button {
             guard canSave else { return }
-            Task {
-                guard !isSaving else { return }
-                isSaving = true
-                let isSaved = await onSave(draft)
-                isSaving = false
+            let isSaved = onSave(draft)
 
-                if isSaved {
-                    onBack()
-                }
+            if isSaved {
+                onBack()
             }
         } label: {
-            Text(isSaving ? "저장 중" : "저장하기")
+            Text("저장하기")
                 .font(.system(size: 16 * scale, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -324,7 +318,7 @@ struct MyPageNotificationEditView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
         }
         .buttonStyle(.plain)
-        .disabled(!canSave || isSaving)
+        .disabled(!canSave)
     }
 
     private var canSave: Bool {

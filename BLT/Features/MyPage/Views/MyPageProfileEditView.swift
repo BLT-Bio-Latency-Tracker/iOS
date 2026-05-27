@@ -3,11 +3,10 @@ import SwiftUI
 struct MyPageProfileEditView: View {
     let state: MyPageState
     let onBack: () -> Void
-    let onSave: (MyPageProfileEditDraft) async -> Bool
+    let onSave: (MyPageProfileEditDraft) -> Bool
 
     @State private var draft: MyPageProfileEditDraft
     @State private var activePicker: MyPageProfileEditPicker?
-    @State private var isSaving = false
     @FocusState private var focusedField: FocusedField?
 
     private let designWidth: CGFloat = 375
@@ -20,7 +19,7 @@ struct MyPageProfileEditView: View {
     init(
         state: MyPageState,
         onBack: @escaping () -> Void,
-        onSave: @escaping (MyPageProfileEditDraft) async -> Bool
+        onSave: @escaping (MyPageProfileEditDraft) -> Bool
     ) {
         self.state = state
         self.onBack = onBack
@@ -259,18 +258,13 @@ struct MyPageProfileEditView: View {
     private func saveButton(scale: CGFloat) -> some View {
         Button {
             focusedField = nil
-            Task {
-                guard !isSaving else { return }
-                isSaving = true
-                let isSaved = await onSave(draft)
-                isSaving = false
+            let isSaved = onSave(draft)
 
-                if isSaved {
-                    onBack()
-                }
+            if isSaved {
+                onBack()
             }
         } label: {
-            Text(isSaving ? "저장 중" : "저장하기")
+            Text("저장하기")
                 .font(.system(size: 16 * scale, weight: .semibold))
                 .foregroundStyle(.white.opacity(draft.canSave ? 1 : 0.45))
                 .frame(maxWidth: .infinity)
@@ -289,7 +283,7 @@ struct MyPageProfileEditView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
         }
         .buttonStyle(.plain)
-        .disabled(!draft.canSave || isSaving)
+        .disabled(!draft.canSave)
     }
 
     private func sectionTitle(_ title: String, scale: CGFloat) -> some View {

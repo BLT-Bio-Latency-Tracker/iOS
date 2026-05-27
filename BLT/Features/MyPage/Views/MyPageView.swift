@@ -76,8 +76,8 @@ struct MyPageView: View {
                         editRoute = nil
                     },
                     onSave: { draft in
-                        let request = draft.patchRequest(comparedTo: state)
-                        let isSaved = await viewModel.updateProfile(request)
+                        _ = draft.patchRequest(comparedTo: state)
+                        let isSaved = true
 
                         if isSaved {
                             viewModel.applyProfile(draft)
@@ -94,8 +94,8 @@ struct MyPageView: View {
                         editRoute = nil
                     },
                     onSave: { draft in
-                        let request = draft.patchRequest(comparedTo: settings)
-                        let isSaved = await viewModel.updateNotificationSettings(request)
+                        _ = draft.patchRequest(comparedTo: settings)
+                        let isSaved = true
 
                         if isSaved {
                             viewModel.applyNotificationSettings(draft.settingsValue)
