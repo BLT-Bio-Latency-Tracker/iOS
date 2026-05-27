@@ -12,7 +12,7 @@ struct TermsAgreementView: View {
     @State private var isHealthDataAgreed = false
     @State private var isMarketingAgreed = false
     @State private var isPushAgreed = false
-    @State private var isEmailAgreed = false
+    @State private var isSmsAgreed = false
     @State private var selectedAgreementDetail: AgreementDetail?
 
     private let designWidth: CGFloat = 375
@@ -29,7 +29,7 @@ struct TermsAgreementView: View {
         isHealthDataAgreed &&
         isMarketingAgreed &&
         isPushAgreed &&
-        isEmailAgreed
+        isSmsAgreed
     }
 
     private var termsAgreementState: TermsAgreementState {
@@ -40,7 +40,7 @@ struct TermsAgreementView: View {
             healthDataAnalytics: isHealthDataAgreed,
             marketing: isMarketingAgreed,
             notification: isPushAgreed,
-            email: isEmailAgreed
+            sms: isSmsAgreed
         )
     }
 
@@ -96,12 +96,12 @@ struct TermsAgreementView: View {
         .preferredColorScheme(.dark)
         .onChange(of: isMarketingAgreed) { _, isAgreed in
             isPushAgreed = isAgreed
-            isEmailAgreed = isAgreed
+            isSmsAgreed = isAgreed
         }
         .onChange(of: isPushAgreed) { _, _ in
             updateMarketingAgreementFromChannels()
         }
-        .onChange(of: isEmailAgreed) { _, _ in
+        .onChange(of: isSmsAgreed) { _, _ in
             updateMarketingAgreementFromChannels()
         }
         .fullScreenCover(item: $selectedAgreementDetail) { detail in
@@ -273,7 +273,7 @@ struct TermsAgreementView: View {
                 MarketingChannelButton(
                     title: "SMS",
                     icon: "✉️",
-                    isSelected: $isEmailAgreed,
+                    isSelected: $isSmsAgreed,
                     isEnabled: isMarketingAgreed,
                     scale: scale
                 )
@@ -321,11 +321,11 @@ struct TermsAgreementView: View {
         isHealthDataAgreed = nextValue
         isMarketingAgreed = nextValue
         isPushAgreed = nextValue
-        isEmailAgreed = nextValue
+        isSmsAgreed = nextValue
     }
 
     private func updateMarketingAgreementFromChannels() {
-        if !isPushAgreed && !isEmailAgreed {
+        if !isPushAgreed && !isSmsAgreed {
             isMarketingAgreed = false
         }
     }

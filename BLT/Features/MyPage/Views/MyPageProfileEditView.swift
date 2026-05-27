@@ -3,20 +3,24 @@ import SwiftUI
 struct MyPageProfileEditView: View {
     let state: MyPageState
     let onBack: () -> Void
-    let onSave: (MyPageProfileEditDraft) -> Void
+    let onSave: (MyPageProfileEditDraft) async -> Bool
 
     @State private var draft: MyPageProfileEditDraft
     @State private var activePicker: MyPageProfileEditPicker?
+    @State private var isSaving = false
     @FocusState private var focusedField: FocusedField?
 
     private let designWidth: CGFloat = 375
     private let designHeight: CGFloat = 812
-    private let birthYears = Array((1940...2026).reversed())
+    private var birthYears: [Int] {
+        let currentYear = Calendar.current.component(.year, from: Date())
+        return Array((1940...currentYear).reversed())
+    }
 
     init(
         state: MyPageState,
         onBack: @escaping () -> Void,
-        onSave: @escaping (MyPageProfileEditDraft) -> Void
+        onSave: @escaping (MyPageProfileEditDraft) async -> Bool
     ) {
         self.state = state
         self.onBack = onBack
@@ -255,10 +259,18 @@ struct MyPageProfileEditView: View {
     private func saveButton(scale: CGFloat) -> some View {
         Button {
             focusedField = nil
-            onSave(draft)
-            onBack()
+            Task {
+                guard !isSaving else { return }
+                isSaving = true
+                let isSaved = await onSave(draft)
+                isSaving = false
+
+                if isSaved {
+                    onBack()
+                }
+            }
         } label: {
-            Text("저장하기")
+            Text(isSaving ? "저장 중" : "저장하기")
                 .font(.system(size: 16 * scale, weight: .semibold))
                 .foregroundStyle(.white.opacity(draft.canSave ? 1 : 0.45))
                 .frame(maxWidth: .infinity)
@@ -277,7 +289,7 @@ struct MyPageProfileEditView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
         }
         .buttonStyle(.plain)
-        .disabled(!draft.canSave)
+        .disabled(!draft.canSave || isSaving)
     }
 
     private func sectionTitle(_ title: String, scale: CGFloat) -> some View {
@@ -379,9 +391,12 @@ struct MyPageProfileEditDraft {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    var wakeUpTimeText: String? {
+        wakeUpTime.map(Self.formattedWakeUpTime)
+    }
+
     func patchRequest(comparedTo state: MyPageState) -> MyPageProfilePatchRequest {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let wakeUpTimeText = wakeUpTime.map(Self.formattedWakeUpTime)
 
         return MyPageProfilePatchRequest(
             name: trimmedName == state.user.name ? nil : trimmedName,

@@ -6,7 +6,7 @@ struct MyPageView: View {
     @State private var showsWithdrawalAlert = false
 
     let onBack: () -> Void
-    var onWithdraw: () -> Void = {}
+    let onWithdraw: () -> Void
 
     private let designWidth: CGFloat = 390
 
@@ -76,7 +76,14 @@ struct MyPageView: View {
                         editRoute = nil
                     },
                     onSave: { draft in
-                        _ = draft.patchRequest(comparedTo: state)
+                        let request = draft.patchRequest(comparedTo: state)
+                        let isSaved = await viewModel.updateProfile(request)
+
+                        if isSaved {
+                            viewModel.applyProfile(draft)
+                        }
+
+                        return isSaved
                     }
                 )
                 .ignoresSafeArea()
@@ -87,8 +94,14 @@ struct MyPageView: View {
                         editRoute = nil
                     },
                     onSave: { draft in
-                        _ = draft.patchRequest(comparedTo: settings)
-                        viewModel.applyNotificationSettings(draft.settingsValue)
+                        let request = draft.patchRequest(comparedTo: settings)
+                        let isSaved = await viewModel.updateNotificationSettings(request)
+
+                        if isSaved {
+                            viewModel.applyNotificationSettings(draft.settingsValue)
+                        }
+
+                        return isSaved
                     }
                 )
                 .ignoresSafeArea()
