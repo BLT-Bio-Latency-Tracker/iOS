@@ -16,5 +16,6 @@ enum ConsentType: String, Codable {
     case healthData = "HEALTH_DATA"
     case marketing = "MARKETING"
     case notification = "NOTIFICATION"
+    case sms = "SMS"
     case analyze = "ANALYZE"
 }

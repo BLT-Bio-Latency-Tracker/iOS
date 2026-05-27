@@ -7,7 +7,7 @@ struct TermsAgreementState {
     let healthDataAnalytics: Bool
     let marketing: Bool
     let notification: Bool
-    let email: Bool
+    let sms: Bool
 
     var isRequiredAgreed: Bool {
         serviceTerms && privacyPolicy && ageOver14
@@ -22,7 +22,8 @@ struct TermsAgreementState {
                 .init(consentType: .healthData, agreed: true),
                 .init(consentType: .analyze, agreed: healthDataAnalytics),
                 .init(consentType: .marketing, agreed: marketing),
-                .init(consentType: .notification, agreed: notification)
+                .init(consentType: .notification, agreed: notification),
+                .init(consentType: .sms, agreed: sms)
             ]
         )
     }

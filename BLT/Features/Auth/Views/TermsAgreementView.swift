@@ -12,7 +12,7 @@ struct TermsAgreementView: View {
     @State private var isHealthDataAgreed = false
     @State private var isMarketingAgreed = false
     @State private var isPushAgreed = false
-    @State private var isEmailAgreed = false
+    @State private var isSmsAgreed = false
     @State private var selectedAgreementDetail: AgreementDetail?
 
     private let designWidth: CGFloat = 375
@@ -29,7 +29,7 @@ struct TermsAgreementView: View {
         isHealthDataAgreed &&
         isMarketingAgreed &&
         isPushAgreed &&
-        isEmailAgreed
+        isSmsAgreed
     }
 
     private var termsAgreementState: TermsAgreementState {
@@ -40,7 +40,7 @@ struct TermsAgreementView: View {
             healthDataAnalytics: isHealthDataAgreed,
             marketing: isMarketingAgreed,
             notification: isPushAgreed,
-            email: isEmailAgreed
+            sms: isSmsAgreed
         )
     }
 
@@ -96,7 +96,13 @@ struct TermsAgreementView: View {
         .preferredColorScheme(.dark)
         .onChange(of: isMarketingAgreed) { _, isAgreed in
             isPushAgreed = isAgreed
-            isEmailAgreed = isAgreed
+            isSmsAgreed = isAgreed
+        }
+        .onChange(of: isPushAgreed) { _, _ in
+            updateMarketingAgreementFromChannels()
+        }
+        .onChange(of: isSmsAgreed) { _, _ in
+            updateMarketingAgreementFromChannels()
         }
         .fullScreenCover(item: $selectedAgreementDetail) { detail in
             AgreementDetailView(detail: detail) {
@@ -258,16 +264,16 @@ struct TermsAgreementView: View {
             HStack(spacing: 10 * scale) {
                 MarketingChannelButton(
                     title: "앱 푸시",
-                    icon: "bell.fill",
+                    icon: "🔔",
                     isSelected: $isPushAgreed,
                     isEnabled: isMarketingAgreed,
                     scale: scale
                 )
 
                 MarketingChannelButton(
-                    title: "이메일",
-                    icon: "envelope.fill",
-                    isSelected: $isEmailAgreed,
+                    title: "SMS",
+                    icon: "✉️",
+                    isSelected: $isSmsAgreed,
                     isEnabled: isMarketingAgreed,
                     scale: scale
                 )
@@ -315,7 +321,13 @@ struct TermsAgreementView: View {
         isHealthDataAgreed = nextValue
         isMarketingAgreed = nextValue
         isPushAgreed = nextValue
-        isEmailAgreed = nextValue
+        isSmsAgreed = nextValue
+    }
+
+    private func updateMarketingAgreementFromChannels() {
+        if !isPushAgreed && !isSmsAgreed {
+            isMarketingAgreed = false
+        }
     }
 }
 
@@ -531,11 +543,7 @@ private struct MarketingChannelButton: View {
                 }
                 .frame(width: 16 * scale, height: 16 * scale)
 
-                Image(systemName: icon)
-                    .font(.system(size: 11 * scale, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.7))
-
-                Text(title)
+                Text("\(icon)  \(title)")
                     .font(.system(size: 12 * scale, weight: .medium))
                     .foregroundStyle(.white.opacity(0.7))
 

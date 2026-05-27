@@ -2,9 +2,11 @@ import SwiftUI
 
 struct MyPageView: View {
     @StateObject private var viewModel = MyPageViewModel()
-    @State private var editDestination: MyPageEditDestination?
+    @State private var editRoute: MyPageEditRoute?
+    @State private var showsWithdrawalAlert = false
 
     let onBack: () -> Void
+    let onWithdraw: () -> Void
 
     private let designWidth: CGFloat = 390
 
@@ -56,11 +58,54 @@ struct MyPageView: View {
         .task {
             await viewModel.fetchMyPage()
         }
-        .fullScreenCover(item: $editDestination) { destination in
-            MyPageEditPlaceholderView(destination: destination) {
-                editDestination = nil
+        .alert("정말 탈퇴하시겠습니까?", isPresented: $showsWithdrawalAlert) {
+            Button("취소", role: .cancel) {}
+
+            Button("탈퇴하기", role: .destructive) {
+                onWithdraw()
             }
-            .ignoresSafeArea()
+        } message: {
+            Text("탈퇴 시 모든 수면 데이터 및 PVT 기록이 영구 삭제되며 복구할 수 없습니다.")
+        }
+        .fullScreenCover(item: $editRoute) { route in
+            switch route {
+            case .profile(let state):
+                MyPageProfileEditView(
+                    state: state,
+                    onBack: {
+                        editRoute = nil
+                    },
+                    onSave: { draft in
+                        _ = draft.patchRequest(comparedTo: state)
+                        let isSaved = true
+
+                        if isSaved {
+                            viewModel.applyProfile(draft)
+                        }
+
+                        return isSaved
+                    }
+                )
+                .ignoresSafeArea()
+            case .notification(let settings):
+                MyPageNotificationEditView(
+                    settings: settings,
+                    onBack: {
+                        editRoute = nil
+                    },
+                    onSave: { draft in
+                        _ = draft.patchRequest(comparedTo: settings)
+                        let isSaved = true
+
+                        if isSaved {
+                            viewModel.applyNotificationSettings(draft.settingsValue)
+                        }
+
+                        return isSaved
+                    }
+                )
+                .ignoresSafeArea()
+            }
         }
     }
 
@@ -151,7 +196,7 @@ struct MyPageView: View {
             trailing: profileMissingText(for: state),
             scale: scale,
             action: {
-                editDestination = .profile
+                editRoute = .profile(state)
             }
         ) {
             infoRows([
@@ -169,7 +214,7 @@ struct MyPageView: View {
             trailing: nil,
             scale: scale,
             action: {
-                editDestination = .notification
+                editRoute = .notification(settings)
             }
         ) {
             infoRows([
@@ -187,7 +232,14 @@ struct MyPageView: View {
                 divider(scale: scale)
                 accountRow("내 데이터 다운로드", scale: scale)
                 divider(scale: scale)
-                accountRow("회원 탈퇴", isDestructive: true, scale: scale)
+                accountRow(
+                    "회원 탈퇴",
+                    isDestructive: true,
+                    scale: scale,
+                    action: {
+                        showsWithdrawalAlert = true
+                    }
+                )
             }
         }
     }
@@ -270,19 +322,30 @@ struct MyPageView: View {
         }
     }
 
-    private func accountRow(_ title: String, isDestructive: Bool = false, scale: CGFloat) -> some View {
-        HStack {
-            Text(title)
-                .font(.system(size: 13 * scale, weight: .regular))
-                .foregroundStyle(isDestructive ? Color.myPageDanger : Color.myPageMutedText)
+    private func accountRow(
+        _ title: String,
+        isDestructive: Bool = false,
+        scale: CGFloat,
+        action: (() -> Void)? = nil
+    ) -> some View {
+        Button {
+            action?()
+        } label: {
+            HStack {
+                Text(title)
+                    .font(.system(size: 13 * scale, weight: .regular))
+                    .foregroundStyle(isDestructive ? Color.myPageDanger : Color.myPageMutedText)
 
-            Spacer()
+                Spacer()
 
-            Image(systemName: "chevron.right")
-                .font(.system(size: 11 * scale, weight: .semibold))
-                .foregroundStyle(Color.myPageSubtleText)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11 * scale, weight: .semibold))
+                    .foregroundStyle(Color.myPageSubtleText)
+            }
+            .frame(height: 32 * scale)
         }
-        .frame(height: 32 * scale)
+        .buttonStyle(.plain)
+        .disabled(action == nil)
     }
 
     private func divider(scale: CGFloat) -> some View {
@@ -310,98 +373,17 @@ private struct MyPageRow {
     let isWarning: Bool
 }
 
-private enum MyPageEditDestination: String, Identifiable {
-    case profile
-    case notification
+private enum MyPageEditRoute: Identifiable {
+    case profile(MyPageState)
+    case notification(MyPageNotificationSettings)
 
-    var id: String { rawValue }
-
-    var title: String {
+    var id: String {
         switch self {
         case .profile:
-            return "내 정보 수정"
+            return "profile"
         case .notification:
-            return "알림 설정"
+            return "notification"
         }
-    }
-
-    var message: String {
-        switch self {
-        case .profile:
-            return "내 정보 수정 화면은 서버 프로필 저장 API와 함께 연결할 예정입니다."
-        case .notification:
-            return "알림 설정 화면은 알림 권한과 서버 설정 API가 확정되면 연결할 예정입니다."
-        }
-    }
-}
-
-private struct MyPageEditPlaceholderView: View {
-    let destination: MyPageEditDestination
-    let onBack: () -> Void
-
-    private let designWidth: CGFloat = 390
-
-    var body: some View {
-        GeometryReader { proxy in
-            let scale = proxy.size.width / designWidth
-            let contentWidth = max(0, proxy.size.width - 48 * scale)
-            let horizontalInset = (proxy.size.width - contentWidth) / 2
-            let topPadding = max(8 * scale, 56 * scale - proxy.safeAreaInsets.top)
-
-            ZStack {
-                Color.myPageBackground
-                    .ignoresSafeArea()
-
-                VStack(spacing: 0) {
-                    header(scale: scale)
-                        .padding(.top, topPadding)
-
-                    Spacer()
-
-                    VStack(spacing: 12 * scale) {
-                        Text(destination.title)
-                            .font(.system(size: 22 * scale, weight: .bold))
-                            .foregroundStyle(.white)
-
-                        Text(destination.message)
-                            .font(.system(size: 13 * scale, weight: .regular))
-                            .foregroundStyle(Color.myPageMutedText)
-                            .multilineTextAlignment(.center)
-                            .lineSpacing(4 * scale)
-                    }
-                    .padding(.horizontal, 20 * scale)
-
-                    Spacer()
-                }
-                .padding(.horizontal, horizontalInset)
-            }
-        }
-        .preferredColorScheme(.dark)
-    }
-
-    private func header(scale: CGFloat) -> some View {
-        ZStack {
-            Text(destination.title)
-                .font(.system(size: 16 * scale, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-
-            HStack {
-                Button(action: onBack) {
-                    Image(systemName: "arrow.left")
-                        .font(.system(size: 18 * scale, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 32 * scale, height: 32 * scale)
-                        .background(Color.myPageCard)
-                        .clipShape(RoundedRectangle(cornerRadius: 10 * scale, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("뒤로가기")
-
-                Spacer()
-            }
-        }
-        .frame(height: 32 * scale)
     }
 }
 
