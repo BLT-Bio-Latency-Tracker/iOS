@@ -510,11 +510,13 @@ struct MyPageNotificationEditDraft {
     func patchRequest(comparedTo settings: MyPageNotificationSettings) -> MyPageNotificationPatchRequest {
         let measurementText = measurementTime.map(Self.formattedTime)
         let bedtimeText = bedtime.map(Self.formattedTime)
+        let currentMeasurementText = Self.normalizedTimeText(from: settings.measurementTimeText)
+        let currentBedtimeText = Self.normalizedTimeText(from: settings.bedtimeText)
 
         return MyPageNotificationPatchRequest(
             isEnabled: isEnabled == settings.isEnabled ? nil : isEnabled,
-            measurementTimeText: measurementText == settings.measurementTimeText ? nil : measurementText,
-            bedtimeText: bedtimeText == settings.bedtimeText ? nil : bedtimeText,
+            measurementTimeText: measurementText == currentMeasurementText ? nil : measurementText,
+            bedtimeText: bedtimeText == currentBedtimeText ? nil : bedtimeText,
             channels: channels == settings.channels ? nil : channels
         )
     }
@@ -524,6 +526,11 @@ struct MyPageNotificationEditDraft {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "HH:mm"
         return formatter.string(from: date)
+    }
+
+    nonisolated private static func normalizedTimeText(from text: String?) -> String? {
+        guard let date = date(from: text) else { return nil }
+        return formattedTime(date)
     }
 
     nonisolated private static func date(from text: String?) -> Date? {
