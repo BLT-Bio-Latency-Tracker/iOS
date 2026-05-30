@@ -6,6 +6,7 @@ struct MainTabView: View {
     @State private var isPVTMeasurementPresented = false
     @State private var isNotificationPresented = false
     @State private var isMyPagePresented = false
+    @State private var pvtResultRefreshTrigger = 0
 
     var onWithdraw: () -> Void = {}
 
@@ -42,6 +43,7 @@ struct MainTabView: View {
                 },
                 onComplete: { summary in
                     PVTResultStore.shared.save(summary)
+                    pvtResultRefreshTrigger += 1
                     selectedTab = .today
                     isPVTMeasurementPresented = false
                 },
@@ -77,10 +79,11 @@ struct MainTabView: View {
         switch selectedTab {
         case .today:
             TodayView(
+                pvtResultRefreshTrigger: pvtResultRefreshTrigger,
                 onSleepDetailVisibilityChanged: { isHidden in
                     isTabBarHidden = isHidden
                 },
-                onMeasureAgain: {
+                onMeasureAgain: { _ in
                     isPVTMeasurementPresented = true
                 }
             )

@@ -16,6 +16,7 @@ struct PVTEnvironmentCalibrationView: View {
 
     @StateObject private var calibrator = PVTEnvironmentCalibrator()
     @State private var step: Step = .calibration
+    @State private var qualityWarning: PVTCalibrationQualityWarning?
 
     private let designWidth: CGFloat = 390
 
@@ -54,7 +55,7 @@ struct PVTEnvironmentCalibrationView: View {
         }
         .preferredColorScheme(.dark)
         .onAppear {
-            calibrator.start()
+            startCalibration()
         }
         .onDisappear {
             if case .calibration = step {
@@ -63,7 +64,30 @@ struct PVTEnvironmentCalibrationView: View {
         }
         .onChange(of: calibrator.isFinished) { _, isFinished in
             guard isFinished else { return }
-            step = .measurement
+            guard let result = calibrator.result else {
+                step = .measurement
+                return
+            }
+
+            if let warning = PVTCalibrationQualityWarning(result: result) {
+                qualityWarning = warning
+            } else {
+                step = .measurement
+            }
+        }
+        .sheet(item: $qualityWarning) { warning in
+            GeometryReader { proxy in
+                let scale = min(proxy.size.width / designWidth, 1.08)
+
+                calibrationQualityWarningSheet(warning: warning, scale: scale)
+                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+            }
+            .presentationDetents([.height(438)])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(28)
+            .presentationBackground(Color(red: 0.078, green: 0.098, blue: 0.216))
+            .interactiveDismissDisabled()
+            .preferredColorScheme(.dark)
         }
     }
 
@@ -183,6 +207,117 @@ struct PVTEnvironmentCalibrationView: View {
         }
         .frame(width: 270 * scale, height: 6 * scale)
     }
+
+    private func calibrationQualityWarningSheet(
+        warning: PVTCalibrationQualityWarning,
+        scale: CGFloat
+    ) -> some View {
+        VStack(spacing: 0) {
+            ZStack {
+                Circle()
+                    .fill(Color.pvtCalibrationWarning.opacity(0.15))
+                    .frame(width: 72 * scale, height: 72 * scale)
+
+                Text(warning.icon)
+                    .font(.system(size: 28 * scale, weight: .regular))
+                    .frame(width: 36 * scale, height: 36 * scale)
+            }
+            .padding(.top, 34 * scale)
+
+            Text(warning.title)
+                .font(.system(size: 19 * scale, weight: .bold))
+                .foregroundStyle(.white.opacity(0.9))
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 16 * scale)
+
+            Text(warning.message)
+                .font(.system(size: 14 * scale, weight: .regular))
+                .foregroundStyle(.white.opacity(0.6))
+                .multilineTextAlignment(.center)
+                .lineSpacing(4 * scale)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 10 * scale)
+                .padding(.horizontal, 24 * scale)
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text(warning.guideTitle)
+                    .font(.system(size: 12 * scale, weight: .regular))
+                    .foregroundStyle(Color.pvtCalibrationWarning.opacity(0.85))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .padding(.top, 12 * scale)
+
+                Text(warning.guideDescription)
+                    .font(.system(size: 12 * scale, weight: .regular))
+                    .foregroundStyle(.white.opacity(0.45))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.75)
+                    .padding(.top, 9 * scale)
+            }
+            .padding(.horizontal, 16 * scale)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 64 * scale, alignment: .top)
+            .background(Color.pvtCalibrationWarning.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 12 * scale, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12 * scale, style: .continuous)
+                    .stroke(Color.pvtCalibrationWarning.opacity(0.2), lineWidth: 1)
+            }
+            .padding(.horizontal, 24 * scale)
+            .padding(.top, 18 * scale)
+
+            Button {
+                retryCalibration()
+            } label: {
+                Text(warning.primaryActionTitle)
+                    .font(.system(size: 15 * scale, weight: .regular))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56 * scale)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.pvtCalibrationViolet, Color.pvtCalibrationCyan],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 16 * scale, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 24 * scale)
+            .padding(.top, 16 * scale)
+
+            Button {
+                continueMeasurementDespiteWarning()
+            } label: {
+                Text("무시하고 계속하기")
+                    .font(.system(size: 14 * scale, weight: .regular))
+                    .foregroundStyle(.white.opacity(0.4))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 34 * scale)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8 * scale)
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color(red: 0.078, green: 0.098, blue: 0.216))
+    }
+
+    private func startCalibration() {
+        calibrator.start()
+    }
+
+    private func retryCalibration() {
+        qualityWarning = nil
+        step = .calibration
+        calibrator.restart()
+    }
+
+    private func continueMeasurementDespiteWarning() {
+        qualityWarning = nil
+        step = .measurement
+    }
 }
 
 @MainActor
@@ -210,7 +345,9 @@ private final class PVTEnvironmentCalibrator: NSObject, ObservableObject {
         guard timer == nil, displayLink == nil else { return }
 
         let screen = Self.activeScreen
-        originalBrightness = screen.brightness
+        if originalBrightness == nil {
+            originalBrightness = screen.brightness
+        }
         screen.brightness = 1
 
         let now = CACurrentMediaTime()
@@ -230,6 +367,18 @@ private final class PVTEnvironmentCalibrator: NSObject, ObservableObject {
         let displayLink = CADisplayLink(target: self, selector: #selector(displayLinkDidUpdate(_:)))
         displayLink.add(to: .main, forMode: .common)
         self.displayLink = displayLink
+    }
+
+    func restart() {
+        stop()
+        progress = 0
+        isFinished = false
+        result = nil
+        previousTimerFire = 0
+        maxTimerDelay = 0
+        unstableFrameCount = 0
+        lastDisplayTimestamp = nil
+        start()
     }
 
     func restoreBrightness() {
@@ -297,4 +446,84 @@ private extension Color {
     static let pvtCalibrationBackground = Color(red: 0.039, green: 0.055, blue: 0.153)
     static let pvtCalibrationViolet = Color(red: 0.486, green: 0.361, blue: 1)
     static let pvtCalibrationCyan = Color(red: 0.133, green: 0.831, blue: 0.929)
+    static let pvtCalibrationWarning = Color(red: 1, green: 0.82, blue: 0.2)
+}
+
+private struct PVTCalibrationQualityWarning: Equatable, Identifiable {
+    let id: Kind
+    let icon: String
+    let title: String
+    let message: String
+    let guideTitle: String
+    let guideDescription: String
+    let primaryActionTitle: String
+
+    private init(
+        id: Kind,
+        icon: String,
+        title: String,
+        message: String,
+        guideTitle: String,
+        guideDescription: String,
+        primaryActionTitle: String
+    ) {
+        self.id = id
+        self.icon = icon
+        self.title = title
+        self.message = message
+        self.guideTitle = guideTitle
+        self.guideDescription = guideDescription
+        self.primaryActionTitle = primaryActionTitle
+    }
+
+    static let lowPowerMode = PVTCalibrationQualityWarning(
+        id: .lowPowerMode,
+        icon: "⚡",
+        title: "응답 지연이 감지됐어요",
+        message: "저전력 모드가 켜져 있으면 반응속도\n측정 정확도가 낮아질 수 있어요.",
+        guideTitle: "📲  설정 > 배터리 > 저전력 모드 끄기",
+        guideDescription: "해제 후 다시 보정하면 더 정확한 캘리브레이션이 가능해요",
+        primaryActionTitle: "저전력 모드 해제 후 다시 보정"
+    )
+
+    init?(result: PVTEnvironmentCalibrationResult) {
+        if result.isLowPowerModeEnabled {
+            self = .lowPowerMode
+            return
+        }
+
+        if result.maxTimerDriftMilliseconds >= 80 {
+            self.init(
+                id: .timerDrift,
+                icon: "⏱️",
+                title: "메인 스레드 지연이 감지됐어요",
+                message: "앱 전환이나 백그라운드 작업이 많으면\n반응속도 측정이 밀릴 수 있어요.",
+                guideTitle: "📲  다른 앱을 정리하고 BLT만 실행해보세요",
+                guideDescription: "잠시 후 다시 보정하면 더 안정적인 측정이 가능해요",
+                primaryActionTitle: "다시 보정하기"
+            )
+            return
+        }
+
+        if result.unstableFrameCount >= 3 {
+            self.init(
+                id: .unstableFrame,
+                icon: "⚠️",
+                title: "화면 갱신이 불안정해요",
+                message: "프레임 드랍이 반복되면 자극 표시 시점이\n불안정해질 수 있어요.",
+                guideTitle: "📲  화면 녹화·저전력·무거운 앱을 종료해보세요",
+                guideDescription: "환경을 정리한 뒤 다시 보정하면 정확도가 올라가요",
+                primaryActionTitle: "다시 보정하기"
+            )
+            return
+        }
+
+        return nil
+    }
+
+    enum Kind: Hashable {
+        case lowPowerMode
+        case timerDrift
+        case unstableFrame
+    }
 }

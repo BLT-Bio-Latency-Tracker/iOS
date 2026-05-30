@@ -5,9 +5,11 @@ struct TodayView: View {
     @StateObject private var viewModel = TodayViewModel()
     @State private var isSleepDetailPresented = false
     @State private var isPVTDetailPresented = false
+    @State private var isRemeasureSheetPresented = false
 
+    var pvtResultRefreshTrigger = 0
     var onSleepDetailVisibilityChanged: (Bool) -> Void = { _ in }
-    var onMeasureAgain: () -> Void = {}
+    var onMeasureAgain: (TodayRemeasureAction) -> Void = { _ in }
 
     private let refreshTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
     private let designWidth: CGFloat = 390
@@ -67,6 +69,7 @@ struct TodayView: View {
                         viewModel.refreshPVTResult()
                         await viewModel.loadHealthKitSleepSummary()
                     }
+
                 }
                 .frame(width: proxy.size.width, height: proxy.size.height)
             }
@@ -88,7 +91,7 @@ struct TodayView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .task {
+        .task(id: pvtResultRefreshTrigger) {
             viewModel.refreshPVTResult()
             await viewModel.loadHealthKitSleepSummary()
         }
@@ -103,6 +106,22 @@ struct TodayView: View {
         }
         .onChange(of: isPVTDetailPresented) { _, _ in
             notifyDetailVisibilityChanged()
+        }
+        .onChange(of: isRemeasureSheetPresented) { _, _ in
+            notifyDetailVisibilityChanged()
+        }
+        .sheet(isPresented: $isRemeasureSheetPresented) {
+            GeometryReader { proxy in
+                let scale = min(proxy.size.width / designWidth, 1.08)
+
+                remeasureConfirmationSheet(scale: scale)
+                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+            }
+            .presentationDetents([.height(378)])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(28)
+            .presentationBackground(Color.todayCard)
+            .preferredColorScheme(.dark)
         }
     }
 
@@ -529,7 +548,13 @@ struct TodayView: View {
     }
 
     private func measureAgainButton(scale: CGFloat) -> some View {
-        Button(action: onMeasureAgain) {
+        Button {
+            if viewModel.state.hasTodayPVTData {
+                isRemeasureSheetPresented = true
+            } else {
+                onMeasureAgain(.startNewMeasurement)
+            }
+        } label: {
             Text(viewModel.state.hasTodayPVTData ? "다시 측정하기" : "측정하기")
                 .font(.system(size: 16 * scale, weight: .semibold))
                 .foregroundStyle(.white)
@@ -545,6 +570,96 @@ struct TodayView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 16 * scale, style: .continuous))
         }
         .buttonStyle(.plain)
+    }
+
+    private func remeasureConfirmationSheet(scale: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            ZStack {
+                Circle()
+                    .fill(Color.todayPrimary.opacity(0.18))
+                    .frame(width: 64 * scale, height: 64 * scale)
+
+                Text("🔄")
+                    .font(.system(size: 31 * scale, weight: .regular))
+                    .frame(width: 38 * scale, height: 38 * scale)
+            }
+            .padding(.top, 34 * scale)
+
+            Text("다시 측정할까요?")
+                .font(.system(size: 19 * scale, weight: .bold))
+                .foregroundStyle(.white.opacity(0.9))
+                .frame(maxWidth: .infinity)
+                .padding(.top, 14 * scale)
+
+            Text("방금 측정한 기록을 어떻게 처리할까요?")
+                .font(.system(size: 14 * scale, weight: .regular))
+                .foregroundStyle(.white.opacity(0.6))
+                .frame(maxWidth: .infinity)
+                .padding(.top, 8 * scale)
+
+            Button {
+                handleRemeasureAction(.saveCurrentAndRemeasure)
+            } label: {
+                Text("기록 저장 후 재측정")
+                    .font(.system(size: 15 * scale, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52 * scale)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.todayPrimary, Color.todayCyan],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 16 * scale, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 24 * scale)
+            .padding(.top, 18 * scale)
+
+            Button {
+                handleRemeasureAction(.discardCurrentAndRemeasure)
+            } label: {
+                Text("기록 폐기 후 재측정")
+                    .font(.system(size: 15 * scale, weight: .semibold))
+                    .foregroundStyle(Color.todayRemeasureDangerText)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52 * scale)
+                    .background(Color.todayRemeasureDanger.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 16 * scale, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16 * scale, style: .continuous)
+                            .stroke(Color.todayRemeasureDanger.opacity(0.5), lineWidth: 1)
+                    }
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 24 * scale)
+            .padding(.top, 10 * scale)
+
+            Button {
+                dismissRemeasureSheet()
+            } label: {
+                Text("취소")
+                    .font(.system(size: 14 * scale, weight: .regular))
+                    .foregroundStyle(.white.opacity(0.4))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 30 * scale)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 18 * scale)
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color.todayCard)
+    }
+
+    private func handleRemeasureAction(_ action: TodayRemeasureAction) {
+        dismissRemeasureSheet()
+        onMeasureAgain(action)
+    }
+
+    private func dismissRemeasureSheet() {
+        isRemeasureSheetPresented = false
     }
 
     private func sleepDifferenceForeground(for direction: TodaySleepDifferenceDirection?) -> Color {
@@ -563,7 +678,9 @@ struct TodayView: View {
     }
 
     private func notifyDetailVisibilityChanged() {
-        onSleepDetailVisibilityChanged(isSleepDetailPresented || isPVTDetailPresented)
+        onSleepDetailVisibilityChanged(
+            isSleepDetailPresented || isPVTDetailPresented || isRemeasureSheetPresented
+        )
     }
 
     private var comparisonNoticeIconText: String {
@@ -692,4 +809,12 @@ private extension Color {
     static let todayMutedText = Color(red: 0.62, green: 0.66, blue: 0.82)
     static let todayPVTBar = Color(red: 0.42, green: 0.46, blue: 0.62).opacity(0.6)
     static let todaySleepRem = Color(red: 0.83, green: 0.56, blue: 0.02)
+    static let todayRemeasureDanger = Color(red: 1, green: 0.31, blue: 0.31)
+    static let todayRemeasureDangerText = Color(red: 1, green: 0.31, blue: 0.31).opacity(0.9)
+}
+
+enum TodayRemeasureAction {
+    case startNewMeasurement
+    case saveCurrentAndRemeasure
+    case discardCurrentAndRemeasure
 }

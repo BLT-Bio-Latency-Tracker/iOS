@@ -59,20 +59,6 @@ struct ProfileSetupView: View {
 
     private func header(scale: CGFloat) -> some View {
         HStack {
-            Button(action: onBack) {
-                Text("←")
-                    .font(.system(size: 16 * scale, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.7))
-                    .frame(width: 32 * scale, height: 32 * scale)
-                    .background(.clear)
-                    .clipShape(Circle())
-                    .overlay {
-                        Circle()
-                            .stroke(.white.opacity(0.15), lineWidth: 1)
-                    }
-            }
-            .buttonStyle(.plain)
-
             Spacer()
 
             Text("3 / 3")
