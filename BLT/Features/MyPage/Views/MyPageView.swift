@@ -52,20 +52,17 @@ struct MyPageView: View {
                     .padding(.horizontal, horizontalInset)
                     .frame(minHeight: proxy.size.height, alignment: .top)
                 }
+
+                if showsWithdrawalAlert {
+                    withdrawalConfirmationOverlay(scale: scale)
+                        .transition(.opacity)
+                }
             }
+            .animation(.easeInOut(duration: 0.18), value: showsWithdrawalAlert)
         }
         .preferredColorScheme(.dark)
         .task {
             await viewModel.fetchMyPage()
-        }
-        .alert("정말 탈퇴하시겠습니까?", isPresented: $showsWithdrawalAlert) {
-            Button("취소", role: .cancel) {}
-
-            Button("탈퇴하기", role: .destructive) {
-                onWithdraw()
-            }
-        } message: {
-            Text("탈퇴 시 모든 수면 데이터 및 PVT 기록이 영구 삭제되며 복구할 수 없습니다.")
         }
         .fullScreenCover(item: $editRoute) { route in
             switch route {
@@ -244,6 +241,83 @@ struct MyPageView: View {
         }
     }
 
+    private func withdrawalConfirmationOverlay(scale: CGFloat) -> some View {
+        ZStack {
+            Color.black
+                .opacity(0.68)
+                .ignoresSafeArea()
+                .onTapGesture {}
+
+            VStack(spacing: 0) {
+                ZStack {
+                    Circle()
+                        .fill(Color.myPageDanger.opacity(0.15))
+                        .frame(width: 64 * scale, height: 64 * scale)
+
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 26 * scale, weight: .regular))
+                        .foregroundStyle(.white)
+                }
+                .padding(.top, 20 * scale)
+
+                Text("정말 탈퇴하시겠습니까?")
+                    .font(.system(size: 17 * scale, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 16 * scale)
+
+                Text("탈퇴 시 모든 수면 데이터 및 PVT 기록이\n영구 삭제되며 복구할 수 없습니다.")
+                    .font(.system(size: 13 * scale, weight: .regular))
+                    .foregroundStyle(.white.opacity(0.55))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(3 * scale)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 8 * scale)
+
+                Rectangle()
+                    .fill(.white.opacity(0.1))
+                    .frame(height: 1)
+                    .padding(.top, 14 * scale)
+
+                HStack(spacing: 0) {
+                    Button {
+                        showsWithdrawalAlert = false
+                    } label: {
+                        Text("취소")
+                            .font(.system(size: 15 * scale, weight: .regular))
+                            .foregroundStyle(.white.opacity(0.75))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    .buttonStyle(.plain)
+
+                    Rectangle()
+                        .fill(.white.opacity(0.1))
+                        .frame(width: 1)
+
+                    Button {
+                        showsWithdrawalAlert = false
+                        onWithdraw()
+                    } label: {
+                        Text("탈퇴하기")
+                            .font(.system(size: 15 * scale, weight: .regular))
+                            .foregroundStyle(Color.myPageAlertDangerText)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .frame(height: 72 * scale)
+            }
+            .frame(width: 334 * scale, height: 256 * scale)
+            .background(Color.myPageCard)
+            .clipShape(RoundedRectangle(cornerRadius: 20 * scale, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 20 * scale, style: .continuous)
+                    .stroke(.white.opacity(0.08), lineWidth: 1)
+            }
+        }
+        .zIndex(10)
+    }
+
     private func section<Content: View>(
         title: String,
         trailing: String?,
@@ -397,4 +471,5 @@ private extension Color {
     static let myPageWarning = Color(red: 0.961, green: 0.62, blue: 0.043)
     static let myPageWarningText = Color(red: 0.039, green: 0.055, blue: 0.153)
     static let myPageDanger = Color(red: 0.937, green: 0.267, blue: 0.267)
+    static let myPageAlertDangerText = Color(red: 1, green: 0.31, blue: 0.31).opacity(0.9)
 }
