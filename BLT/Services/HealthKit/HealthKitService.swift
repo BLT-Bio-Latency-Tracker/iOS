@@ -263,9 +263,9 @@ final class HealthKitService {
     }
 
     private static func sleepQueryInterval(for date: Date) -> DateInterval {
-        let startOfDay = koreaCalendar.startOfDay(for: date)
-        let queryStart = koreaCalendar.date(byAdding: .hour, value: -12, to: startOfDay) ?? startOfDay
-        let sleepWindowEnd = koreaCalendar.date(byAdding: .hour, value: 12, to: startOfDay) ?? date
+        let sleepDay = sleepDay(for: date)
+        let queryStart = koreaCalendar.date(byAdding: .hour, value: -6, to: sleepDay) ?? sleepDay
+        let sleepWindowEnd = koreaCalendar.date(byAdding: .hour, value: 18, to: sleepDay) ?? date
         let queryEnd = min(sleepWindowEnd, Date())
 
         return DateInterval(start: queryStart, end: queryEnd)
@@ -277,6 +277,15 @@ final class HealthKitService {
 
     private static func allowsPreviousDayDisplay(for date: Date) -> Bool {
         koreaCalendar.component(.hour, from: date) < 6
+    }
+
+    private static func sleepDay(for date: Date) -> Date {
+        let hour = koreaCalendar.component(.hour, from: date)
+        let baseDate = hour < 6
+            ? (koreaCalendar.date(byAdding: .day, value: -1, to: date) ?? date)
+            : date
+
+        return koreaCalendar.startOfDay(for: baseDate)
     }
 
     private static func makeSleepSummary(
@@ -397,8 +406,7 @@ final class HealthKitService {
         for date: Date,
         queryInterval: DateInterval
     ) -> DateInterval? {
-        let calendar = koreaCalendar
-        let targetDay = calendar.startOfDay(for: date)
+        let targetDay = sleepDay(for: date)
 
         let sessionIntervals = samples.compactMap { sample -> DateInterval? in
             guard let sleepValue = HKCategoryValueSleepAnalysis(rawValue: sample.value),
@@ -411,7 +419,7 @@ final class HealthKitService {
         }
 
         let sessions = groupedSleepSessions(from: sessionIntervals)
-            .filter { calendar.startOfDay(for: $0.end) == targetDay }
+            .filter { sleepDay(for: $0.end) == targetDay }
 
         return sessions.max {
             sleepMinutes(in: $0, from: samples, queryInterval: queryInterval) <
