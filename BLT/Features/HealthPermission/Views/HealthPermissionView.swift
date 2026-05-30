@@ -7,8 +7,7 @@ struct HealthPermissionView: View {
     }
 
     @StateObject private var viewModel = HealthPermissionViewModel()
-    @State private var shouldShowPermissionResultGuide = false
-    @State private var shouldShowPVTOnlyGuide = false
+    @State private var isSkipSheetPresented = false
 
     let onComplete: (CompletionReason) -> Void
 
@@ -68,19 +67,18 @@ struct HealthPermissionView: View {
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .preferredColorScheme(.dark)
-        .alert("권한 설정이 완료되었습니다", isPresented: $shouldShowPermissionResultGuide) {
-            Button("확인") {
-                onComplete(.permissionRequested)
+        .sheet(isPresented: $isSkipSheetPresented) {
+            GeometryReader { proxy in
+                let scale = min(proxy.size.width / designWidth, 1.08)
+
+                skipHealthKitSheet(scale: scale)
+                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
             }
-        } message: {
-            Text("권한을 허용하지 않은 경우에는 수면/HRV 데이터 없이 PVT 단독 모드로 진행됩니다. 권한은 건강 앱 > 공유 > 앱 > BLT에서 나중에 변경할 수 있습니다.")
-        }
-        .alert("PVT 단독 모드로 진행합니다", isPresented: $shouldShowPVTOnlyGuide) {
-            Button("확인") {
-                onComplete(.skipped)
-            }
-        } message: {
-            Text("HealthKit 권한 요청은 건너뜁니다. 이후 결과는 수면/HRV 데이터 없이 PVT 측정값만으로 계산될 수 있습니다.")
+            .presentationDetents([.height(430)])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(28)
+            .presentationBackground(Color(red: 0.078, green: 0.098, blue: 0.216))
+            .preferredColorScheme(.dark)
         }
     }
 
@@ -170,7 +168,7 @@ struct HealthPermissionView: View {
                 let didRequest = await viewModel.requestHealthKitPermission()
 
                 if didRequest {
-                    shouldShowPermissionResultGuide = true
+                    onComplete(.permissionRequested)
                 }
             }
         } label: {
@@ -197,10 +195,7 @@ struct HealthPermissionView: View {
 
     private func laterButton(scale: CGFloat) -> some View {
         Button {
-            Task {
-                await viewModel.skipHealthKitPermission()
-                shouldShowPVTOnlyGuide = true
-            }
+            isSkipSheetPresented = true
         } label: {
             Text("나중에 할게요")
                 .font(.system(size: 15 * scale, weight: .medium))
@@ -209,5 +204,114 @@ struct HealthPermissionView: View {
                 .frame(height: 17 * scale)
         }
         .buttonStyle(.plain)
+    }
+
+    private func skipHealthKitSheet(scale: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            ZStack {
+                Circle()
+                    .fill(Color(red: 0.486, green: 0.361, blue: 1).opacity(0.18))
+                    .frame(width: 72 * scale, height: 72 * scale)
+
+                Text("🧠")
+                    .font(.system(size: 28 * scale, weight: .regular))
+                    .frame(width: 36 * scale, height: 36 * scale)
+            }
+            .padding(.top, 24 * scale)
+
+            Text("수면 연동 없이 시작해요")
+                .font(.system(size: 20 * scale, weight: .heavy))
+                .foregroundStyle(.white.opacity(0.9))
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 16 * scale)
+
+            Text("HealthKit 없이도 PVT 반응 검사만으로\n뇌 컨디션을 측정할 수 있어요.")
+                .font(.system(size: 14 * scale, weight: .regular))
+                .foregroundStyle(.white.opacity(0.6))
+                .multilineTextAlignment(.center)
+                .lineSpacing(4 * scale)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 10 * scale)
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text("💡  HealthKit 연결 시 정확도 +30% ↑")
+                    .font(.system(size: 12 * scale, weight: .regular))
+                    .foregroundStyle(Color(red: 0.133, green: 0.831, blue: 0.929).opacity(0.9))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .padding(.top, 12 * scale)
+
+                Text("수면 심도·REM·HRV 데이터를 추가 활용해 더 정확한 ROI 계산")
+                    .font(.system(size: 12 * scale, weight: .regular))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .lineSpacing(3 * scale)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 9 * scale)
+            }
+            .padding(.horizontal, 16 * scale)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 72 * scale, alignment: .top)
+            .background(Color(red: 0.486, green: 0.361, blue: 1).opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: 12 * scale, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12 * scale, style: .continuous)
+                    .stroke(Color(red: 0.486, green: 0.361, blue: 1).opacity(0.3), lineWidth: 1)
+            }
+            .padding(.horizontal, 24 * scale)
+            .padding(.top, 20 * scale)
+
+            Button {
+                Task {
+                    let didRequest = await viewModel.requestHealthKitPermission()
+
+                    if didRequest {
+                        isSkipSheetPresented = false
+                        onComplete(.permissionRequested)
+                    }
+                }
+            } label: {
+                Text(viewModel.isRequestingPermission ? "요청 중" : "수면 연동하기")
+                    .font(.system(size: 16 * scale, weight: .heavy))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56 * scale)
+                    .background(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.486, green: 0.361, blue: 1),
+                                Color(red: 0.133, green: 0.831, blue: 0.929)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 16 * scale, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .disabled(viewModel.isRequestingPermission)
+            .opacity(viewModel.isRequestingPermission ? 0.7 : 1)
+            .padding(.horizontal, 24 * scale)
+            .padding(.top, 16 * scale)
+
+            Button {
+                Task {
+                    await viewModel.skipHealthKitPermission()
+                    isSkipSheetPresented = false
+                    onComplete(.skipped)
+                }
+            } label: {
+                Text("무시하고 계속하기")
+                    .font(.system(size: 14 * scale, weight: .regular))
+                    .foregroundStyle(.white.opacity(0.45))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 32 * scale)
+            }
+            .buttonStyle(.plain)
+            .disabled(viewModel.isRequestingPermission)
+            .padding(.top, 8 * scale)
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color(red: 0.078, green: 0.098, blue: 0.216))
     }
 }
