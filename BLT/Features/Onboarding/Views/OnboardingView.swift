@@ -8,14 +8,15 @@ struct OnboardingView: View {
     @State private var isStartButtonHighlighted = false
     @State private var startButtonHighlightGeneration = 0
 
-    private let designWidth: CGFloat = 375
-    private let designHeight: CGFloat = 812
-    private let pageCount = 3
+    private let designWidth: CGFloat = 390
+    private let designHeight: CGFloat = 844
+    private let pageCount = 4
 
     var body: some View {
         GeometryReader { proxy in
             let scale = min(proxy.size.width / designWidth, proxy.size.height / designHeight)
-            let horizontalInset = max(24, (proxy.size.width - 327 * scale) / 2)
+            let horizontalInset = max(28, (proxy.size.width - 334 * scale) / 2)
+            let headerTopPadding = max(8 * scale, 52 * scale - proxy.safeAreaInsets.top)
 
             ZStack {
                 Color(red: 0.039, green: 0.055, blue: 0.153)
@@ -30,28 +31,28 @@ struct OnboardingView: View {
 
                 VStack(spacing: 0) {
                     header(scale: scale)
-                        .padding(.top, 48 * scale)
+                        .padding(.top, headerTopPadding)
                         .padding(.horizontal, horizontalInset)
 
                     Spacer(minLength: 0)
 
                     pageIndicator
-                        .padding(.bottom, 20 * scale)
+                        .padding(.bottom, 16 * scale)
 
                     Button(action: primaryButtonTapped) {
                         Text(primaryButtonTitle)
-                            .font(.system(size: 16 * scale, weight: .semibold))
+                            .font(.system(size: 17 * scale, weight: .semibold))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 52 * scale)
+                            .frame(height: 56 * scale)
                             .background(primaryButtonBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: 16 * scale, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .scaleEffect(startButtonScale)
                     .offset(y: startButtonOffset(scale: scale))
                     .padding(.horizontal, horizontalInset)
-                    .padding(.bottom, max(32, 32 * scale))
+                    .padding(.bottom, max(26, 26 * scale))
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
@@ -76,25 +77,27 @@ struct OnboardingView: View {
 
     private func header(scale: CGFloat) -> some View {
         HStack {
-            Text(String(format: "%d / 3", currentPage + 1))
+            Text(String(format: "%d / %d", currentPage + 1, pageCount))
                 .font(.system(size: 12 * scale, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.55))
                 .contentTransition(.numericText())
 
             Spacer()
 
-            Button(action: onFinish) {
-                Text("건너뛰기")
-                    .font(.system(size: 13 * scale, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.7))
+            if currentPage < pageCount - 1 {
+                Button(action: onFinish) {
+                    Text("건너뛰기")
+                        .font(.system(size: 13 * scale, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.55))
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
     }
 
     private var pageIndicator: some View {
         HStack(spacing: 8) {
-            ForEach(0..<3, id: \.self) { index in
+            ForEach(0..<pageCount, id: \.self) { index in
                 Circle()
                     .fill(index == currentPage ? Color(red: 0.486, green: 0.361, blue: 1) : .white.opacity(0.2))
                     .frame(width: 8, height: 8)
@@ -104,7 +107,7 @@ struct OnboardingView: View {
     }
 
     private var primaryButtonTitle: String {
-        currentPage == 2 ? "시작하기" : "다음"
+        currentPage == pageCount - 1 ? "시작하기" : "다음"
     }
 
     private var startButtonScale: CGFloat {
@@ -116,7 +119,7 @@ struct OnboardingView: View {
     }
 
     private var primaryButtonBackground: some ShapeStyle {
-        if currentPage == 2 {
+        if currentPage == pageCount - 1 {
             return AnyShapeStyle(
                 LinearGradient(
                     colors: [
@@ -167,8 +170,10 @@ struct OnboardingView: View {
             OnboardingFirstPageView()
         case 1:
             OnboardingSecondPageView()
-        default:
+        case 2:
             OnboardingThirdPageView()
+        default:
+            OnboardingFourthPageView()
         }
     }
 
