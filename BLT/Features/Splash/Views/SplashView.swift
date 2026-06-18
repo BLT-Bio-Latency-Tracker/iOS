@@ -25,10 +25,10 @@ struct SplashView: View {
                     logoMark(scale: scale)
                         .position(x: centerX, y: topInset + 372 * scale)
 
-                    Text("BLT")
+                    Text("Bryki")
                         .font(.system(size: 36 * scale, weight: .heavy))
                         .foregroundStyle(.white)
-                        .frame(width: 80 * scale, height: 44 * scale)
+                        .frame(width: 130 * scale, height: 44 * scale)
                         .position(x: centerX, y: topInset + 418 * scale)
 
                     Text("Brain Level Tracker")

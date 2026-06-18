@@ -365,7 +365,7 @@ struct MyPageNotificationEditView: View {
                 draft.isEnabled = isGranted
 
                 if !isGranted {
-                    notificationPermissionMessage = "알림을 받으려면 iOS 설정에서 BLT 알림 권한을 허용해주세요."
+                    notificationPermissionMessage = "알림을 받으려면 iOS 설정에서 Bryki 알림 권한을 허용해주세요."
                     showsNotificationSettingsAlert = true
                 }
             } catch {
@@ -375,7 +375,7 @@ struct MyPageNotificationEditView: View {
             }
         case .denied:
             draft.isEnabled = false
-            notificationPermissionMessage = "iOS 설정에서 BLT 알림 권한이 꺼져 있어요. 알림을 받으려면 설정에서 알림을 허용해주세요."
+            notificationPermissionMessage = "iOS 설정에서 Bryki 알림 권한이 꺼져 있어요. 알림을 받으려면 설정에서 알림을 허용해주세요."
             showsNotificationSettingsAlert = true
         @unknown default:
             draft.isEnabled = false

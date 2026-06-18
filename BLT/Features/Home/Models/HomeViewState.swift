@@ -49,7 +49,7 @@ struct HomeViewState {
         ) ?? now
 
         return HomeViewState(
-            userName: "BLT",
+            userName: "Bryki",
             profileInitial: "B",
             brainROI: 78,
             roiStatusText: "안정적인 방전 상태",

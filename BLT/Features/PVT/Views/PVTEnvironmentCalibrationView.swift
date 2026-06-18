@@ -498,7 +498,7 @@ private struct PVTCalibrationQualityWarning: Equatable, Identifiable {
                 icon: "⏱️",
                 title: "메인 스레드 지연이 감지됐어요",
                 message: "앱 전환이나 백그라운드 작업이 많으면\n반응속도 측정이 밀릴 수 있어요.",
-                guideTitle: "📲  다른 앱을 정리하고 BLT만 실행해보세요",
+                guideTitle: "📲  다른 앱을 정리하고 Bryki만 실행해보세요",
                 guideDescription: "잠시 후 다시 보정하면 더 안정적인 측정이 가능해요",
                 primaryActionTitle: "다시 보정하기"
             )

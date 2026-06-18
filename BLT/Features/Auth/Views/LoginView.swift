@@ -21,11 +21,11 @@ struct LoginView: View {
                     logo(scale: scale)
                         .padding(.top, 132 * scale)
 
-                    Text("BLT")
+                    Text("Bryki")
                         .font(.system(size: 16 * scale, weight: .heavy))
                         .tracking(1)
                         .foregroundStyle(.white)
-                        .frame(width: 70 * scale, height: 19 * scale)
+                        .frame(width: 96 * scale, height: 19 * scale)
                         .padding(.top, 8 * scale)
 
                     Text("당신의 뇌 컨디션을 측정하고\n매일 최적의 시간을 찾으세요")
@@ -57,7 +57,7 @@ struct LoginView: View {
                         .padding(.horizontal, horizontalInset)
                         .padding(.bottom, 28 * scale)
 
-                    Text("계속하면 BLT의 서비스 약관과\n개인정보 처리방침에 동의하게 됩니다")
+                    Text("계속하면 Bryki의 서비스 약관과\n개인정보 처리방침에 동의하게 됩니다")
                         .font(.system(size: 10 * scale, weight: .regular))
                         .foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
