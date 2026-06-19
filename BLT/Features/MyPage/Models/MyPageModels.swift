@@ -105,7 +105,7 @@ extension MyPageState {
     static let serverPlaceholder = MyPageState(
         user: MyPageUser(
             name: "Bryki",
-            email: "blt@example.com",
+            email: "bryki@example.com",
             authProvider: "Apple"
         ),
         profile: MyPageProfile(

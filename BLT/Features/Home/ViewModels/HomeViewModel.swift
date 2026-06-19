@@ -5,18 +5,24 @@ import Combine
 final class HomeViewModel: ObservableObject {
     @Published private(set) var state: HomeViewState
     @Published private(set) var currentDate: Date
+    @Published private(set) var todoItems: [HomeTodoItem] = []
+    @Published private(set) var debugROIOverride: Int?
 
     private let calendar: Calendar
     private let timeFormatter: DateFormatter
     private let healthKitService: HealthKitService
     private let pvtResultStore: PVTResultStore
+    private let localProfileStore: LocalProfileStore
+    private let todoStore: HomeTodoStore
     private var cancellables = Set<AnyCancellable>()
 
     init(
         state: HomeViewState? = nil,
         currentDate: Date = Date(),
         healthKitService: HealthKitService? = nil,
-        pvtResultStore: PVTResultStore? = nil
+        pvtResultStore: PVTResultStore? = nil,
+        localProfileStore: LocalProfileStore? = nil,
+        todoStore: HomeTodoStore? = nil
     ) {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
@@ -29,14 +35,38 @@ final class HomeViewModel: ObservableObject {
         self.timeFormatter = formatter
         self.healthKitService = healthKitService ?? HealthKitService()
         self.pvtResultStore = pvtResultStore ?? PVTResultStore.shared
+        self.localProfileStore = localProfileStore ?? LocalProfileStore()
+        self.todoStore = todoStore ?? HomeTodoStore(now: currentDate)
 
         self.state = state ?? HomeViewState.placeholder
         self.currentDate = currentDate
 
         bindPVTResultStore()
         bindHealthKitSleepUpdates()
+        bindLocalProfileUpdates()
+        bindTodoStore()
         startHealthKitSleepObservationIfNeeded()
+        applyLocalProfileSnapshot()
         applyLatestPVTResultIfNeeded()
+    }
+
+    var displayedBrainROI: Int {
+#if DEBUG
+        debugROIOverride ?? state.brainROI
+#else
+        state.brainROI
+#endif
+    }
+
+    var roiDisplay: HomeROIDisplayState {
+        HomeROIDisplayState(
+            score: displayedBrainROI,
+            changePercent: state.roiChangePercent
+        )
+    }
+
+    var focusStrategy: HomeTodoFocusStrategy {
+        HomeTodoFocusStrategy(brainROI: displayedBrainROI)
     }
 
     var greetingText: String {
@@ -61,16 +91,34 @@ final class HomeViewModel: ObservableObject {
         }
     }
 
-    var currentTimeProgress: Double {
-        let hour = Double(calendar.component(.hour, from: currentDate))
-        let minute = Double(calendar.component(.minute, from: currentDate))
-        let currentHour = hour + minute / 60
-        return min(max((currentHour - 6) / 17, 0), 1)
-    }
-
     func updateCurrentDate(_ date: Date) {
         currentDate = date
+        todoStore.refreshForCurrentPeriod(now: date)
         applyLatestPVTResultIfNeeded()
+    }
+
+    func addTodo(title: String, difficulty: HomeTodoDifficulty) {
+        todoStore.add(title: title, difficulty: difficulty)
+    }
+
+    func toggleTodo(_ item: HomeTodoItem) {
+        todoStore.toggleCompletion(for: item)
+    }
+
+    func deleteTodo(_ item: HomeTodoItem) {
+        todoStore.delete(item)
+    }
+
+    func applyDebugROIInput(_ input: String) {
+        guard let value = Int(input.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            return
+        }
+
+        debugROIOverride = min(max(value, 0), 100)
+    }
+
+    func resetDebugROIOverride() {
+        debugROIOverride = nil
     }
 
     func loadHealthKitSleepSummary() async {
@@ -119,12 +167,45 @@ final class HomeViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
+    private func bindLocalProfileUpdates() {
+        NotificationCenter.default.publisher(for: LocalProfileStore.didChangeNotification)
+            .sink { [weak self] _ in
+                self?.applyLocalProfileSnapshot()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func bindTodoStore() {
+        todoStore.$items
+            .sink { [weak self] items in
+                self?.todoItems = items
+            }
+            .store(in: &cancellables)
+    }
+
     private func startHealthKitSleepObservationIfNeeded() {
         try? healthKitService.startObservingSleepChanges()
     }
 
     private func applyLatestPVTResultIfNeeded() {
         applyPVTSummary(pvtResultStore.latestSummary, measuredAt: pvtResultStore.measuredAt)
+    }
+
+    private func applyLocalProfileSnapshot() {
+        let snapshot = localProfileStore.snapshot(
+            fallback: LocalProfileSnapshot(
+                name: state.userName,
+                birthYear: nil,
+                gender: nil,
+                wakeUpTimeText: nil,
+                jobGroup: nil
+            )
+        )
+
+        state = state.replacingUser(
+            name: snapshot.name,
+            profileInitial: snapshot.profileInitial
+        )
     }
 
     private func applyPVTSummary(_ summary: PVTSummary?, measuredAt: Date?) {

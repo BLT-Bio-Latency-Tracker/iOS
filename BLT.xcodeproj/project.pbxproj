@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		EA49FC012FEC10000049FC01 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = EA49FC042FEC10000049FC01 /* FirebaseCore */; };
+		EA49FC022FEC10000049FC01 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = EA49FC052FEC10000049FC01 /* FirebaseMessaging */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		EA0450362F9F8ADE00FF9111 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -22,11 +27,6 @@
 			remoteInfo = BLT;
 		};
 /* End PBXContainerItemProxy section */
-
-/* Begin PBXBuildFile section */
-		EA49FC012FEC10000049FC01 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = EA49FC042FEC10000049FC01 /* FirebaseCore */; };
-		EA49FC022FEC10000049FC01 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = EA49FC052FEC10000049FC01 /* FirebaseMessaging */; };
-/* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		EA0450282F9F8ADE00FF9111 /* BLT.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BLT.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -225,13 +225,13 @@
 			);
 			mainGroup = EA04501F2F9F8ADE00FF9111;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				EA49FC032FEC10000049FC01 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = EA0450292F9F8ADE00FF9111 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			packageReferences = (
-				EA49FC032FEC10000049FC01 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
-			);
 			targets = (
 				EA0450272F9F8ADE00FF9111 /* BLT */,
 				EA0450342F9F8ADE00FF9111 /* BLTTests */,
