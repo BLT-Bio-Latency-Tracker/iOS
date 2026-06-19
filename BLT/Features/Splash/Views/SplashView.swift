@@ -31,7 +31,7 @@ struct SplashView: View {
                         .frame(width: 130 * scale, height: 44 * scale)
                         .position(x: centerX, y: topInset + 418 * scale)
 
-                    Text("Brain Level Tracker")
+                    Text("Brain ROI Tracker")
                         .font(.system(size: 11 * scale, weight: .medium))
                         .tracking(2 * scale)
                         .foregroundStyle(.white.opacity(0.55))

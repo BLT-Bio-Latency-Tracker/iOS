@@ -6,7 +6,7 @@
 //
 
 import Testing
-@testable import BLT
+@testable import Bryki
 
 struct BLTTests {
 
