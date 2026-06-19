@@ -163,10 +163,8 @@ struct HomeView: View {
                     .padding(.leading, 4 * scale)
                     .contentShape(Rectangle())
                     .onTapGesture {
-#if DEBUG
                         debugROIInput = String(roiDisplay.score)
                         isDebugROIAlertPresented = true
-#endif
                     }
 
                 Text("· \(roiDisplay.statusText)")

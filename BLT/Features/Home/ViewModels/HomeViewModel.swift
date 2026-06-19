@@ -6,6 +6,7 @@ final class HomeViewModel: ObservableObject {
     @Published private(set) var state: HomeViewState
     @Published private(set) var currentDate: Date
     @Published private(set) var todoItems: [HomeTodoItem] = []
+    // QA-only ROI override for TestFlight score-state checks. Remove before production release.
     @Published private(set) var debugROIOverride: Int?
 
     private let calendar: Calendar
@@ -51,11 +52,7 @@ final class HomeViewModel: ObservableObject {
     }
 
     var displayedBrainROI: Int {
-#if DEBUG
         debugROIOverride ?? state.brainROI
-#else
-        state.brainROI
-#endif
     }
 
     var roiDisplay: HomeROIDisplayState {
