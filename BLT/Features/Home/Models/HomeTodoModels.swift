@@ -58,9 +58,9 @@ enum HomeTodoFocusStrategy {
     case all
 
     init(brainROI: Int) {
-        if brainROI <= 40 {
+        if brainROI < 40 {
             self = .lowOnly
-        } else if brainROI <= 70 {
+        } else if brainROI < 70 {
             self = .mediumAndLow
         } else {
             self = .all
