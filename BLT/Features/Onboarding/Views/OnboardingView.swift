@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct OnboardingView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var onFinish: () -> Void = {}
 
     @State private var currentPage = 0
@@ -154,6 +156,11 @@ struct OnboardingView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             guard generation == startButtonHighlightGeneration,
                   currentPage == pageCount - 1 else {
+                return
+            }
+
+            guard !reduceMotion else {
+                isStartButtonHighlighted = true
                 return
             }
 

@@ -7,16 +7,29 @@ final class HomeTodoStore: ObservableObject {
 
     private let userDefaults: UserDefaults
     private let calendar: Calendar
+    private let accountIdentifier: String
     private var workdayKey: String
 
-    private static let itemsKey = "home.todos.items"
-    private static let workdayKeyStorage = "home.todos.workdayKey"
+    private enum Key {
+        static let legacyItems = "home.todos.items"
+        static let legacyWorkday = "home.todos.workdayKey"
+
+        static func items(accountIdentifier: String) -> String {
+            "home.todos.\(accountIdentifier).items"
+        }
+
+        static func workday(accountIdentifier: String) -> String {
+            "home.todos.\(accountIdentifier).workdayKey"
+        }
+    }
 
     init(
         userDefaults: UserDefaults = .standard,
+        accountIdentifier: String = "local",
         now: Date = Date()
     ) {
         self.userDefaults = userDefaults
+        self.accountIdentifier = accountIdentifier
 
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
@@ -24,6 +37,12 @@ final class HomeTodoStore: ObservableObject {
         self.workdayKey = Self.makeWorkdayKey(for: now, calendar: calendar)
 
         loadOrResetIfNeeded(now: now)
+    }
+
+    func clear() {
+        items = []
+        userDefaults.removeObject(forKey: Key.items(accountIdentifier: accountIdentifier))
+        userDefaults.removeObject(forKey: Key.workday(accountIdentifier: accountIdentifier))
     }
 
     func refreshForCurrentPeriod(now: Date = Date()) {
@@ -56,7 +75,8 @@ final class HomeTodoStore: ObservableObject {
 
     private func loadOrResetIfNeeded(now: Date) {
         let currentKey = Self.makeWorkdayKey(for: now, calendar: calendar)
-        let storedKey = userDefaults.string(forKey: Self.workdayKeyStorage)
+        let storedKey = userDefaults.string(forKey: Key.workday(accountIdentifier: accountIdentifier))
+            ?? legacyString(forKey: Key.legacyWorkday)
 
         guard storedKey == currentKey else {
             workdayKey = currentKey
@@ -65,7 +85,8 @@ final class HomeTodoStore: ObservableObject {
             return
         }
 
-        guard let data = userDefaults.data(forKey: Self.itemsKey),
+        guard let data = userDefaults.data(forKey: Key.items(accountIdentifier: accountIdentifier))
+            ?? legacyData(forKey: Key.legacyItems),
               let decodedItems = try? JSONDecoder().decode([HomeTodoItem].self, from: data) else {
             items = []
             return
@@ -76,10 +97,10 @@ final class HomeTodoStore: ObservableObject {
     }
 
     private func persist() {
-        userDefaults.set(workdayKey, forKey: Self.workdayKeyStorage)
+        userDefaults.set(workdayKey, forKey: Key.workday(accountIdentifier: accountIdentifier))
 
         guard let data = try? JSONEncoder().encode(items) else { return }
-        userDefaults.set(data, forKey: Self.itemsKey)
+        userDefaults.set(data, forKey: Key.items(accountIdentifier: accountIdentifier))
     }
 
     private static func makeWorkdayKey(for date: Date, calendar: Calendar) -> String {
@@ -99,5 +120,15 @@ final class HomeTodoStore: ObservableObject {
             components.month ?? 0,
             components.day ?? 0
         )
+    }
+
+    private func legacyString(forKey key: String) -> String? {
+        guard accountIdentifier == "local" else { return nil }
+        return userDefaults.string(forKey: key)
+    }
+
+    private func legacyData(forKey key: String) -> Data? {
+        guard accountIdentifier == "local" else { return nil }
+        return userDefaults.data(forKey: key)
     }
 }

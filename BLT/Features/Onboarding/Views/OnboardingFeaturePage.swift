@@ -56,6 +56,7 @@ struct OnboardingFeaturePage: View {
             Text(icon)
                 .font(.system(size: 31 * scale))
                 .frame(width: 66 * scale, height: 66 * scale)
+                .accessibilityHidden(true)
         }
         .frame(width: 334 * scale, height: 340 * scale)
     }

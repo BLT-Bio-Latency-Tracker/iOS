@@ -77,13 +77,22 @@ struct HomeROIDisplayState {
     let statusText: String
     let warningText: String?
     let changeText: String
-    let isChangePositive: Bool
+    let changeDirection: HomeROIChangeDirection
 
     init(score: Int, changePercent: Int) {
         self.score = score
         self.accent = HomeROIAccent(score: score)
-        self.isChangePositive = changePercent >= 0
-        self.changeText = changePercent >= 0 ? "▲ \(changePercent)%" : "▼ \(abs(changePercent))%"
+
+        if changePercent > 0 {
+            self.changeDirection = .positive
+            self.changeText = "▲ \(changePercent)%"
+        } else if changePercent < 0 {
+            self.changeDirection = .negative
+            self.changeText = "▼ \(abs(changePercent))%"
+        } else {
+            self.changeDirection = .neutral
+            self.changeText = "0%"
+        }
 
         switch score {
         case ..<20:
@@ -100,6 +109,12 @@ struct HomeROIDisplayState {
             self.warningText = nil
         }
     }
+}
+
+enum HomeROIChangeDirection {
+    case positive
+    case neutral
+    case negative
 }
 
 enum HomeROIAccent {

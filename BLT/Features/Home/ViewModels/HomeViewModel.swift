@@ -7,7 +7,9 @@ final class HomeViewModel: ObservableObject {
     @Published private(set) var currentDate: Date
     @Published private(set) var todoItems: [HomeTodoItem] = []
     // QA-only ROI override for TestFlight score-state checks. Remove before production release.
+    #if DEBUG
     @Published private(set) var debugROIOverride: Int?
+    #endif
 
     private let calendar: Calendar
     private let timeFormatter: DateFormatter
@@ -52,7 +54,11 @@ final class HomeViewModel: ObservableObject {
     }
 
     var displayedBrainROI: Int {
+        #if DEBUG
         debugROIOverride ?? state.brainROI
+        #else
+        state.brainROI
+        #endif
     }
 
     var roiDisplay: HomeROIDisplayState {
@@ -107,15 +113,19 @@ final class HomeViewModel: ObservableObject {
     }
 
     func applyDebugROIInput(_ input: String) {
+        #if DEBUG
         guard let value = Int(input.trimmingCharacters(in: .whitespacesAndNewlines)) else {
             return
         }
 
         debugROIOverride = min(max(value, 0), 100)
+        #endif
     }
 
     func resetDebugROIOverride() {
+        #if DEBUG
         debugROIOverride = nil
+        #endif
     }
 
     func loadHealthKitSleepSummary() async {

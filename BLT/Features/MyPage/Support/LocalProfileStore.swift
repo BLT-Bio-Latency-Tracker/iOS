@@ -16,35 +16,67 @@ struct LocalProfileStore {
     static let didChangeNotification = Notification.Name("LocalProfileStore.didChangeNotification")
 
     private let userDefaults: UserDefaults
+    private let accountIdentifier: String
 
     private enum Key {
-        static let name = "local.profile.name"
-        static let birthYear = "local.profile.birthYear"
-        static let gender = "local.profile.gender"
-        static let wakeUpTimeText = "local.profile.wakeUpTimeText"
-        static let jobGroup = "local.profile.jobGroup"
+        static let legacyName = "local.profile.name"
+        static let legacyBirthYear = "local.profile.birthYear"
+        static let legacyGender = "local.profile.gender"
+        static let legacyWakeUpTimeText = "local.profile.wakeUpTimeText"
+        static let legacyJobGroup = "local.profile.jobGroup"
+
+        static func name(accountIdentifier: String) -> String {
+            "local.profile.\(accountIdentifier).name"
+        }
+
+        static func birthYear(accountIdentifier: String) -> String {
+            "local.profile.\(accountIdentifier).birthYear"
+        }
+
+        static func gender(accountIdentifier: String) -> String {
+            "local.profile.\(accountIdentifier).gender"
+        }
+
+        static func wakeUpTimeText(accountIdentifier: String) -> String {
+            "local.profile.\(accountIdentifier).wakeUpTimeText"
+        }
+
+        static func jobGroup(accountIdentifier: String) -> String {
+            "local.profile.\(accountIdentifier).jobGroup"
+        }
     }
 
-    init(userDefaults: UserDefaults = .standard) {
+    init(userDefaults: UserDefaults = .standard, accountIdentifier: String = "local") {
         self.userDefaults = userDefaults
+        self.accountIdentifier = accountIdentifier
     }
 
     func snapshot(fallback: LocalProfileSnapshot) -> LocalProfileSnapshot {
         LocalProfileSnapshot(
-            name: userDefaults.string(forKey: Key.name) ?? fallback.name,
+            name: storedName ?? fallback.name,
             birthYear: storedBirthYear ?? fallback.birthYear,
             gender: storedGender ?? fallback.gender,
-            wakeUpTimeText: userDefaults.string(forKey: Key.wakeUpTimeText) ?? fallback.wakeUpTimeText,
+            wakeUpTimeText: storedWakeUpTimeText ?? fallback.wakeUpTimeText,
             jobGroup: storedJobGroup ?? fallback.jobGroup
         )
     }
 
     func save(_ snapshot: LocalProfileSnapshot) {
-        userDefaults.set(snapshot.name, forKey: Key.name)
-        setOptional(snapshot.birthYear, forKey: Key.birthYear)
-        setOptional(snapshot.gender?.rawValue, forKey: Key.gender)
-        setOptional(snapshot.wakeUpTimeText, forKey: Key.wakeUpTimeText)
-        setOptional(snapshot.jobGroup?.rawValue, forKey: Key.jobGroup)
+        userDefaults.set(snapshot.name, forKey: Key.name(accountIdentifier: accountIdentifier))
+        setOptional(snapshot.birthYear, forKey: Key.birthYear(accountIdentifier: accountIdentifier))
+        setOptional(snapshot.gender?.rawValue, forKey: Key.gender(accountIdentifier: accountIdentifier))
+        setOptional(snapshot.wakeUpTimeText, forKey: Key.wakeUpTimeText(accountIdentifier: accountIdentifier))
+        setOptional(snapshot.jobGroup?.rawValue, forKey: Key.jobGroup(accountIdentifier: accountIdentifier))
+
+        NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
+    }
+
+    func clear() {
+        userDefaults.removeObject(forKey: Key.name(accountIdentifier: accountIdentifier))
+        userDefaults.removeObject(forKey: Key.birthYear(accountIdentifier: accountIdentifier))
+        userDefaults.removeObject(forKey: Key.gender(accountIdentifier: accountIdentifier))
+        userDefaults.removeObject(forKey: Key.wakeUpTimeText(accountIdentifier: accountIdentifier))
+        userDefaults.removeObject(forKey: Key.jobGroup(accountIdentifier: accountIdentifier))
 
         NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
     }
@@ -71,17 +103,49 @@ struct LocalProfileStore {
         return updated
     }
 
+    private var storedName: String? {
+        userDefaults.string(forKey: Key.name(accountIdentifier: accountIdentifier))
+            ?? legacyString(forKey: Key.legacyName)
+    }
+
     private var storedBirthYear: Int? {
-        guard userDefaults.object(forKey: Key.birthYear) != nil else { return nil }
-        return userDefaults.integer(forKey: Key.birthYear)
+        let key = Key.birthYear(accountIdentifier: accountIdentifier)
+
+        if userDefaults.object(forKey: key) != nil {
+            return userDefaults.integer(forKey: key)
+        }
+
+        return legacyInteger(forKey: Key.legacyBirthYear)
     }
 
     private var storedGender: ProfileSetupGender? {
-        userDefaults.string(forKey: Key.gender).flatMap(ProfileSetupGender.init(rawValue:))
+        (
+            userDefaults.string(forKey: Key.gender(accountIdentifier: accountIdentifier))
+                ?? legacyString(forKey: Key.legacyGender)
+        ).flatMap(ProfileSetupGender.init(rawValue:))
+    }
+
+    private var storedWakeUpTimeText: String? {
+        userDefaults.string(forKey: Key.wakeUpTimeText(accountIdentifier: accountIdentifier))
+            ?? legacyString(forKey: Key.legacyWakeUpTimeText)
     }
 
     private var storedJobGroup: ProfileSetupJobGroup? {
-        userDefaults.string(forKey: Key.jobGroup).flatMap(ProfileSetupJobGroup.init(rawValue:))
+        (
+            userDefaults.string(forKey: Key.jobGroup(accountIdentifier: accountIdentifier))
+                ?? legacyString(forKey: Key.legacyJobGroup)
+        ).flatMap(ProfileSetupJobGroup.init(rawValue:))
+    }
+
+    private func legacyString(forKey key: String) -> String? {
+        guard accountIdentifier == "local" else { return nil }
+        return userDefaults.string(forKey: key)
+    }
+
+    private func legacyInteger(forKey key: String) -> Int? {
+        guard accountIdentifier == "local",
+              userDefaults.object(forKey: key) != nil else { return nil }
+        return userDefaults.integer(forKey: key)
     }
 
     private func setOptional(_ value: Any?, forKey key: String) {

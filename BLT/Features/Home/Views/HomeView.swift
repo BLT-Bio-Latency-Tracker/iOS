@@ -5,8 +5,10 @@ struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
     @StateObject private var notificationStore = AppNotificationStore.shared
     @State private var isTodoSheetPresented = false
+    #if DEBUG
     @State private var debugROIInput = ""
     @State private var isDebugROIAlertPresented = false
+    #endif
 
     var onPVTStart: () -> Void = {}
     var onNotificationTap: () -> Void = {}
@@ -55,6 +57,7 @@ struct HomeView: View {
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .preferredColorScheme(.dark)
+        #if DEBUG
         .alert("테스트용 ROI 점수 수정", isPresented: $isDebugROIAlertPresented) {
             TextField("0~100", text: $debugROIInput)
                 .keyboardType(.numberPad)
@@ -73,6 +76,7 @@ struct HomeView: View {
         } message: {
             Text("테스트를 위해 홈 화면에 표시되는 Brain ROI 점수만 임시로 변경합니다.")
         }
+        #endif
         .sheet(isPresented: $isTodoSheetPresented) {
             HomeTodoEditorSheet(
                 suggestedDifficulty: viewModel.focusStrategy.recommendedDefaultDifficulty,
@@ -144,7 +148,7 @@ struct HomeView: View {
     private func roiSummary(scale: CGFloat) -> some View {
         let roiDisplay = viewModel.roiDisplay
         let roiColor = color(for: roiDisplay.accent)
-        let changeColor = roiDisplay.isChangePositive ? Color.bltPositive : Color.bltWarningRed
+        let changeColor = changeColor(for: roiDisplay.changeDirection)
 
         return VStack(alignment: .leading, spacing: 10 * scale) {
             HStack(spacing: 8 * scale) {
@@ -161,11 +165,13 @@ struct HomeView: View {
                     .font(.system(size: 14 * scale, weight: .bold))
                     .foregroundStyle(roiColor)
                     .padding(.leading, 4 * scale)
+                    #if DEBUG
                     .contentShape(Rectangle())
                     .onTapGesture {
                         debugROIInput = String(roiDisplay.score)
                         isDebugROIAlertPresented = true
                     }
+                    #endif
 
                 Text("· \(roiDisplay.statusText)")
                     .font(.system(size: 11 * scale, weight: .regular))
@@ -386,6 +392,17 @@ struct HomeView: View {
             return Color.bltMutedText
         }
     }
+
+    private func changeColor(for direction: HomeROIChangeDirection) -> Color {
+        switch direction {
+        case .positive:
+            return Color.bltPositive
+        case .neutral:
+            return Color.bltSubtleText
+        case .negative:
+            return Color.bltWarningRed
+        }
+    }
 }
 
 private struct TodoRow: View {
@@ -458,6 +475,20 @@ private struct TodoRow: View {
         }
         .clipped()
         .accessibilityLabel("\(item.title), 난이도 \(item.difficulty.title)")
+        .accessibilityValue(item.isCompleted ? "완료됨" : "미완료")
+        .accessibilityHint(isFocused ? "현재 점수에서 추천되는 할 일입니다." : "현재 뇌 점수에서는 우선순위가 낮은 할 일입니다.")
+        .accessibilityAction(named: item.isCompleted ? "미완료로 변경" : "완료로 변경") {
+            onToggle()
+        }
+        .accessibilityAction(named: isDeleteRevealed ? "삭제 버튼 숨기기" : "삭제 버튼 보이기") {
+            withAnimation(.easeOut(duration: 0.18)) {
+                isDeleteRevealed.toggle()
+                horizontalOffset = isDeleteRevealed ? -deleteWidth : 0
+            }
+        }
+        .accessibilityAction(named: "삭제") {
+            onDelete()
+        }
     }
 
     private var rowContent: some View {
@@ -764,6 +795,9 @@ private struct LimitedTodoTitleField: UIViewRepresentable {
         textField.returnKeyType = .done
         textField.autocorrectionType = .no
         textField.spellCheckingType = .no
+        textField.accessibilityLabel = "할 일 이름"
+        textField.accessibilityHint = "최대 15자까지 입력할 수 있습니다."
+        textField.accessibilityValue = textField.text ?? ""
         textField.addTarget(
             context.coordinator,
             action: #selector(Coordinator.textDidChange(_:)),
@@ -780,6 +814,7 @@ private struct LimitedTodoTitleField: UIViewRepresentable {
         }
 
         textField.font = .systemFont(ofSize: fontSize, weight: .regular)
+        textField.accessibilityValue = text
 
         if isFocused, !textField.isFirstResponder {
             textField.becomeFirstResponder()
@@ -871,6 +906,10 @@ private struct DifficultySelectionCard: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(difficulty.title) 난이도")
+        .accessibilityValue(isSelected ? "선택됨" : "선택 안 됨")
+        .accessibilityHint(difficulty.subtitle)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
     private var color: Color {
