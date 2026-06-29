@@ -6,41 +6,41 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		EA49FC012FEC10000049FC01 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = EA49FC042FEC10000049FC01 /* FirebaseCore */; };
+		EA49FC022FEC10000049FC01 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = EA49FC052FEC10000049FC01 /* FirebaseMessaging */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		EA0450362F9F8ADE00FF9111 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = EA0450202F9F8ADE00FF9111 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = EA0450272F9F8ADE00FF9111;
-			remoteInfo = BLT;
+			remoteInfo = Bryki;
 		};
 		EA0450402F9F8ADE00FF9111 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = EA0450202F9F8ADE00FF9111 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = EA0450272F9F8ADE00FF9111;
-			remoteInfo = BLT;
+			remoteInfo = Bryki;
 		};
 /* End PBXContainerItemProxy section */
 
-/* Begin PBXBuildFile section */
-		EA49FC012FEC10000049FC01 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = EA49FC042FEC10000049FC01 /* FirebaseCore */; };
-		EA49FC022FEC10000049FC01 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = EA49FC052FEC10000049FC01 /* FirebaseMessaging */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
-		EA0450282F9F8ADE00FF9111 /* BLT.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BLT.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EA0450282F9F8ADE00FF9111 /* Bryki.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Bryki.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EA0450352F9F8ADE00FF9111 /* BLTTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BLTTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EA04503F2F9F8ADE00FF9111 /* BLTUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BLTUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		EA5B9CBE2FB36379007D01B4 /* Exceptions for "BLT" folder in "BLT" target */ = {
+		EA5B9CBE2FB36379007D01B4 /* Exceptions for "BLT" folder in "Bryki" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
-			target = EA0450272F9F8ADE00FF9111 /* BLT */;
+			target = EA0450272F9F8ADE00FF9111 /* Bryki */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -48,7 +48,7 @@
 		EA04502A2F9F8ADE00FF9111 /* BLT */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				EA5B9CBE2FB36379007D01B4 /* Exceptions for "BLT" folder in "BLT" target */,
+				EA5B9CBE2FB36379007D01B4 /* Exceptions for "BLT" folder in "Bryki" target */,
 			);
 			path = BLT;
 			sourceTree = "<group>";
@@ -105,7 +105,7 @@
 		EA0450292F9F8ADE00FF9111 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				EA0450282F9F8ADE00FF9111 /* BLT.app */,
+				EA0450282F9F8ADE00FF9111 /* Bryki.app */,
 				EA0450352F9F8ADE00FF9111 /* BLTTests.xctest */,
 				EA04503F2F9F8ADE00FF9111 /* BLTUITests.xctest */,
 			);
@@ -115,9 +115,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		EA0450272F9F8ADE00FF9111 /* BLT */ = {
+		EA0450272F9F8ADE00FF9111 /* Bryki */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = EA0450492F9F8ADE00FF9111 /* Build configuration list for PBXNativeTarget "BLT" */;
+			buildConfigurationList = EA0450492F9F8ADE00FF9111 /* Build configuration list for PBXNativeTarget "Bryki" */;
 			buildPhases = (
 				EA0450242F9F8ADE00FF9111 /* Sources */,
 				EA0450252F9F8ADE00FF9111 /* Frameworks */,
@@ -130,13 +130,13 @@
 			fileSystemSynchronizedGroups = (
 				EA04502A2F9F8ADE00FF9111 /* BLT */,
 			);
-			name = BLT;
+			name = Bryki;
 			packageProductDependencies = (
 				EA49FC042FEC10000049FC01 /* FirebaseCore */,
 				EA49FC052FEC10000049FC01 /* FirebaseMessaging */,
 			);
-			productName = BLT;
-			productReference = EA0450282F9F8ADE00FF9111 /* BLT.app */;
+			productName = Bryki;
+			productReference = EA0450282F9F8ADE00FF9111 /* Bryki.app */;
 			productType = "com.apple.product-type.application";
 		};
 		EA0450342F9F8ADE00FF9111 /* BLTTests */ = {
@@ -216,7 +216,7 @@
 					};
 				};
 			};
-			buildConfigurationList = EA0450232F9F8ADE00FF9111 /* Build configuration list for PBXProject "BLT" */;
+			buildConfigurationList = EA0450232F9F8ADE00FF9111 /* Build configuration list for PBXProject "Bryki" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -225,15 +225,15 @@
 			);
 			mainGroup = EA04501F2F9F8ADE00FF9111;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				EA49FC032FEC10000049FC01 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = EA0450292F9F8ADE00FF9111 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			packageReferences = (
-				EA49FC032FEC10000049FC01 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
-			);
 			targets = (
-				EA0450272F9F8ADE00FF9111 /* BLT */,
+				EA0450272F9F8ADE00FF9111 /* Bryki */,
 				EA0450342F9F8ADE00FF9111 /* BLTTests */,
 				EA04503E2F9F8ADE00FF9111 /* BLTUITests */,
 			);
@@ -291,12 +291,12 @@
 /* Begin PBXTargetDependency section */
 		EA0450372F9F8ADE00FF9111 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = EA0450272F9F8ADE00FF9111 /* BLT */;
+			target = EA0450272F9F8ADE00FF9111 /* Bryki */;
 			targetProxy = EA0450362F9F8ADE00FF9111 /* PBXContainerItemProxy */;
 		};
 		EA0450412F9F8ADE00FF9111 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = EA0450272F9F8ADE00FF9111 /* BLT */;
+			target = EA0450272F9F8ADE00FF9111 /* Bryki */;
 			targetProxy = EA0450402F9F8ADE00FF9111 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -436,8 +436,9 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BLT/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Bryki;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "수면 데이터와 심박변이도 데이터를 사용해 Brain ROI 측정 정확도를 높입니다.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "BLT는 건강 데이터를 직접 쓰지 않지만, HealthKit 권한 요청을 위해 사용 목적을 안내합니다.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Bryki는 건강 데이터를 직접 쓰지 않지만, HealthKit 권한 요청을 위해 사용 목적을 안내합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -475,8 +476,9 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BLT/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Bryki;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "수면 데이터와 심박변이도 데이터를 사용해 Brain ROI 측정 정확도를 높입니다.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "BLT는 건강 데이터를 직접 쓰지 않지만, HealthKit 권한 요청을 위해 사용 목적을 안내합니다.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Bryki는 건강 데이터를 직접 쓰지 않지만, HealthKit 권한 요청을 위해 사용 목적을 안내합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -519,7 +521,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BLT.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BLT";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Bryki.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Bryki";
 			};
 			name = Debug;
 		};
@@ -541,7 +543,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BLT.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BLT";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Bryki.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Bryki";
 			};
 			name = Release;
 		};
@@ -561,7 +563,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = BLT;
+				TEST_TARGET_NAME = Bryki;
 			};
 			name = Debug;
 		};
@@ -581,14 +583,14 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = BLT;
+				TEST_TARGET_NAME = Bryki;
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		EA0450232F9F8ADE00FF9111 /* Build configuration list for PBXProject "BLT" */ = {
+		EA0450232F9F8ADE00FF9111 /* Build configuration list for PBXProject "Bryki" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				EA0450472F9F8ADE00FF9111 /* Debug */,
@@ -597,7 +599,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		EA0450492F9F8ADE00FF9111 /* Build configuration list for PBXNativeTarget "BLT" */ = {
+		EA0450492F9F8ADE00FF9111 /* Build configuration list for PBXNativeTarget "Bryki" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				EA04504A2F9F8ADE00FF9111 /* Debug */,

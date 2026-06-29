@@ -134,7 +134,7 @@ struct TermsAgreementView: View {
 
     private func titleSection(scale: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 10 * scale) {
-            Text("BLT 시작 전\n약관에 동의해주세요")
+            Text("Bryki 시작 전\n약관에 동의해주세요")
                 .font(.system(size: 24 * scale, weight: .heavy))
                 .foregroundStyle(.white)
                 .lineSpacing(4 * scale)
@@ -184,7 +184,7 @@ struct TermsAgreementView: View {
     private func agreementListCard(scale: CGFloat) -> some View {
         VStack(spacing: 0) {
             AgreementRow(
-                title: "BLT 이용약관 동의",
+                title: "Bryki 이용약관 동의",
                 tag: "필수",
                 isRequired: true,
                 isSelected: $isTermsAgreed,
@@ -405,7 +405,7 @@ private enum AgreementDetail: Identifiable {
     var title: String {
         switch self {
         case .terms:
-            return "BLT 이용약관"
+            return "Bryki 이용약관"
         case .privacy:
             return "개인정보 처리방침"
         case .healthData:

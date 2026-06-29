@@ -167,7 +167,7 @@ struct StartReadyView: View {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.85)
             onStart()
         } label: {
-            Text("BLT 시작하기")
+            Text("Bryki 시작하기")
                 .font(.system(size: 17 * scale, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)

@@ -10,9 +10,11 @@ final class MyPageViewModel: ObservableObject {
     @Published private(set) var errorMessage: String?
 
     private let service: MyPageService
+    private let localProfileStore: LocalProfileStore
 
-    init(service: MyPageService? = nil) {
+    init(service: MyPageService? = nil, localProfileStore: LocalProfileStore? = nil) {
         self.service = service ?? MyPageService()
+        self.localProfileStore = localProfileStore ?? LocalProfileStore()
     }
 
     func fetchMyPage() async {
@@ -26,10 +28,10 @@ final class MyPageViewModel: ObservableObject {
         }
 
         do {
-            state = try await service.fetchMyPage()
+            state = applyLocalProfileSnapshot(to: try await service.fetchMyPage())
         } catch {
             errorMessage = "마이페이지 정보를 불러오지 못했어요."
-            state = MyPageState.serverPlaceholder
+            state = applyLocalProfileSnapshot(to: MyPageState.serverPlaceholder)
         }
     }
 
@@ -76,7 +78,7 @@ final class MyPageViewModel: ObservableObject {
     func applyProfile(_ draft: MyPageProfileEditDraft) {
         guard let state else { return }
 
-        self.state = MyPageState(
+        let updatedState = MyPageState(
             user: MyPageUser(
                 name: draft.name.trimmingCharacters(in: .whitespacesAndNewlines),
                 email: state.user.email,
@@ -90,6 +92,18 @@ final class MyPageViewModel: ObservableObject {
             ),
             notificationSettings: state.notificationSettings
         )
+
+        localProfileStore.save(
+            LocalProfileSnapshot(
+                name: updatedState.user.name,
+                birthYear: updatedState.profile.birthYear,
+                gender: updatedState.profile.gender,
+                wakeUpTimeText: updatedState.profile.wakeUpTimeText,
+                jobGroup: updatedState.profile.jobGroup
+            )
+        )
+
+        self.state = updatedState
     }
 
     func applyNotificationSettings(_ settings: MyPageNotificationSettings) {
@@ -99,6 +113,33 @@ final class MyPageViewModel: ObservableObject {
             user: state.user,
             profile: state.profile,
             notificationSettings: settings
+        )
+    }
+
+    private func applyLocalProfileSnapshot(to state: MyPageState) -> MyPageState {
+        let snapshot = localProfileStore.snapshot(
+            fallback: LocalProfileSnapshot(
+                name: state.user.name,
+                birthYear: state.profile.birthYear,
+                gender: state.profile.gender,
+                wakeUpTimeText: state.profile.wakeUpTimeText,
+                jobGroup: state.profile.jobGroup
+            )
+        )
+
+        return MyPageState(
+            user: MyPageUser(
+                name: snapshot.name,
+                email: state.user.email,
+                authProvider: state.user.authProvider
+            ),
+            profile: MyPageProfile(
+                birthYear: snapshot.birthYear,
+                gender: snapshot.gender,
+                wakeUpTimeText: snapshot.wakeUpTimeText,
+                jobGroup: snapshot.jobGroup
+            ),
+            notificationSettings: state.notificationSettings
         )
     }
 }

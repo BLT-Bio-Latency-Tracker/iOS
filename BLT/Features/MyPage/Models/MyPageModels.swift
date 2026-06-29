@@ -104,8 +104,8 @@ struct MyPageNotificationPatchRequest {
 extension MyPageState {
     static let serverPlaceholder = MyPageState(
         user: MyPageUser(
-            name: "BLT",
-            email: "blt@example.com",
+            name: "Bryki",
+            email: "bryki@example.com",
             authProvider: "Apple"
         ),
         profile: MyPageProfile(

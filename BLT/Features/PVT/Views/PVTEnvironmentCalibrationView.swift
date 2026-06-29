@@ -82,7 +82,7 @@ struct PVTEnvironmentCalibrationView: View {
                 calibrationQualityWarningSheet(warning: warning, scale: scale)
                     .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
             }
-            .presentationDetents([.height(438)])
+            .presentationDetents([.height(430)])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(28)
             .presentationBackground(Color(red: 0.078, green: 0.098, blue: 0.216))
@@ -268,9 +268,9 @@ struct PVTEnvironmentCalibrationView: View {
             .padding(.top, 18 * scale)
 
             Button {
-                retryCalibration()
+                continueMeasurementDespiteWarning()
             } label: {
-                Text(warning.primaryActionTitle)
+                Text("계속하기")
                     .font(.system(size: 15 * scale, weight: .regular))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -286,19 +286,19 @@ struct PVTEnvironmentCalibrationView: View {
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 24 * scale)
-            .padding(.top, 16 * scale)
+            .padding(.top, 30 * scale)
 
             Button {
-                continueMeasurementDespiteWarning()
+                cancelMeasurementAfterWarning()
             } label: {
-                Text("무시하고 계속하기")
+                Text("나중에 다시 측정하기")
                     .font(.system(size: 14 * scale, weight: .regular))
-                    .foregroundStyle(.white.opacity(0.4))
+                    .foregroundStyle(.white.opacity(0.45))
                     .frame(maxWidth: .infinity)
-                    .frame(height: 34 * scale)
+                    .frame(height: 24 * scale)
             }
             .buttonStyle(.plain)
-            .padding(.top, 8 * scale)
+            .padding(.top, 16 * scale)
         }
         .frame(maxWidth: .infinity)
         .background(Color(red: 0.078, green: 0.098, blue: 0.216))
@@ -308,15 +308,15 @@ struct PVTEnvironmentCalibrationView: View {
         calibrator.start()
     }
 
-    private func retryCalibration() {
-        qualityWarning = nil
-        step = .calibration
-        calibrator.restart()
-    }
-
     private func continueMeasurementDespiteWarning() {
         qualityWarning = nil
         step = .measurement
+    }
+
+    private func cancelMeasurementAfterWarning() {
+        qualityWarning = nil
+        calibrator.restoreBrightness()
+        onAbort()
     }
 }
 
@@ -338,7 +338,7 @@ private final class PVTEnvironmentCalibrator: NSObject, ObservableObject {
     private let duration: CFTimeInterval = 1.8
 
     var isLowPowerModeEnabled: Bool {
-        ProcessInfo.processInfo.isLowPowerModeEnabled
+        return ProcessInfo.processInfo.isLowPowerModeEnabled
     }
 
     func start() {
@@ -456,7 +456,6 @@ private struct PVTCalibrationQualityWarning: Equatable, Identifiable {
     let message: String
     let guideTitle: String
     let guideDescription: String
-    let primaryActionTitle: String
 
     private init(
         id: Kind,
@@ -464,8 +463,7 @@ private struct PVTCalibrationQualityWarning: Equatable, Identifiable {
         title: String,
         message: String,
         guideTitle: String,
-        guideDescription: String,
-        primaryActionTitle: String
+        guideDescription: String
     ) {
         self.id = id
         self.icon = icon
@@ -473,7 +471,6 @@ private struct PVTCalibrationQualityWarning: Equatable, Identifiable {
         self.message = message
         self.guideTitle = guideTitle
         self.guideDescription = guideDescription
-        self.primaryActionTitle = primaryActionTitle
     }
 
     static let lowPowerMode = PVTCalibrationQualityWarning(
@@ -482,8 +479,7 @@ private struct PVTCalibrationQualityWarning: Equatable, Identifiable {
         title: "응답 지연이 감지됐어요",
         message: "저전력 모드가 켜져 있으면 반응속도\n측정 정확도가 낮아질 수 있어요.",
         guideTitle: "📲  설정 > 배터리 > 저전력 모드 끄기",
-        guideDescription: "해제 후 다시 보정하면 더 정확한 캘리브레이션이 가능해요",
-        primaryActionTitle: "저전력 모드 해제 후 다시 보정"
+        guideDescription: "지금 계속하면 현재 환경 기준으로 측정이 진행돼요"
     )
 
     init?(result: PVTEnvironmentCalibrationResult) {
@@ -498,9 +494,8 @@ private struct PVTCalibrationQualityWarning: Equatable, Identifiable {
                 icon: "⏱️",
                 title: "메인 스레드 지연이 감지됐어요",
                 message: "앱 전환이나 백그라운드 작업이 많으면\n반응속도 측정이 밀릴 수 있어요.",
-                guideTitle: "📲  다른 앱을 정리하고 BLT만 실행해보세요",
-                guideDescription: "잠시 후 다시 보정하면 더 안정적인 측정이 가능해요",
-                primaryActionTitle: "다시 보정하기"
+                guideTitle: "📲  다른 앱을 정리하고 Bryki만 실행해보세요",
+                guideDescription: "지금 계속하면 감지된 지연 정보를 함께 반영해요"
             )
             return
         }
@@ -512,8 +507,7 @@ private struct PVTCalibrationQualityWarning: Equatable, Identifiable {
                 title: "화면 갱신이 불안정해요",
                 message: "프레임 드랍이 반복되면 자극 표시 시점이\n불안정해질 수 있어요.",
                 guideTitle: "📲  화면 녹화·저전력·무거운 앱을 종료해보세요",
-                guideDescription: "환경을 정리한 뒤 다시 보정하면 정확도가 올라가요",
-                primaryActionTitle: "다시 보정하기"
+                guideDescription: "지금 계속하면 현재 화면 상태 기준으로 측정해요"
             )
             return
         }

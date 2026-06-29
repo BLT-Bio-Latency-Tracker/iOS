@@ -1,6 +1,6 @@
 //
-//  BLTApp.swift
-//  BLT
+//  BrykiApp.swift
+//  Bryki
 //
 //  Created by 신찬솔 on 4/27/26.
 //
@@ -9,7 +9,7 @@ import FirebaseCore
 import SwiftUI
 
 @main
-struct BLTApp: App {
+struct BrykiApp: App {
     init() {
         FirebaseApp.configure()
     }
