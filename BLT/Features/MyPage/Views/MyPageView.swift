@@ -7,6 +7,7 @@ struct MyPageView: View {
 
     let onBack: () -> Void
     let onWithdraw: () -> Void
+    let onLogout: () -> Void
 
     private let designWidth: CGFloat = 390
 
@@ -43,7 +44,10 @@ struct MyPageView: View {
 
                             accountSection(scale: scale)
                                 .padding(.top, 26 * scale)
-                                .padding(.bottom, 34 * scale)
+
+                            logoutButton(scale: scale)
+                                .padding(.top, 34 * scale)
+                                .padding(.bottom, 48 * scale)
                         } else if let errorMessage = viewModel.errorMessage {
                             errorState(errorMessage, scale: scale)
                                 .padding(.top, 150 * scale)
@@ -202,7 +206,6 @@ struct MyPageView: View {
             infoRows([
                 MyPageRow(title: "출생연도", value: state.profile.birthYear.map { "\($0)년" } ?? "미설정", isWarning: state.profile.birthYear == nil),
                 MyPageRow(title: "성별", value: state.profile.gender?.displayName ?? "미설정", isWarning: state.profile.gender == nil),
-                MyPageRow(title: "평균 기상시간", value: state.profile.wakeUpTimeText ?? "미설정", isWarning: state.profile.wakeUpTimeText == nil),
                 MyPageRow(title: "직업군", value: state.profile.jobGroup?.displayName ?? "미설정", isWarning: state.profile.jobGroup == nil)
             ], scale: scale)
         }
@@ -242,6 +245,26 @@ struct MyPageView: View {
                 )
             }
         }
+    }
+
+    private func logoutButton(scale: CGFloat) -> some View {
+        Button {
+            Task {
+                let isLoggedOut = await viewModel.logout()
+                guard isLoggedOut else { return }
+                onLogout()
+            }
+        } label: {
+            Text(viewModel.isLoggingOut ? "로그아웃 중..." : "로그아웃")
+                .font(.system(size: 14 * scale, weight: .regular))
+                .foregroundStyle(Color.myPageMutedText)
+                .frame(maxWidth: .infinity)
+                .frame(height: 36 * scale)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(viewModel.isLoggingOut)
+        .accessibilityLabel("로그아웃")
     }
 
     private func withdrawalConfirmationOverlay(scale: CGFloat) -> some View {
@@ -469,7 +492,7 @@ struct MyPageView: View {
 
     private func profileMissingText(for state: MyPageState) -> String? {
         guard !state.isProfileComplete else { return nil }
-        return "\(state.missingProfileItemCount) / 4 미설정"
+        return "\(state.missingProfileItemCount) / 3 미설정"
     }
 }
 

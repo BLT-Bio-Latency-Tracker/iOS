@@ -1,10 +1,10 @@
 import Foundation
 
 struct TodayViewState {
-    let score: Int
+    let score: Int?
     let scoreMode: TodayScoreMode
     let roiStatusText: String
-    let roiChangePercent: Int
+    let roiChangePercent: Int?
     let measuredAt: Date
     let comparisonSummary: String
     let sleep: TodaySleepData?
@@ -18,6 +18,10 @@ struct TodayViewState {
 
     var hasTodayPVTData: Bool {
         pvtStatus == .available
+    }
+
+    var hasROIResult: Bool {
+        score != nil
     }
 
     func replacingSleep(
@@ -59,12 +63,12 @@ struct TodayViewState {
         )
     }
 
-    func replacingROI(score: Int, statusText: String, changePercent: Int?, measuredAt: Date?) -> TodayViewState {
+    func replacingROI(score: Int?, statusText: String, changePercent: Int?, measuredAt: Date?) -> TodayViewState {
         TodayViewState(
             score: score,
             scoreMode: scoreMode,
             roiStatusText: statusText,
-            roiChangePercent: changePercent ?? 0,
+            roiChangePercent: changePercent,
             measuredAt: measuredAt ?? self.measuredAt,
             comparisonSummary: comparisonSummary,
             sleep: sleep,
@@ -75,10 +79,10 @@ struct TodayViewState {
     }
 
     static let initial = TodayViewState(
-        score: 0,
+        score: nil,
         scoreMode: .pvtOnly,
         roiStatusText: "PVT 미측정",
-        roiChangePercent: 0,
+        roiChangePercent: nil,
         measuredAt: Date(),
         comparisonSummary: "",
         sleep: nil,
@@ -102,6 +106,17 @@ enum TodayROIChangeDirection {
     case positive
     case neutral
     case negative
+
+    init(roiDirection: ROIChangeDirection) {
+        switch roiDirection {
+        case .positive:
+            self = .positive
+        case .neutral:
+            self = .neutral
+        case .negative:
+            self = .negative
+        }
+    }
 }
 
 enum TodaySleepDataStatus {

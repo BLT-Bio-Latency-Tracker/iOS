@@ -53,6 +53,37 @@ struct EvaluationService {
             requiresAuth: true
         )
     }
+
+    func fetchSummaries(from: Date, to: Date, size: Int = 1000) async throws -> [EvaluationSummary] {
+        let response: EvaluationPageResponse = try await networkClient.get(
+            "/api/v1/evaluations",
+            queryItems: [
+                URLQueryItem(name: "from", value: Self.dateText(from)),
+                URLQueryItem(name: "to", value: Self.dateText(to)),
+                URLQueryItem(name: "size", value: String(size))
+            ],
+            requiresAuth: true
+        )
+        return response.items
+    }
+
+    private static func dateText(_ date: Date) -> String {
+        EvaluationDateFormatter.dateText(date)
+    }
+}
+
+enum EvaluationDateFormatter {
+    static func dateText(_ date: Date, timeZone: TimeZone = TimeZone(identifier: "Asia/Seoul") ?? .current) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+}
+
+private struct EvaluationPageResponse: Decodable {
+    let items: [EvaluationSummary]
 }
 
 struct EvaluationCreateRequest: Encodable {
@@ -157,4 +188,10 @@ struct EvaluationResponse: Decodable {
     let statusLabel: String
     let trendVsYesterday: Int?
     let measuredAt: Date
+}
+
+struct EvaluationSummary: Decodable {
+    let evaluationId: Int
+    let date: String
+    let finalScore: Int
 }

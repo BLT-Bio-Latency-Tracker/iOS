@@ -142,11 +142,18 @@ struct ContentView: View {
                     ))
 
             case .home:
-                MainTabView {
-                    withAnimation(.easeInOut(duration: 0.35)) {
-                        route = .login
+                MainTabView(
+                    onWithdraw: {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            route = .login
+                        }
+                    },
+                    onLogout: {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            route = .login
+                        }
                     }
-                }
+                )
                     .transition(.opacity)
             }
         }
@@ -177,7 +184,6 @@ struct ContentView: View {
                 authProvider: cachedProfile.authProvider,
                 birthYear: draft.birthYear,
                 gender: draft.gender,
-                wakeUpTimeText: draft.wakeUpTime.map(Self.profileTimeText),
                 jobGroup: draft.jobGroup
             )
         )
@@ -187,13 +193,6 @@ struct ContentView: View {
         withAnimation(.easeInOut(duration: 0.35)) {
             route = .startReady
         }
-    }
-
-    private static func profileTimeText(from date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "HH:mm"
-        return formatter.string(from: date)
     }
 
     private func initialRouteAfterSplash() async -> AppRoute {
@@ -209,7 +208,6 @@ struct ContentView: View {
                 authProvider: currentCachedProfileSnapshot().authProvider,
                 birthYear: nil,
                 gender: nil,
-                wakeUpTimeText: nil,
                 jobGroup: nil
             )
         )
@@ -219,6 +217,7 @@ struct ContentView: View {
 
         let onboardingCompleted = remoteOnboardingCompleted ?? session.onboardingCompleted
         AuthSessionStore.shared.updateOnboardingCompleted(onboardingCompleted)
+        await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible()
 
         return onboardingCompleted ? .home : .healthPermission
     }
@@ -247,12 +246,21 @@ struct ContentView: View {
                 authProvider: remoteState.user.authProvider.isEmpty ? fallback.authProvider : remoteState.user.authProvider,
                 birthYear: remoteState.profile.birthYear ?? fallback.birthYear,
                 gender: remoteState.profile.gender ?? fallback.gender,
-                wakeUpTimeText: remoteState.profile.wakeUpTimeText ?? fallback.wakeUpTimeText,
                 jobGroup: remoteState.profile.jobGroup ?? fallback.jobGroup
             )
         )
+        await requestNotificationAuthorizationIfNeeded(remoteState.notificationSettings)
 
         return remoteState.user.onboardingCompleted
+    }
+
+    private func requestNotificationAuthorizationIfNeeded(_ settings: MyPageNotificationSettings) async {
+        guard settings.isEnabled,
+              settings.channels.contains(.appPush) else {
+            return
+        }
+
+        await PushDeviceRegistrationService.shared.requestAuthorizationIfNeededAndRegister()
     }
 
     private func preferredIdentityName(
@@ -296,7 +304,6 @@ struct ContentView: View {
                 authProvider: nil,
                 birthYear: nil,
                 gender: nil,
-                wakeUpTimeText: nil,
                 jobGroup: nil
             )
         )

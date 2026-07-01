@@ -8,6 +8,7 @@ final class MyPageViewModel: ObservableObject {
     @Published private(set) var isSavingProfile = false
     @Published private(set) var isSavingNotificationSettings = false
     @Published private(set) var isWithdrawing = false
+    @Published private(set) var isLoggingOut = false
     @Published private(set) var errorMessage: String?
 
     private let service: MyPageService
@@ -98,6 +99,27 @@ final class MyPageViewModel: ObservableObject {
         }
     }
 
+    func logout() async -> Bool {
+        guard !isLoggingOut else { return false }
+
+        isLoggingOut = true
+        errorMessage = nil
+
+        defer {
+            isLoggingOut = false
+        }
+
+        do {
+            try await service.logout()
+            localProfileStore.clear()
+            return true
+        } catch {
+            AuthSessionStore.shared.clear()
+            localProfileStore.clear()
+            return true
+        }
+    }
+
     func applyProfile(_ draft: MyPageProfileEditDraft) {
         guard let state else { return }
 
@@ -111,7 +133,6 @@ final class MyPageViewModel: ObservableObject {
             profile: MyPageProfile(
                 birthYear: draft.birthYear,
                 gender: draft.gender,
-                wakeUpTimeText: draft.wakeUpTimeText,
                 jobGroup: draft.jobGroup
             ),
             notificationSettings: state.notificationSettings
@@ -124,7 +145,6 @@ final class MyPageViewModel: ObservableObject {
                 authProvider: updatedState.user.authProvider,
                 birthYear: updatedState.profile.birthYear,
                 gender: updatedState.profile.gender,
-                wakeUpTimeText: updatedState.profile.wakeUpTimeText,
                 jobGroup: updatedState.profile.jobGroup
             )
         )
@@ -150,7 +170,6 @@ final class MyPageViewModel: ObservableObject {
                 authProvider: state.user.authProvider,
                 birthYear: state.profile.birthYear,
                 gender: state.profile.gender,
-                wakeUpTimeText: state.profile.wakeUpTimeText,
                 jobGroup: state.profile.jobGroup
             )
         )
@@ -164,7 +183,6 @@ final class MyPageViewModel: ObservableObject {
                 authProvider: state.user.authProvider,
                 birthYear: state.profile.birthYear,
                 gender: state.profile.gender,
-                wakeUpTimeText: state.profile.wakeUpTimeText,
                 jobGroup: state.profile.jobGroup
             )
         )
@@ -186,10 +204,9 @@ final class MyPageViewModel: ObservableObject {
                 onboardingCompleted: state.user.onboardingCompleted
             ),
             profile: MyPageProfile(
-                birthYear: state.profile.birthYear,
-                gender: state.profile.gender,
-                wakeUpTimeText: state.profile.wakeUpTimeText ?? cachedProfile.wakeUpTimeText,
-                jobGroup: state.profile.jobGroup
+                birthYear: state.profile.birthYear ?? cachedProfile.birthYear,
+                gender: state.profile.gender ?? cachedProfile.gender,
+                jobGroup: state.profile.jobGroup ?? cachedProfile.jobGroup
             ),
             notificationSettings: state.notificationSettings
         )

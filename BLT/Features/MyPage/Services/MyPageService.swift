@@ -25,10 +25,17 @@ struct MyPageService {
             "/api/v1/users/me",
             requiresAuth: true
         )
+        let notificationResponse: NotificationSettingsResponse?
+
+        do {
+            notificationResponse = try await fetchNotificationSettingsIfAvailable()
+        } catch {
+            notificationResponse = nil
+        }
 
         return MyPageState(
             user: userResponse,
-            notificationSettings: nil
+            notificationSettings: notificationResponse
         )
     }
 
@@ -104,7 +111,34 @@ struct MyPageService {
             "/api/v1/users/me",
             requiresAuth: true
         )
+        await PushDeviceRegistrationService.shared.unregisterCurrentDeviceIfPossible()
         AuthSessionStore.shared.clear()
+    }
+
+    func logout() async throws {
+        guard let refreshToken = AuthSessionStore.shared.currentSession?.refreshToken else {
+            await PushDeviceRegistrationService.shared.unregisterCurrentDeviceIfPossible()
+            AuthSessionStore.shared.clear()
+            LocalProfileStore().clear()
+            return
+        }
+
+        await PushDeviceRegistrationService.shared.unregisterCurrentDeviceIfPossible()
+
+        do {
+            let _: EmptyResponse = try await networkClient.post(
+                "/api/v1/auth/logout",
+                body: RefreshTokenRequest(refreshToken: refreshToken),
+                requiresAuth: true
+            )
+        } catch {
+            AuthSessionStore.shared.clear()
+            LocalProfileStore().clear()
+            return
+        }
+
+        AuthSessionStore.shared.clear()
+        LocalProfileStore().clear()
     }
 
     private static func serverTimeText(from displayText: String) -> String {
@@ -138,7 +172,6 @@ private extension MyPageState {
             profile: MyPageProfile(
                 birthYear: user.birthYear,
                 gender: user.gender,
-                wakeUpTimeText: nil,
                 jobGroup: user.occupation
             ),
             notificationSettings: notificationSettings.map(MyPageNotificationSettings.init(response:))

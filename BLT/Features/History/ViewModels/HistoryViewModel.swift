@@ -164,11 +164,20 @@ final class HistoryViewModel: ObservableObject {
         let leadingEmptyDays = max(0, firstWeekday - 1)
         let today = calendar.startOfDay(for: currentDate)
 
-        let monthlyRecords = records.filter { calendar.isDate($0.date, equalTo: monthStart, toGranularity: .month) }
+        let monthlyRecords = records
+            .filter { calendar.isDate($0.date, equalTo: monthStart, toGranularity: .month) }
+            .sorted { lhs, rhs in
+                if calendar.isDate(lhs.date, inSameDayAs: rhs.date) {
+                    return lhs.date > rhs.date
+                }
+                return lhs.date < rhs.date
+            }
         var recordsByDay: [Int: HistoryDailyRecord] = [:]
         for record in monthlyRecords {
             let day = calendar.component(.day, from: record.date)
-            recordsByDay[day] = record
+            if recordsByDay[day] == nil {
+                recordsByDay[day] = record
+            }
         }
 
         var days: [HistoryCalendarDay] = []
@@ -193,7 +202,7 @@ final class HistoryViewModel: ObservableObject {
             days.append(HistoryCalendarDay(id: "trailing-\(days.count)", date: nil, day: nil, roiScore: nil, isToday: false))
         }
 
-        let scores = monthlyRecords.map(\.roiScore)
+        let scores = recordsByDay.values.map(\.roiScore)
         let summary = HistoryMonthSummary(
             measuredDays: scores.count,
             averageROI: scores.isEmpty ? nil : Int(round(Double(scores.reduce(0, +)) / Double(scores.count))),

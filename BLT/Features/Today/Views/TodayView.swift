@@ -38,8 +38,13 @@ struct TodayView: View {
                             roiIndexCard(scale: scale)
                                 .padding(.top, 25 * scale)
 
-                            comparisonNotice(scale: scale)
-                                .padding(.top, 16 * scale)
+                            if viewModel.state.hasROIResult {
+                                comparisonNotice(scale: scale)
+                                    .padding(.top, 16 * scale)
+                            } else {
+                                pvtMissingNotice(scale: scale)
+                                    .padding(.top, 16 * scale)
+                            }
 
                             comparisonPicker(scale: scale)
                                 .padding(.top, 18 * scale)
@@ -135,14 +140,17 @@ struct TodayView: View {
                 .minimumScaleFactor(0.8)
 
             HStack(alignment: .center, spacing: 20 * scale) {
-                Text(String(viewModel.state.score))
+                Text(viewModel.roiScoreText)
                     .font(.system(size: 54 * scale, weight: .heavy))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(viewModel.state.hasROIResult ? .white : Color.todayMutedText)
                     .lineLimit(1)
-                    .frame(width: 78 * scale, alignment: .leading)
+                    .minimumScaleFactor(0.45)
+                    .frame(width: (viewModel.state.hasROIResult ? 78 : 132) * scale, alignment: .leading)
 
-                roiChangeBadge(scale: scale)
-                    .padding(.top, 7 * scale)
+                if viewModel.state.hasROIResult {
+                    roiChangeBadge(scale: scale)
+                        .padding(.top, 7 * scale)
+                }
 
                 Spacer()
             }
@@ -224,6 +232,31 @@ struct TodayView: View {
         .overlay {
             RoundedRectangle(cornerRadius: 12 * scale, style: .continuous)
                 .stroke(backgroundColor.opacity(isPositive ? 0.35 : 0.5), lineWidth: 1)
+        }
+    }
+
+    private func pvtMissingNotice(scale: CGFloat) -> some View {
+        HStack(spacing: 8 * scale) {
+            Text("⚠")
+                .font(.system(size: 14 * scale, weight: .regular))
+                .foregroundStyle(Color.todayCaution)
+                .frame(width: 22 * scale)
+
+            Text("PVT 측정값이 없어 ROI 점수를 측정할 수 없어요")
+                .font(.system(size: 11 * scale, weight: .medium))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 15 * scale)
+        .frame(width: 326 * scale, height: 40 * scale, alignment: .leading)
+        .background(Color.todayCaution.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 12 * scale, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12 * scale, style: .continuous)
+                .stroke(Color.todayCaution.opacity(0.5), lineWidth: 1)
         }
     }
 
@@ -701,7 +734,14 @@ struct TodayView: View {
     private var comparisonNoticeForeground: Color {
         switch viewModel.state.sleepStatus {
         case .available:
-            return Color.todayPositive
+            switch viewModel.roiChangeDirection {
+            case .positive:
+                return Color.todayPositive
+            case .negative:
+                return Color.todayNegative
+            case .neutral:
+                return Color.todayMutedText
+            }
         case .syncing:
             return Color.todayCyan
         case .noSleep, .notConnected, .noWearableData:

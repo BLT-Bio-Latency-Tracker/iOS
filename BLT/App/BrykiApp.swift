@@ -39,7 +39,7 @@ private enum FreshInstallSessionReset {
     ) {
         guard userDefaults.object(forKey: installMarkerKey) == nil else { return }
 
-        authSessionStore.clear()
+        authSessionStore.clearForSignOut()
         localProfileStore.clear()
         userDefaults.set(true, forKey: installMarkerKey)
     }

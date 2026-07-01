@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct PVTReadyView: View {
     private enum Step {
@@ -11,6 +12,7 @@ struct PVTReadyView: View {
     let onAbort: () -> Void
 
     @State private var step: Step = .ready
+    @State private var brightnessSession = PVTBrightnessSession()
 
     private let designWidth: CGFloat = 390
 
@@ -22,6 +24,7 @@ struct PVTReadyView: View {
 
             case .calibration:
                 PVTEnvironmentCalibrationView(
+                    brightnessSession: brightnessSession,
                     onClose: {
                         step = .ready
                     },
@@ -32,6 +35,9 @@ struct PVTReadyView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .onDisappear {
+            brightnessSession.restore()
+        }
     }
 
     private var readyContent: some View {
@@ -75,6 +81,7 @@ struct PVTReadyView: View {
                     Spacer(minLength: 0)
 
                     Button {
+                        brightnessSession.start()
                         step = .calibration
                     } label: {
                         Text("시작하기")
@@ -102,7 +109,7 @@ struct PVTReadyView: View {
 
     private func header(scale: CGFloat) -> some View {
         ZStack {
-            Text("PVT 측정 · 1/2")
+            Text("PVT 측정")
                 .font(.system(size: 14 * scale, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -180,6 +187,36 @@ struct PVTReadyView: View {
 
             Spacer(minLength: 0)
         }
+    }
+}
+
+@MainActor
+final class PVTBrightnessSession {
+    private var originalBrightness: CGFloat?
+    private weak var capturedScreen: UIScreen?
+
+    func start() {
+        let screen = Self.activeScreen
+        if originalBrightness == nil {
+            originalBrightness = screen.brightness
+            capturedScreen = screen
+        }
+        screen.brightness = 1
+    }
+
+    func restore() {
+        guard let originalBrightness else { return }
+        (capturedScreen ?? Self.activeScreen).brightness = originalBrightness
+        self.originalBrightness = nil
+        capturedScreen = nil
+    }
+
+    private static var activeScreen: UIScreen {
+        let windowScene = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive }
+
+        return windowScene?.screen ?? UIScreen.main
     }
 }
 

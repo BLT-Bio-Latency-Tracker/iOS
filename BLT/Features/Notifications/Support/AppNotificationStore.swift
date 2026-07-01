@@ -11,6 +11,10 @@ final class AppNotificationStore: ObservableObject {
         notifications.contains { !$0.isRead }
     }
 
+    var unreadCount: Int {
+        notifications.filter { !$0.isRead }.count
+    }
+
     init(notifications: [AppNotificationItem] = []) {
         self.notifications = notifications
     }
@@ -21,6 +25,10 @@ final class AppNotificationStore: ObservableObject {
             updatedItem.isRead = true
             return updatedItem
         }
+    }
+
+    func removeAll() {
+        notifications = []
     }
 
     func applyServerNotifications(_ serverNotifications: [AppNotificationItem]) {

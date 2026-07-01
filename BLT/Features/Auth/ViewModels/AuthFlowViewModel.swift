@@ -110,6 +110,7 @@ final class AuthFlowViewModel: ObservableObject {
                 return nil
             }
 
+            await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible()
             return .existingUser(onboardingCompleted: profileSyncResult.onboardingCompleted)
         } catch {
             guard !isAppleLoginCanceled(error) else {
@@ -153,6 +154,8 @@ final class AuthFlowViewModel: ObservableObject {
                 errorMessage = "가입 세션을 저장하지 못했어요. 다시 로그인해주세요."
                 return false
             }
+            await syncInitialNotificationSettings(from: termsAgreement)
+
             guard let profileSyncResult = await syncAuthenticatedUserProfile(
                 fallbackName: latestAppleDisplayName,
                 fallbackEmail: latestAppleEmail
@@ -169,10 +172,38 @@ final class AuthFlowViewModel: ObservableObject {
             }
 
             latestVerificationToken = nil
+            await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible()
             return true
         } catch {
             errorMessage = error.localizedDescription
             return false
+        }
+    }
+
+    private func syncInitialNotificationSettings(from termsAgreement: TermsAgreementState) async {
+        var channels: Set<MyPageNotificationChannel> = []
+
+        if termsAgreement.notification {
+            channels.insert(.appPush)
+        }
+
+        if termsAgreement.sms {
+            channels.insert(.sms)
+        }
+
+        guard !channels.isEmpty else { return }
+
+        do {
+            try await myPageService.updateNotificationSettings(
+                MyPageNotificationPatchRequest(
+                    isEnabled: true,
+                    measurementTimeText: nil,
+                    bedtimeText: nil,
+                    channels: channels
+                )
+            )
+        } catch {
+            PushLog.debug("Initial notification settings sync failed: \(error.localizedDescription)")
         }
     }
 
@@ -197,7 +228,6 @@ final class AuthFlowViewModel: ObservableObject {
                 authProvider: "Apple",
                 birthYear: nil,
                 gender: nil,
-                wakeUpTimeText: nil,
                 jobGroup: nil
             )
         )
@@ -219,7 +249,6 @@ final class AuthFlowViewModel: ObservableObject {
                 authProvider: "Apple",
                 birthYear: current.birthYear,
                 gender: current.gender,
-                wakeUpTimeText: current.wakeUpTimeText,
                 jobGroup: current.jobGroup
             )
         )
@@ -245,7 +274,6 @@ final class AuthFlowViewModel: ObservableObject {
                 authProvider: remoteState.user.authProvider,
                 birthYear: remoteState.profile.birthYear,
                 gender: remoteState.profile.gender,
-                wakeUpTimeText: remoteState.profile.wakeUpTimeText,
                 jobGroup: remoteState.profile.jobGroup
             )
         )
@@ -277,15 +305,24 @@ final class AuthFlowViewModel: ObservableObject {
                     : remoteState.user.authProvider,
                 birthYear: remoteState.profile.birthYear,
                 gender: remoteState.profile.gender,
-                wakeUpTimeText: remoteState.profile.wakeUpTimeText,
                 jobGroup: remoteState.profile.jobGroup
             )
         )
+        await requestNotificationAuthorizationIfNeeded(remoteState.notificationSettings)
 
         return ProfileSyncResult(
             onboardingCompleted: remoteState.user.onboardingCompleted,
             hasRequiredIdentity: hasRequiredIdentity
         )
+    }
+
+    private func requestNotificationAuthorizationIfNeeded(_ settings: MyPageNotificationSettings) async {
+        guard settings.isEnabled,
+              settings.channels.contains(.appPush) else {
+            return
+        }
+
+        await PushDeviceRegistrationService.shared.requestAuthorizationIfNeededAndRegister()
     }
 
     private func preferredIdentityName(

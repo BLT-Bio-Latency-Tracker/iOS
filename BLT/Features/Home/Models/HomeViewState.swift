@@ -3,8 +3,8 @@ import Foundation
 struct HomeViewState {
     let userName: String
     let profileInitial: String
-    let brainROI: Int
-    let roiChangePercent: Int
+    let brainROI: Int?
+    let roiChangePercent: Int?
     let measuredAt: Date
     let sleepSummary: String
     let pvtSummary: String
@@ -41,12 +41,12 @@ struct HomeViewState {
         )
     }
 
-    func replacingROI(score: Int, changePercent: Int?, measuredAt: Date?) -> HomeViewState {
+    func replacingROI(score: Int?, changePercent: Int?, measuredAt: Date?) -> HomeViewState {
         HomeViewState(
             userName: userName,
             profileInitial: profileInitial,
             brainROI: score,
-            roiChangePercent: changePercent ?? 0,
+            roiChangePercent: changePercent,
             measuredAt: measuredAt ?? self.measuredAt,
             sleepSummary: sleepSummary,
             pvtSummary: pvtSummary,
@@ -57,8 +57,8 @@ struct HomeViewState {
     static let initial = HomeViewState(
         userName: "Bryki",
         profileInitial: "B",
-        brainROI: 0,
-        roiChangePercent: 0,
+        brainROI: nil,
+        roiChangePercent: nil,
         measuredAt: Date(),
         sleepSummary: "Sleep --",
         pvtSummary: "PVT 미측정",
@@ -72,27 +72,29 @@ enum HomePVTDataStatus {
 }
 
 struct HomeROIDisplayState {
-    let score: Int
+    let score: Int?
     let accent: HomeROIAccent
     let statusText: String
     let warningText: String?
     let changeText: String
     let changeDirection: HomeROIChangeDirection
 
-    init(score: Int, changePercent: Int) {
+    init(score: Int?, changePercent: Int?) {
         self.score = score
+
+        guard let score else {
+            self.accent = .unmeasured
+            self.statusText = "미측정"
+            self.warningText = nil
+            self.changeDirection = .neutral
+            self.changeText = "미측정"
+            return
+        }
+
         self.accent = HomeROIAccent(score: score)
 
-        if changePercent > 0 {
-            self.changeDirection = .positive
-            self.changeText = "▲ \(changePercent)%"
-        } else if changePercent < 0 {
-            self.changeDirection = .negative
-            self.changeText = "▼ \(abs(changePercent))%"
-        } else {
-            self.changeDirection = .neutral
-            self.changeText = "0%"
-        }
+        self.changeDirection = HomeROIChangeDirection(roiDirection: ROIChangeFormatter.direction(for: changePercent))
+        self.changeText = ROIChangeFormatter.text(for: changePercent, spacing: true)
 
         switch score {
         case ..<20:
@@ -115,9 +117,64 @@ enum HomeROIChangeDirection {
     case positive
     case neutral
     case negative
+
+    init(roiDirection: ROIChangeDirection) {
+        switch roiDirection {
+        case .positive:
+            self = .positive
+        case .neutral:
+            self = .neutral
+        case .negative:
+            self = .negative
+        }
+    }
+}
+
+enum ROIChangeDirection {
+    case positive
+    case neutral
+    case negative
+}
+
+enum ROIChangeFormatter {
+    static func text(
+        for changePercent: Int?,
+        spacing: Bool = false,
+        nilText: String = "-",
+        zeroText: String = "-"
+    ) -> String {
+        guard let changePercent else { return nilText }
+
+        let separator = spacing ? " " : ""
+
+        if changePercent > 0 {
+            return "▲\(separator)\(changePercent)%"
+        }
+
+        if changePercent < 0 {
+            return "▼\(separator)\(abs(changePercent))%"
+        }
+
+        return zeroText
+    }
+
+    static func direction(for changePercent: Int?) -> ROIChangeDirection {
+        guard let changePercent else { return .neutral }
+
+        if changePercent > 0 {
+            return .positive
+        }
+
+        if changePercent < 0 {
+            return .negative
+        }
+
+        return .neutral
+    }
 }
 
 enum HomeROIAccent {
+    case unmeasured
     case warning
     case caution
     case stable

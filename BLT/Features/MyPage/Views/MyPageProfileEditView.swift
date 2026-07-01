@@ -48,7 +48,6 @@ struct MyPageProfileEditView: View {
                             nameSection(scale: scale)
                             birthYearSection(scale: scale)
                             genderSection(scale: scale)
-                            wakeUpTimeSection(scale: scale)
                             jobGroupSection(scale: scale)
                         }
                         .padding(.top, 36 * scale)
@@ -133,16 +132,6 @@ struct MyPageProfileEditView: View {
             scale: scale
         ) {
             activePicker = .birthYear
-        }
-    }
-
-    private func wakeUpTimeSection(scale: CGFloat) -> some View {
-        dropdownSection(
-            title: "평균 기상 시간",
-            value: draft.wakeUpTime.map(Self.formattedWakeUpTime) ?? "선택해주세요",
-            scale: scale
-        ) {
-            activePicker = .wakeUpTime
         }
     }
 
@@ -333,19 +322,6 @@ struct MyPageProfileEditView: View {
                 }
                 .pickerStyle(.wheel)
 
-            case .wakeUpTime:
-                DatePicker(
-                    "평균 기상 시간",
-                    selection: Binding(
-                        get: { draft.wakeUpTime ?? Self.defaultWakeUpTime },
-                        set: { draft.wakeUpTime = $0 }
-                    ),
-                    displayedComponents: .hourAndMinute
-                )
-                .datePickerStyle(.wheel)
-                .labelsHidden()
-                .environment(\.locale, Locale(identifier: "en_US_POSIX"))
-                .padding(.top, 8)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -356,20 +332,7 @@ struct MyPageProfileEditView: View {
         switch picker {
         case .birthYear:
             draft.birthYear = draft.birthYear ?? 2000
-        case .wakeUpTime:
-            draft.wakeUpTime = draft.wakeUpTime ?? Self.defaultWakeUpTime
         }
-    }
-
-    nonisolated private static var defaultWakeUpTime: Date {
-        Calendar.current.date(bySettingHour: 7, minute: 30, second: 0, of: Date()) ?? Date()
-    }
-
-    nonisolated private static func formattedWakeUpTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "hh:mm a"
-        return formatter.string(from: date)
     }
 }
 
@@ -377,23 +340,17 @@ struct MyPageProfileEditDraft {
     var name: String
     var birthYear: Int?
     var gender: ProfileSetupGender?
-    var wakeUpTime: Date?
     var jobGroup: ProfileSetupJobGroup?
 
     init(state: MyPageState) {
         name = state.user.name
         birthYear = state.profile.birthYear
         gender = state.profile.gender
-        wakeUpTime = Self.date(from: state.profile.wakeUpTimeText)
         jobGroup = state.profile.jobGroup
     }
 
     var canSave: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    var wakeUpTimeText: String? {
-        wakeUpTime.map(Self.formattedWakeUpTime)
     }
 
     func patchRequest(comparedTo state: MyPageState) -> MyPageProfilePatchRequest {
@@ -403,38 +360,13 @@ struct MyPageProfileEditDraft {
             name: trimmedName == state.user.name ? nil : trimmedName,
             birthYear: birthYear == state.profile.birthYear ? nil : birthYear,
             gender: gender == state.profile.gender ? nil : gender,
-            wakeUpTimeText: wakeUpTimeText == state.profile.wakeUpTimeText ? nil : wakeUpTimeText,
             jobGroup: jobGroup == state.profile.jobGroup ? nil : jobGroup
         )
-    }
-
-    nonisolated private static func formattedWakeUpTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "hh:mm a"
-        return formatter.string(from: date)
-    }
-
-    nonisolated private static func date(from text: String?) -> Date? {
-        guard let text else { return nil }
-
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-
-        for format in ["hh:mm a", "hh : mm a"] {
-            formatter.dateFormat = format
-            if let date = formatter.date(from: text) {
-                return date
-            }
-        }
-
-        return nil
     }
 }
 
 private enum MyPageProfileEditPicker: String, Identifiable {
     case birthYear
-    case wakeUpTime
 
     var id: String { rawValue }
 
@@ -442,8 +374,6 @@ private enum MyPageProfileEditPicker: String, Identifiable {
         switch self {
         case .birthYear:
             return "출생 연도"
-        case .wakeUpTime:
-            return "평균 기상 시간"
         }
     }
 }

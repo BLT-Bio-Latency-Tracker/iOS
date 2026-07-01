@@ -100,14 +100,6 @@ struct ProfileSetupView: View {
 
             genderSection(scale: scale)
 
-            dropdownSection(
-                title: "평균 기상 시간",
-                value: setupDraft.wakeUpTime.map(formattedWakeUpTime) ?? "선택해주세요",
-                scale: scale
-            ) {
-                activePicker = .wakeUpTime
-            }
-
             jobGroupSection(scale: scale)
         }
     }
@@ -174,7 +166,7 @@ struct ProfileSetupView: View {
                     Button {
                         setupDraft.jobGroup = item
                     } label: {
-                        Text(item.rawValue)
+                        Text(item.displayName)
                             .brykiTextStyle(
                                 size: 12 * scale,
                                 weight: setupDraft.jobGroup == item
@@ -301,56 +293,27 @@ struct ProfileSetupView: View {
                 }
                 .pickerStyle(.wheel)
 
-            case .wakeUpTime:
-                DatePicker(
-                    "평균 기상 시간",
-                    selection: Binding(
-                        get: { setupDraft.wakeUpTime ?? defaultWakeUpTime },
-                        set: { setupDraft.wakeUpTime = $0 }
-                    ),
-                    displayedComponents: .hourAndMinute
-                )
-                .datePickerStyle(.wheel)
-                .labelsHidden()
-                .environment(\.locale, Locale(identifier: "en_US_POSIX"))
-                .padding(.top, 8)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(red: 0.039, green: 0.055, blue: 0.153))
     }
 
-    private var defaultWakeUpTime: Date {
-        Calendar.current.date(bySettingHour: 7, minute: 30, second: 0, of: Date()) ?? Date()
-    }
-
-    private func formattedWakeUpTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "hh : mm a"
-        return formatter.string(from: date)
-    }
-
     private func confirmPickerSelection(_ picker: ActivePicker) {
         switch picker {
         case .birthYear:
             setupDraft.birthYear = setupDraft.birthYear ?? 2000
-        case .wakeUpTime:
-            setupDraft.wakeUpTime = setupDraft.wakeUpTime ?? defaultWakeUpTime
         }
     }
 }
 
 private enum ActivePicker: Identifiable {
     case birthYear
-    case wakeUpTime
 
     var id: String {
         switch self {
         case .birthYear:
             return "birthYear"
-        case .wakeUpTime:
-            return "wakeUpTime"
         }
     }
 
@@ -358,8 +321,6 @@ private enum ActivePicker: Identifiable {
         switch self {
         case .birthYear:
             return "출생 연도"
-        case .wakeUpTime:
-            return "평균 기상 시간"
         }
     }
 }

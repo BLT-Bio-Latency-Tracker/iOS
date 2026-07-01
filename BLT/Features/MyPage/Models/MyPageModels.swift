@@ -8,7 +8,6 @@ struct MyPageState {
     var isProfileComplete: Bool {
         profile.birthYear != nil
             && profile.gender != nil
-            && profile.wakeUpTimeText != nil
             && profile.jobGroup != nil
     }
 
@@ -16,7 +15,6 @@ struct MyPageState {
         [
             profile.birthYear == nil,
             profile.gender == nil,
-            profile.wakeUpTimeText == nil,
             profile.jobGroup == nil
         ].filter { $0 }.count
     }
@@ -36,7 +34,6 @@ struct MyPageUser {
 struct MyPageProfile {
     let birthYear: Int?
     let gender: ProfileSetupGender?
-    let wakeUpTimeText: String?
     let jobGroup: ProfileSetupJobGroup?
 }
 
@@ -76,14 +73,12 @@ struct MyPageProfilePatchRequest {
     let name: String?
     let birthYear: Int?
     let gender: ProfileSetupGender?
-    let wakeUpTimeText: String?
     let jobGroup: ProfileSetupJobGroup?
 
     var isEmpty: Bool {
         name == nil
             && birthYear == nil
             && gender == nil
-            && wakeUpTimeText == nil
             && jobGroup == nil
     }
 }

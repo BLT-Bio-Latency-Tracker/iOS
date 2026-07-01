@@ -38,17 +38,24 @@ final class NotificationsViewModel: ObservableObject {
         store.hasUnreadNotifications
     }
 
+    var hasNotifications: Bool {
+        !store.notifications.isEmpty
+    }
+
     func selectCategory(_ category: AppNotificationCategory) {
         selectedCategory = category
         scheduleFetchNotifications()
     }
 
-    func markAllAsRead() async {
+    func deleteAllNotifications() async {
+        errorMessage = nil
+
         do {
-            try await service.markAllAsRead()
-            store.markAllAsRead()
+            try await service.deleteAllNotifications()
+            store.removeAll()
+            errorMessage = nil
         } catch {
-            errorMessage = "알림 읽음 처리에 실패했어요."
+            errorMessage = "알림을 지우지 못했어요."
         }
     }
 

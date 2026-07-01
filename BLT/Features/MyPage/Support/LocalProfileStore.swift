@@ -1,4 +1,5 @@
 import Foundation
+import Security
 
 struct LocalProfileSnapshot {
     let name: String
@@ -6,7 +7,6 @@ struct LocalProfileSnapshot {
     let authProvider: String?
     let birthYear: Int?
     let gender: ProfileSetupGender?
-    let wakeUpTimeText: String?
     let jobGroup: ProfileSetupJobGroup?
 
     init(
@@ -15,7 +15,6 @@ struct LocalProfileSnapshot {
         authProvider: String? = nil,
         birthYear: Int?,
         gender: ProfileSetupGender?,
-        wakeUpTimeText: String?,
         jobGroup: ProfileSetupJobGroup?
     ) {
         self.name = name
@@ -23,7 +22,6 @@ struct LocalProfileSnapshot {
         self.authProvider = authProvider
         self.birthYear = birthYear
         self.gender = gender
-        self.wakeUpTimeText = wakeUpTimeText
         self.jobGroup = jobGroup
     }
 
@@ -42,7 +40,6 @@ struct LocalProfileStore {
         static let legacyName = "local.profile.name"
         static let legacyBirthYear = "local.profile.birthYear"
         static let legacyGender = "local.profile.gender"
-        static let legacyWakeUpTimeText = "local.profile.wakeUpTimeText"
         static let legacyJobGroup = "local.profile.jobGroup"
 
         static func email(accountIdentifier: String) -> String {
@@ -65,10 +62,6 @@ struct LocalProfileStore {
             "local.profile.\(accountIdentifier).gender"
         }
 
-        static func wakeUpTimeText(accountIdentifier: String) -> String {
-            "local.profile.\(accountIdentifier).wakeUpTimeText"
-        }
-
         static func jobGroup(accountIdentifier: String) -> String {
             "local.profile.\(accountIdentifier).jobGroup"
         }
@@ -86,18 +79,16 @@ struct LocalProfileStore {
             authProvider: storedAuthProvider ?? fallback.authProvider,
             birthYear: storedBirthYear ?? fallback.birthYear,
             gender: storedGender ?? fallback.gender,
-            wakeUpTimeText: storedWakeUpTimeText ?? fallback.wakeUpTimeText,
             jobGroup: storedJobGroup ?? fallback.jobGroup
         )
     }
 
     func save(_ snapshot: LocalProfileSnapshot) {
         userDefaults.set(snapshot.name, forKey: Key.name(accountIdentifier: accountIdentifier))
-        userDefaults.removeObject(forKey: Key.email(accountIdentifier: accountIdentifier))
+        setSecureOptional(snapshot.email, forKey: Key.email(accountIdentifier: accountIdentifier))
         setOptional(snapshot.authProvider, forKey: Key.authProvider(accountIdentifier: accountIdentifier))
         setOptional(snapshot.birthYear, forKey: Key.birthYear(accountIdentifier: accountIdentifier))
         setOptional(snapshot.gender?.rawValue, forKey: Key.gender(accountIdentifier: accountIdentifier))
-        setOptional(snapshot.wakeUpTimeText, forKey: Key.wakeUpTimeText(accountIdentifier: accountIdentifier))
         setOptional(snapshot.jobGroup?.rawValue, forKey: Key.jobGroup(accountIdentifier: accountIdentifier))
 
         NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
@@ -105,12 +96,19 @@ struct LocalProfileStore {
 
     func clear() {
         userDefaults.removeObject(forKey: Key.name(accountIdentifier: accountIdentifier))
+        removeSecureValue(forKey: Key.email(accountIdentifier: accountIdentifier))
         userDefaults.removeObject(forKey: Key.email(accountIdentifier: accountIdentifier))
         userDefaults.removeObject(forKey: Key.authProvider(accountIdentifier: accountIdentifier))
         userDefaults.removeObject(forKey: Key.birthYear(accountIdentifier: accountIdentifier))
         userDefaults.removeObject(forKey: Key.gender(accountIdentifier: accountIdentifier))
-        userDefaults.removeObject(forKey: Key.wakeUpTimeText(accountIdentifier: accountIdentifier))
         userDefaults.removeObject(forKey: Key.jobGroup(accountIdentifier: accountIdentifier))
+
+        if accountIdentifier == "local" {
+            userDefaults.removeObject(forKey: Key.legacyName)
+            userDefaults.removeObject(forKey: Key.legacyBirthYear)
+            userDefaults.removeObject(forKey: Key.legacyGender)
+            userDefaults.removeObject(forKey: Key.legacyJobGroup)
+        }
 
         NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
     }
@@ -122,7 +120,6 @@ struct LocalProfileStore {
             authProvider: state.user.authProvider,
             birthYear: state.profile.birthYear,
             gender: state.profile.gender,
-            wakeUpTimeText: state.profile.wakeUpTimeText,
             jobGroup: state.profile.jobGroup
         )
         let current = snapshot(fallback: fallback)
@@ -133,7 +130,6 @@ struct LocalProfileStore {
             authProvider: current.authProvider,
             birthYear: request.birthYear ?? current.birthYear,
             gender: request.gender ?? current.gender,
-            wakeUpTimeText: request.wakeUpTimeText ?? current.wakeUpTimeText,
             jobGroup: request.jobGroup ?? current.jobGroup
         )
 
@@ -147,7 +143,8 @@ struct LocalProfileStore {
     }
 
     private var storedEmail: String? {
-        nil
+        secureString(forKey: Key.email(accountIdentifier: accountIdentifier))
+            ?? migrateLegacyEmailIfNeeded()
     }
 
     private var storedAuthProvider: String? {
@@ -169,11 +166,6 @@ struct LocalProfileStore {
             userDefaults.string(forKey: Key.gender(accountIdentifier: accountIdentifier))
                 ?? legacyString(forKey: Key.legacyGender)
         ).flatMap(ProfileSetupGender.init(rawValue:))
-    }
-
-    private var storedWakeUpTimeText: String? {
-        userDefaults.string(forKey: Key.wakeUpTimeText(accountIdentifier: accountIdentifier))
-            ?? legacyString(forKey: Key.legacyWakeUpTimeText)
     }
 
     private var storedJobGroup: ProfileSetupJobGroup? {
@@ -200,5 +192,70 @@ struct LocalProfileStore {
         } else {
             userDefaults.removeObject(forKey: key)
         }
+    }
+
+    private func migrateLegacyEmailIfNeeded() -> String? {
+        let key = Key.email(accountIdentifier: accountIdentifier)
+        guard let legacyEmail = userDefaults.string(forKey: key)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !legacyEmail.isEmpty else {
+            return nil
+        }
+
+        setSecureOptional(legacyEmail, forKey: key)
+        userDefaults.removeObject(forKey: key)
+        return legacyEmail
+    }
+
+    private func setSecureOptional(_ value: String?, forKey key: String) {
+        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty,
+              let data = value.data(using: .utf8) else {
+            removeSecureValue(forKey: key)
+            return
+        }
+
+        removeSecureValue(forKey: key)
+
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Bundle.main.bundleIdentifier ?? "bryki",
+            kSecAttrAccount as String: key,
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        ]
+
+        SecItemAdd(query as CFDictionary, nil)
+    }
+
+    private func secureString(forKey key: String) -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Bundle.main.bundleIdentifier ?? "bryki",
+            kSecAttrAccount as String: key,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+
+        guard status == errSecSuccess,
+              let data = item as? Data,
+              let value = String(data: data, encoding: .utf8),
+              !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+
+        return value
+    }
+
+    private func removeSecureValue(forKey key: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Bundle.main.bundleIdentifier ?? "bryki",
+            kSecAttrAccount as String: key
+        ]
+
+        SecItemDelete(query as CFDictionary)
     }
 }

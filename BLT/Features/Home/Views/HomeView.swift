@@ -96,16 +96,22 @@ struct HomeView: View {
                             .background(Color.bltCard)
                             .clipShape(Circle())
 
-                        if notificationStore.hasUnreadNotifications {
-                            Circle()
-                                .fill(Color.bltNotificationBadge)
-                                .frame(width: 6 * scale, height: 6 * scale)
-                                .offset(x: -4 * scale, y: 4 * scale)
+                        if notificationStore.unreadCount > 0 {
+                            Text(notificationBadgeText)
+                                .font(.system(size: 8 * scale, weight: .bold))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                                .padding(.horizontal, 4 * scale)
+                                .frame(minWidth: 14 * scale, minHeight: 14 * scale)
+                                .background(Color.bltNotificationBadge)
+                                .clipShape(Capsule())
+                                .offset(x: 2 * scale, y: -2 * scale)
                         }
                     }
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("알림")
+                .accessibilityLabel(notificationAccessibilityLabel)
 
                 Button(action: onProfileTap) {
                     Text(viewModel.state.profileInitial)
@@ -121,9 +127,21 @@ struct HomeView: View {
         }
     }
 
+    private var notificationBadgeText: String {
+        notificationStore.unreadCount > 99 ? "99+" : "\(notificationStore.unreadCount)"
+    }
+
+    private var notificationAccessibilityLabel: String {
+        if notificationStore.unreadCount > 0 {
+            return "알림, 읽지 않은 알림 \(notificationStore.unreadCount)개"
+        }
+
+        return "알림"
+    }
+
     private func roiSummary(scale: CGFloat) -> some View {
         let roiDisplay = viewModel.roiDisplay
-        let roiColor = color(for: roiDisplay.accent)
+        let roiColor = roiLevelColor(for: roiDisplay.score)
         let changeColor = changeColor(for: roiDisplay.changeDirection)
 
         return VStack(alignment: .leading, spacing: 10 * scale) {
@@ -137,23 +155,27 @@ struct HomeView: View {
                     .tracking(0.6 * scale)
                     .foregroundStyle(Color.bltMutedText)
 
-                Text(String(roiDisplay.score))
+                Text(roiDisplay.score.map(String.init) ?? "미측정")
                     .font(.system(size: 14 * scale, weight: .bold))
                     .foregroundStyle(roiColor)
                     .padding(.leading, 4 * scale)
 
-                Text("· \(roiDisplay.statusText)")
-                    .font(.system(size: 11 * scale, weight: .regular))
-                    .foregroundStyle(statusColor(for: roiDisplay.accent))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                if roiDisplay.score != nil {
+                    Text("· \(roiDisplay.statusText)")
+                        .font(.system(size: 11 * scale, weight: .regular))
+                        .foregroundStyle(statusColor(for: roiDisplay.accent))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
 
                 Spacer(minLength: 8 * scale)
 
-                Text(roiDisplay.changeText)
-                    .font(.system(size: 13 * scale, weight: .semibold))
-                    .foregroundStyle(changeColor)
-                    .lineLimit(1)
+                if roiDisplay.score != nil {
+                    Text(roiDisplay.changeText)
+                        .font(.system(size: 13 * scale, weight: .semibold))
+                        .foregroundStyle(changeColor)
+                        .lineLimit(1)
+                }
             }
             .padding(.horizontal, 20 * scale)
             .frame(maxWidth: .infinity)
@@ -340,19 +362,18 @@ struct HomeView: View {
         )
     }
 
-    private func color(for accent: HomeROIAccent) -> Color {
-        switch accent {
-        case .warning:
-            return Color.bltWarningRed
-        case .caution:
-            return Color.bltAmber
-        case .stable:
-            return Color.bltPositive
+    private func roiLevelColor(for score: Int?) -> Color {
+        guard score != nil else {
+            return Color.bltMutedText
         }
+
+        return HistoryROILevel(score: score).color
     }
 
     private func statusColor(for accent: HomeROIAccent) -> Color {
         switch accent {
+        case .unmeasured:
+            return Color.bltMutedText
         case .warning:
             return Color.bltWarningRed
         case .caution:
