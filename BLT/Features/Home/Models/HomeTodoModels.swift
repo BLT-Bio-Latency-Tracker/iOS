@@ -57,7 +57,12 @@ enum HomeTodoFocusStrategy {
     case mediumAndLow
     case all
 
-    init(brainROI: Int) {
+    init(brainROI: Int?) {
+        guard let brainROI else {
+            self = .all
+            return
+        }
+
         if brainROI < 40 {
             self = .lowOnly
         } else if brainROI < 70 {

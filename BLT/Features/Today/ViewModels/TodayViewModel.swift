@@ -154,7 +154,26 @@ final class TodayViewModel: ObservableObject {
         measurementTimeLabel(for: state.measuredAt, referenceDate: Date())
     }
 
+    var roiScoreText: String {
+        state.score.map(String.init) ?? "-"
+    }
+
     var roiFooterText: String {
+        guard state.hasROIResult else {
+            switch state.sleepStatus {
+            case .available:
+                return "오늘 PVT 측정 데이터 없음"
+            case .noSleep:
+                return "수면 0h · 오늘 PVT 측정 데이터 없음"
+            case .syncing:
+                return "수면 동기화 대기 중 · 오늘 PVT 측정 데이터 없음"
+            case .noWearableData:
+                return "수면 기록 없음 · 오늘 PVT 측정 데이터 없음"
+            case .notConnected:
+                return "수면 미연동 · 오늘 PVT 측정 데이터 없음"
+            }
+        }
+
         guard state.hasTodayPVTData else {
             switch state.sleepStatus {
             case .available:
@@ -184,14 +203,18 @@ final class TodayViewModel: ObservableObject {
     }
 
     var comparisonSummaryTitle: String {
+        guard state.hasROIResult else {
+            return "아직 Brain ROI를 측정하지 않았어요"
+        }
+
         switch state.sleepStatus {
         case .available:
-            if state.roiChangePercent > 0 {
-                return String(format: "✨ 어제보다 %d%% 향상!", state.roiChangePercent)
+            if let roiChangePercent = state.roiChangePercent, roiChangePercent > 0 {
+                return String(format: "✨ 어제보다 %d%% 향상!", roiChangePercent)
             }
 
-            if state.roiChangePercent < 0 {
-                return String(format: "어제보다 %d%% 낮아요", abs(state.roiChangePercent))
+            if let roiChangePercent = state.roiChangePercent, roiChangePercent < 0 {
+                return String(format: "어제보다 %d%% 낮아요", abs(roiChangePercent))
             }
 
             return "어제와 비슷한 컨디션이에요"
@@ -222,23 +245,31 @@ final class TodayViewModel: ObservableObject {
     }
 
     var roiChangeText: String {
-        if state.roiChangePercent > 0 {
-            return String(format: "▲ %d%%", state.roiChangePercent)
+        guard let roiChangePercent = state.roiChangePercent else {
+            return "-"
         }
 
-        if state.roiChangePercent < 0 {
-            return String(format: "▼ %d%%", abs(state.roiChangePercent))
+        if roiChangePercent > 0 {
+            return String(format: "▲ %d%%", roiChangePercent)
+        }
+
+        if roiChangePercent < 0 {
+            return String(format: "▼ %d%%", abs(roiChangePercent))
         }
 
         return "0%"
     }
 
     var roiChangeDirection: TodayROIChangeDirection {
-        if state.roiChangePercent > 0 {
+        guard let roiChangePercent = state.roiChangePercent else {
+            return .neutral
+        }
+
+        if roiChangePercent > 0 {
             return .positive
         }
 
-        if state.roiChangePercent < 0 {
+        if roiChangePercent < 0 {
             return .negative
         }
 
@@ -332,7 +363,15 @@ final class TodayViewModel: ObservableObject {
     }
 
     private func applyEvaluation(_ evaluation: EvaluationResponse?) {
-        guard let evaluation else { return }
+        guard let evaluation else {
+            state = state.replacingROI(
+                score: nil,
+                statusText: "PVT 미측정",
+                changePercent: nil,
+                measuredAt: nil
+            )
+            return
+        }
 
         state = state.replacingROI(
             score: evaluation.finalScore,

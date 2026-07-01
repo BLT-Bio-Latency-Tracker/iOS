@@ -135,14 +135,17 @@ struct TodayView: View {
                 .minimumScaleFactor(0.8)
 
             HStack(alignment: .center, spacing: 20 * scale) {
-                Text(String(viewModel.state.score))
+                Text(viewModel.roiScoreText)
                     .font(.system(size: 54 * scale, weight: .heavy))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(viewModel.state.hasROIResult ? .white : Color.todayMutedText)
                     .lineLimit(1)
-                    .frame(width: 78 * scale, alignment: .leading)
+                    .minimumScaleFactor(0.45)
+                    .frame(width: (viewModel.state.hasROIResult ? 78 : 132) * scale, alignment: .leading)
 
-                roiChangeBadge(scale: scale)
-                    .padding(.top, 7 * scale)
+                if viewModel.state.hasROIResult {
+                    roiChangeBadge(scale: scale)
+                        .padding(.top, 7 * scale)
+                }
 
                 Spacer()
             }

@@ -137,23 +137,27 @@ struct HomeView: View {
                     .tracking(0.6 * scale)
                     .foregroundStyle(Color.bltMutedText)
 
-                Text(String(roiDisplay.score))
+                Text(roiDisplay.score.map(String.init) ?? "미측정")
                     .font(.system(size: 14 * scale, weight: .bold))
                     .foregroundStyle(roiColor)
                     .padding(.leading, 4 * scale)
 
-                Text("· \(roiDisplay.statusText)")
-                    .font(.system(size: 11 * scale, weight: .regular))
-                    .foregroundStyle(statusColor(for: roiDisplay.accent))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                if roiDisplay.score != nil {
+                    Text("· \(roiDisplay.statusText)")
+                        .font(.system(size: 11 * scale, weight: .regular))
+                        .foregroundStyle(statusColor(for: roiDisplay.accent))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
 
                 Spacer(minLength: 8 * scale)
 
-                Text(roiDisplay.changeText)
-                    .font(.system(size: 13 * scale, weight: .semibold))
-                    .foregroundStyle(changeColor)
-                    .lineLimit(1)
+                if roiDisplay.score != nil {
+                    Text(roiDisplay.changeText)
+                        .font(.system(size: 13 * scale, weight: .semibold))
+                        .foregroundStyle(changeColor)
+                        .lineLimit(1)
+                }
             }
             .padding(.horizontal, 20 * scale)
             .frame(maxWidth: .infinity)
@@ -342,6 +346,8 @@ struct HomeView: View {
 
     private func color(for accent: HomeROIAccent) -> Color {
         switch accent {
+        case .unmeasured:
+            return Color.bltMutedText
         case .warning:
             return Color.bltWarningRed
         case .caution:
@@ -353,6 +359,8 @@ struct HomeView: View {
 
     private func statusColor(for accent: HomeROIAccent) -> Color {
         switch accent {
+        case .unmeasured:
+            return Color.bltMutedText
         case .warning:
             return Color.bltWarningRed
         case .caution:
