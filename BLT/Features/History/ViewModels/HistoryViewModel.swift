@@ -195,7 +195,7 @@ final class HistoryViewModel: ObservableObject {
             days.append(HistoryCalendarDay(id: "trailing-\(days.count)", date: nil, day: nil, roiScore: nil, isToday: false))
         }
 
-        let scores = monthlyRecords.map(\.roiScore)
+        let scores = recordsByDay.values.map(\.roiScore)
         let summary = HistoryMonthSummary(
             measuredDays: scores.count,
             averageROI: scores.isEmpty ? nil : Int(round(Double(scores.reduce(0, +)) / Double(scores.count))),

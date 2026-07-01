@@ -45,7 +45,8 @@ final class HealthPermissionViewModel: ObservableObject {
         }
     }
 
-    func skipHealthKitPermission() async {
+    func skipHealthKitPermission() {
+        errorMessage = nil
         healthKitService.markSleepDataConnectionSkipped()
 
         let request = HealthPermissionAgreementRequest(

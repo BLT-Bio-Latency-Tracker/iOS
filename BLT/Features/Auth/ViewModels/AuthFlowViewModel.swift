@@ -94,7 +94,6 @@ final class AuthFlowViewModel: ObservableObject {
                 errorMessage = "로그인 세션을 저장하지 못했어요. 다시 시도해주세요."
                 return nil
             }
-            await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible(force: true)
 
             guard let profileSyncResult = await syncAuthenticatedUserProfile(
                 fallbackName: appleResult.preferredDisplayName,
@@ -111,6 +110,7 @@ final class AuthFlowViewModel: ObservableObject {
                 return nil
             }
 
+            await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible()
             return .existingUser(onboardingCompleted: profileSyncResult.onboardingCompleted)
         } catch {
             guard !isAppleLoginCanceled(error) else {
@@ -154,7 +154,6 @@ final class AuthFlowViewModel: ObservableObject {
                 errorMessage = "가입 세션을 저장하지 못했어요. 다시 로그인해주세요."
                 return false
             }
-            await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible(force: true)
             await syncInitialNotificationSettings(from: termsAgreement)
 
             guard let profileSyncResult = await syncAuthenticatedUserProfile(
@@ -173,6 +172,7 @@ final class AuthFlowViewModel: ObservableObject {
             }
 
             latestVerificationToken = nil
+            await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible()
             return true
         } catch {
             errorMessage = error.localizedDescription
@@ -193,14 +193,18 @@ final class AuthFlowViewModel: ObservableObject {
 
         guard !channels.isEmpty else { return }
 
-        try? await myPageService.updateNotificationSettings(
-            MyPageNotificationPatchRequest(
-                isEnabled: true,
-                measurementTimeText: nil,
-                bedtimeText: nil,
-                channels: channels
+        do {
+            try await myPageService.updateNotificationSettings(
+                MyPageNotificationPatchRequest(
+                    isEnabled: true,
+                    measurementTimeText: nil,
+                    bedtimeText: nil,
+                    channels: channels
+                )
             )
-        )
+        } catch {
+            PushLog.debug("Initial notification settings sync failed: \(error.localizedDescription)")
+        }
     }
 
     private func isAppleLoginCanceled(_ error: Error) -> Bool {

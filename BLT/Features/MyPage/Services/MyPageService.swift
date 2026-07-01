@@ -100,12 +100,11 @@ struct MyPageService {
     }
 
     func withdraw() async throws {
-        await PushDeviceRegistrationService.shared.unregisterCurrentDeviceIfPossible()
-
         let _: WithdrawResponse = try await networkClient.delete(
             "/api/v1/users/me",
             requiresAuth: true
         )
+        await PushDeviceRegistrationService.shared.unregisterCurrentDeviceIfPossible()
         AuthSessionStore.shared.clear()
     }
 

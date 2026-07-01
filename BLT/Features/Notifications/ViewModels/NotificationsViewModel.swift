@@ -48,9 +48,12 @@ final class NotificationsViewModel: ObservableObject {
     }
 
     func deleteAllNotifications() async {
+        errorMessage = nil
+
         do {
             try await service.deleteAllNotifications()
             store.removeAll()
+            errorMessage = nil
         } catch {
             errorMessage = "알림을 지우지 못했어요."
         }

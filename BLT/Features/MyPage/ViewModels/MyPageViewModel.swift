@@ -204,9 +204,9 @@ final class MyPageViewModel: ObservableObject {
                 onboardingCompleted: state.user.onboardingCompleted
             ),
             profile: MyPageProfile(
-                birthYear: state.profile.birthYear,
-                gender: state.profile.gender,
-                jobGroup: state.profile.jobGroup
+                birthYear: state.profile.birthYear ?? cachedProfile.birthYear,
+                gender: state.profile.gender ?? cachedProfile.gender,
+                jobGroup: state.profile.jobGroup ?? cachedProfile.jobGroup
             ),
             notificationSettings: state.notificationSettings
         )

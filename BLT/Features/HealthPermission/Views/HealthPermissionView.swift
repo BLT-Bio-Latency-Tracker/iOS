@@ -295,11 +295,9 @@ struct HealthPermissionView: View {
             .padding(.top, 16 * scale)
 
             Button {
-                Task {
-                    await viewModel.skipHealthKitPermission()
-                    isSkipSheetPresented = false
-                    onComplete(.skipped)
-                }
+                viewModel.skipHealthKitPermission()
+                isSkipSheetPresented = false
+                onComplete(.skipped)
             } label: {
                 Text("무시하고 계속하기")
                     .font(.system(size: 14 * scale, weight: .regular))

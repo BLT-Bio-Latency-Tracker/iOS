@@ -1,6 +1,8 @@
 import Foundation
+import UIKit
 
-actor PushDeviceRegistrationService {
+@MainActor
+final class PushDeviceRegistrationService {
     static let shared = PushDeviceRegistrationService()
 
     private let apiService: DeviceAPIService
@@ -38,6 +40,8 @@ actor PushDeviceRegistrationService {
             return
         }
 
+        await unregisterPendingDeviceIfNeeded()
+
         if !force,
            store.registeredDeviceId != nil,
            store.registeredFcmToken == token {
@@ -62,8 +66,12 @@ actor PushDeviceRegistrationService {
             PushLog.debug("Register device succeeded: deviceId=\(response.deviceId)")
         } catch {
             PushLog.debug("Register device failed: \(error.localizedDescription)")
-            store.clearRegistration()
         }
+    }
+
+    func requestRegistrationAfterAuthorizationGranted() async {
+        UIApplication.shared.registerForRemoteNotifications()
+        await registerCurrentDeviceIfPossible(force: true)
     }
 
     func unregisterCurrentDeviceIfPossible() async {
@@ -74,11 +82,25 @@ actor PushDeviceRegistrationService {
 
         do {
             try await apiService.unregister(deviceId: deviceId)
+            store.clearRegistration()
+            store.clearPendingUnregister()
         } catch {
-            // 로그아웃/탈퇴 흐름은 막지 않는다. 다음 로그인 때 재등록되도록 로컬 등록 상태만 비운다.
+            PushLog.debug("Unregister device failed: \(error.localizedDescription)")
+            store.markPendingUnregister(deviceId: deviceId)
+            store.clearRegistration()
         }
+    }
 
-        store.clearRegistration()
+    private func unregisterPendingDeviceIfNeeded() async {
+        guard let pendingDeviceId = store.pendingUnregisterDeviceId else { return }
+
+        do {
+            PushLog.debug("Retry pending device unregister: deviceId=\(pendingDeviceId)")
+            try await apiService.unregister(deviceId: pendingDeviceId)
+            store.clearPendingUnregister()
+        } catch {
+            PushLog.debug("Pending device unregister failed: \(error.localizedDescription)")
+        }
     }
 
     private static func maskedToken(_ token: String) -> String {

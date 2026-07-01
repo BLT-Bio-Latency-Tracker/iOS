@@ -5,6 +5,7 @@ final class PushDeviceStore {
         static let fcmToken = "push.fcmToken"
         static let registeredDeviceId = "push.registeredDeviceId"
         static let registeredFcmToken = "push.registeredFcmToken"
+        static let pendingUnregisterDeviceId = "push.pendingUnregisterDeviceId"
     }
 
     private let userDefaults: UserDefaults
@@ -48,6 +49,23 @@ final class PushDeviceStore {
         }
     }
 
+    var pendingUnregisterDeviceId: Int64? {
+        get {
+            guard userDefaults.object(forKey: Key.pendingUnregisterDeviceId) != nil else {
+                return nil
+            }
+
+            return Int64(userDefaults.integer(forKey: Key.pendingUnregisterDeviceId))
+        }
+        set {
+            if let newValue {
+                userDefaults.set(Int(newValue), forKey: Key.pendingUnregisterDeviceId)
+            } else {
+                userDefaults.removeObject(forKey: Key.pendingUnregisterDeviceId)
+            }
+        }
+    }
+
     func markRegistered(deviceId: Int64, fcmToken: String) {
         registeredDeviceId = deviceId
         registeredFcmToken = fcmToken
@@ -56,5 +74,18 @@ final class PushDeviceStore {
     func clearRegistration() {
         registeredDeviceId = nil
         registeredFcmToken = nil
+    }
+
+    func markPendingUnregister(deviceId: Int64) {
+        pendingUnregisterDeviceId = deviceId
+    }
+
+    func clearPendingUnregister() {
+        pendingUnregisterDeviceId = nil
+    }
+
+    func clearAll() {
+        clearRegistration()
+        clearPendingUnregister()
     }
 }

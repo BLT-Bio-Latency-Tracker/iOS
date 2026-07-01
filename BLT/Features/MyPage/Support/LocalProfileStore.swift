@@ -97,10 +97,18 @@ struct LocalProfileStore {
     func clear() {
         userDefaults.removeObject(forKey: Key.name(accountIdentifier: accountIdentifier))
         removeSecureValue(forKey: Key.email(accountIdentifier: accountIdentifier))
+        userDefaults.removeObject(forKey: Key.email(accountIdentifier: accountIdentifier))
         userDefaults.removeObject(forKey: Key.authProvider(accountIdentifier: accountIdentifier))
         userDefaults.removeObject(forKey: Key.birthYear(accountIdentifier: accountIdentifier))
         userDefaults.removeObject(forKey: Key.gender(accountIdentifier: accountIdentifier))
         userDefaults.removeObject(forKey: Key.jobGroup(accountIdentifier: accountIdentifier))
+
+        if accountIdentifier == "local" {
+            userDefaults.removeObject(forKey: Key.legacyName)
+            userDefaults.removeObject(forKey: Key.legacyBirthYear)
+            userDefaults.removeObject(forKey: Key.legacyGender)
+            userDefaults.removeObject(forKey: Key.legacyJobGroup)
+        }
 
         NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
     }

@@ -4,6 +4,8 @@ import UIKit
 import UserNotifications
 
 final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNotificationCenterDelegate {
+    private var hasAPNsToken = false
+
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -17,14 +19,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNU
         UNUserNotificationCenter.current().delegate = self
         PushLog.debug("App launched, start remote notification registration")
         registerForRemoteNotifications()
-        refreshFCMTokenIfAvailable()
-        retryFCMTokenRefreshAfterAPNsRegistration()
 
         return true
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
-        PushLog.debug("App became active, retry remote notification registration")
+        PushLog.debug("App became active, refresh remote notification registration")
         registerForRemoteNotifications()
         refreshFCMTokenIfAvailable()
     }
@@ -34,6 +34,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNU
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     ) {
         PushLog.debug("APNs token registered")
+        hasAPNsToken = true
         Messaging.messaging().apnsToken = deviceToken
         refreshFCMTokenIfAvailable()
     }
@@ -86,6 +87,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNU
     }
 
     private func refreshFCMTokenIfAvailable() {
+        guard hasAPNsToken else {
+            PushLog.debug("Skip FCM token refresh: missing APNs token")
+            return
+        }
+
         PushLog.debug("Request FCM token refresh")
         Messaging.messaging().token { token, error in
             if let error {
@@ -109,15 +115,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNU
         Task { @MainActor in
             PushLog.debug("Request APNs registration")
             UIApplication.shared.registerForRemoteNotifications()
-        }
-    }
-
-    private func retryFCMTokenRefreshAfterAPNsRegistration() {
-        Task {
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            PushLog.debug("Retry FCM token refresh after launch delay")
-            refreshFCMTokenIfAvailable()
-            await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible(force: true)
         }
     }
 }

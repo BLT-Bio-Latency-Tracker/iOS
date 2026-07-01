@@ -54,6 +54,15 @@ final class AuthSessionStore {
     }
 
     func clear() {
+        deleteSession()
+    }
+
+    func clearForSignOut() {
+        deleteSession()
+        PushDeviceStore().clearAll()
+    }
+
+    private func deleteSession() {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Bundle.main.bundleIdentifier ?? "bryki",
@@ -61,7 +70,6 @@ final class AuthSessionStore {
         ]
 
         SecItemDelete(query as CFDictionary)
-        PushDeviceStore().clearRegistration()
     }
 
     func updateOnboardingCompleted(_ isCompleted: Bool) {
@@ -81,7 +89,7 @@ final class AuthSessionStore {
 
     @discardableResult
     private func saveData(_ data: Data) -> Bool {
-        clear()
+        deleteSession()
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,

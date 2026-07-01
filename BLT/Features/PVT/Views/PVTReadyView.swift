@@ -193,19 +193,22 @@ struct PVTReadyView: View {
 @MainActor
 final class PVTBrightnessSession {
     private var originalBrightness: CGFloat?
+    private weak var capturedScreen: UIScreen?
 
     func start() {
         let screen = Self.activeScreen
         if originalBrightness == nil {
             originalBrightness = screen.brightness
+            capturedScreen = screen
         }
         screen.brightness = 1
     }
 
     func restore() {
         guard let originalBrightness else { return }
-        Self.activeScreen.brightness = originalBrightness
+        (capturedScreen ?? Self.activeScreen).brightness = originalBrightness
         self.originalBrightness = nil
+        capturedScreen = nil
     }
 
     private static var activeScreen: UIScreen {

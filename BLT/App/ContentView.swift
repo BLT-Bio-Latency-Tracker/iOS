@@ -37,13 +37,12 @@ struct ContentView: View {
                 LoginView(
                     onAppleButtonTapped: {
                         Task {
-                        let result = await authFlowViewModel.authenticateWithApple()
+                            let result = await authFlowViewModel.authenticateWithApple()
 
-                        guard let result else { return }
-                        await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible(force: true)
+                            guard let result else { return }
 
-                        withAnimation(.easeInOut(duration: 0.35)) {
-                            switch result {
+                            withAnimation(.easeInOut(duration: 0.35)) {
+                                switch result {
                                 case .existingUser(let onboardingCompleted):
                                     hasCompletedOnboarding = true
                                     route = onboardingCompleted ? .home : .healthPermission
@@ -75,7 +74,6 @@ struct ContentView: View {
                             )
 
                             guard isCompleted else { return }
-                            await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible(force: true)
 
                             withAnimation(.easeInOut(duration: 0.35)) {
                                 route = .healthPermission
@@ -219,7 +217,7 @@ struct ContentView: View {
 
         let onboardingCompleted = remoteOnboardingCompleted ?? session.onboardingCompleted
         AuthSessionStore.shared.updateOnboardingCompleted(onboardingCompleted)
-        await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible(force: true)
+        await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible()
 
         return onboardingCompleted ? .home : .healthPermission
     }

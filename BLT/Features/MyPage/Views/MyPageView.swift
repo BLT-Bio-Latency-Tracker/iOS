@@ -492,7 +492,7 @@ struct MyPageView: View {
 
     private func profileMissingText(for state: MyPageState) -> String? {
         guard !state.isProfileComplete else { return nil }
-        return "\(state.missingProfileItemCount) / 4 미설정"
+        return "\(state.missingProfileItemCount) / 3 미설정"
     }
 }
 

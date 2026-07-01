@@ -349,15 +349,13 @@ struct TermsAgreementView: View {
 
         switch settings.authorizationStatus {
         case .authorized, .provisional, .ephemeral:
-            UIApplication.shared.registerForRemoteNotifications()
-            await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible(force: true)
+            await PushDeviceRegistrationService.shared.requestRegistrationAfterAuthorizationGranted()
         case .notDetermined:
             do {
                 let isGranted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
 
                 if isGranted {
-                    UIApplication.shared.registerForRemoteNotifications()
-                    await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible(force: true)
+                    await PushDeviceRegistrationService.shared.requestRegistrationAfterAuthorizationGranted()
                 }
             } catch {
                 break
