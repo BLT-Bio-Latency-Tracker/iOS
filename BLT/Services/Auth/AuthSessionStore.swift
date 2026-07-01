@@ -61,6 +61,7 @@ final class AuthSessionStore {
         ]
 
         SecItemDelete(query as CFDictionary)
+        PushDeviceStore().clearRegistration()
     }
 
     func updateOnboardingCompleted(_ isCompleted: Bool) {

@@ -82,7 +82,7 @@ struct NotificationsView: View {
                     await viewModel.markAllAsRead()
                 }
             } label: {
-                Text("모두 읽음")
+                Text("모두 지우기")
                     .font(.system(size: 13 * scale, weight: .semibold))
                     .foregroundStyle(Color.notificationCyan)
                     .lineLimit(1)
@@ -90,7 +90,7 @@ struct NotificationsView: View {
             .buttonStyle(.plain)
             .disabled(!viewModel.hasUnreadNotifications)
             .opacity(viewModel.hasUnreadNotifications ? 1 : 0.55)
-            .accessibilityLabel("모든 알림 읽음 처리")
+            .accessibilityLabel("모든 알림 지우기 처리")
         }
     }
 

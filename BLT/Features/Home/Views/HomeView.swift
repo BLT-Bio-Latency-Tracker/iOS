@@ -123,7 +123,7 @@ struct HomeView: View {
 
     private func roiSummary(scale: CGFloat) -> some View {
         let roiDisplay = viewModel.roiDisplay
-        let roiColor = color(for: roiDisplay.accent)
+        let roiColor = roiLevelColor(for: roiDisplay.score)
         let changeColor = changeColor(for: roiDisplay.changeDirection)
 
         return VStack(alignment: .leading, spacing: 10 * scale) {
@@ -344,17 +344,12 @@ struct HomeView: View {
         )
     }
 
-    private func color(for accent: HomeROIAccent) -> Color {
-        switch accent {
-        case .unmeasured:
+    private func roiLevelColor(for score: Int?) -> Color {
+        guard score != nil else {
             return Color.bltMutedText
-        case .warning:
-            return Color.bltWarningRed
-        case .caution:
-            return Color.bltAmber
-        case .stable:
-            return Color.bltPositive
         }
+
+        return HistoryROILevel(score: score).color
     }
 
     private func statusColor(for accent: HomeROIAccent) -> Color {

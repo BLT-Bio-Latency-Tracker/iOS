@@ -450,6 +450,8 @@ final class PVTMeasurementViewController: UIViewController {
 
         switch phase {
         case .waiting:
+            statusLabel.text = "측정 중"
+            statusDot.backgroundColor = PVTTheme.activeMint
             stopDisplayLink()
             if viewModel.isShowingFalseStart {
                 cancelResultFeedback()
@@ -478,6 +480,8 @@ final class PVTMeasurementViewController: UIViewController {
             interruptButton.alpha = 1
 
         case .stimulus:
+            statusLabel.text = "측정 중"
+            statusDot.backgroundColor = PVTTheme.activeMint
             cancelResultFeedback()
             setOrbPresentation(.stimulus)
             instructionLabel.text = "지금 누르세요"
@@ -487,6 +491,8 @@ final class PVTMeasurementViewController: UIViewController {
             interruptButton.alpha = 1
 
         case .completed:
+            statusLabel.text = "측정완료"
+            statusDot.backgroundColor = PVTTheme.brandViolet
             stopDisplayLink()
             cancelResultFeedback()
             setOrbPresentation(.resultText)

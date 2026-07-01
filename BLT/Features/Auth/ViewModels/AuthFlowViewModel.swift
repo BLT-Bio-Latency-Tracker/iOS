@@ -94,6 +94,7 @@ final class AuthFlowViewModel: ObservableObject {
                 errorMessage = "로그인 세션을 저장하지 못했어요. 다시 시도해주세요."
                 return nil
             }
+            await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible()
 
             guard let profileSyncResult = await syncAuthenticatedUserProfile(
                 fallbackName: appleResult.preferredDisplayName,
@@ -153,6 +154,7 @@ final class AuthFlowViewModel: ObservableObject {
                 errorMessage = "가입 세션을 저장하지 못했어요. 다시 로그인해주세요."
                 return false
             }
+            await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible()
             await syncInitialNotificationSettings(from: termsAgreement)
 
             guard let profileSyncResult = await syncAuthenticatedUserProfile(

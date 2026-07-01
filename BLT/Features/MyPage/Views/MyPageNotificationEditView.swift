@@ -361,12 +361,17 @@ struct MyPageNotificationEditView: View {
         switch settings.authorizationStatus {
         case .authorized, .provisional, .ephemeral:
             draft.isEnabled = true
+            UIApplication.shared.registerForRemoteNotifications()
+            await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible()
         case .notDetermined:
             do {
                 let isGranted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
                 draft.isEnabled = isGranted
 
-                if !isGranted {
+                if isGranted {
+                    UIApplication.shared.registerForRemoteNotifications()
+                    await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible()
+                } else {
                     notificationPermissionMessage = "알림을 받으려면 iOS 설정에서 Bryki 알림 권한을 허용해주세요."
                     showsNotificationSettingsAlert = true
                 }
@@ -398,6 +403,8 @@ struct MyPageNotificationEditView: View {
         switch settings.authorizationStatus {
         case .authorized, .provisional, .ephemeral:
             draft.isEnabled = true
+            UIApplication.shared.registerForRemoteNotifications()
+            await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible()
         case .denied, .notDetermined:
             draft.isEnabled = false
         @unknown default:
