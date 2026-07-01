@@ -308,11 +308,21 @@ final class AuthFlowViewModel: ObservableObject {
                 jobGroup: remoteState.profile.jobGroup
             )
         )
+        await requestNotificationAuthorizationIfNeeded(remoteState.notificationSettings)
 
         return ProfileSyncResult(
             onboardingCompleted: remoteState.user.onboardingCompleted,
             hasRequiredIdentity: hasRequiredIdentity
         )
+    }
+
+    private func requestNotificationAuthorizationIfNeeded(_ settings: MyPageNotificationSettings) async {
+        guard settings.isEnabled,
+              settings.channels.contains(.appPush) else {
+            return
+        }
+
+        await PushDeviceRegistrationService.shared.requestAuthorizationIfNeededAndRegister()
     }
 
     private func preferredIdentityName(

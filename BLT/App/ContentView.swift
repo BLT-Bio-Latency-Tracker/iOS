@@ -249,8 +249,18 @@ struct ContentView: View {
                 jobGroup: remoteState.profile.jobGroup ?? fallback.jobGroup
             )
         )
+        await requestNotificationAuthorizationIfNeeded(remoteState.notificationSettings)
 
         return remoteState.user.onboardingCompleted
+    }
+
+    private func requestNotificationAuthorizationIfNeeded(_ settings: MyPageNotificationSettings) async {
+        guard settings.isEnabled,
+              settings.channels.contains(.appPush) else {
+            return
+        }
+
+        await PushDeviceRegistrationService.shared.requestAuthorizationIfNeededAndRegister()
     }
 
     private func preferredIdentityName(

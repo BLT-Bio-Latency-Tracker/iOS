@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import UserNotifications
 
 @MainActor
 final class PushDeviceRegistrationService {
@@ -72,6 +73,31 @@ final class PushDeviceRegistrationService {
     func requestRegistrationAfterAuthorizationGranted() async {
         UIApplication.shared.registerForRemoteNotifications()
         await registerCurrentDeviceIfPossible(force: true)
+    }
+
+    func requestAuthorizationIfNeededAndRegister() async {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+
+        switch settings.authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            await requestRegistrationAfterAuthorizationGranted()
+        case .notDetermined:
+            do {
+                let isGranted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+                if isGranted {
+                    await requestRegistrationAfterAuthorizationGranted()
+                } else {
+                    PushLog.debug("Notification authorization denied by user")
+                }
+            } catch {
+                PushLog.debug("Notification authorization request failed: \(error.localizedDescription)")
+            }
+        case .denied:
+            PushLog.debug("Notification authorization already denied")
+        @unknown default:
+            PushLog.debug("Unknown notification authorization status")
+        }
     }
 
     func unregisterCurrentDeviceIfPossible() async {

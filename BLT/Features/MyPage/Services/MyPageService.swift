@@ -25,10 +25,17 @@ struct MyPageService {
             "/api/v1/users/me",
             requiresAuth: true
         )
+        let notificationResponse: NotificationSettingsResponse?
+
+        do {
+            notificationResponse = try await fetchNotificationSettingsIfAvailable()
+        } catch {
+            notificationResponse = nil
+        }
 
         return MyPageState(
             user: userResponse,
-            notificationSettings: nil
+            notificationSettings: notificationResponse
         )
     }
 
