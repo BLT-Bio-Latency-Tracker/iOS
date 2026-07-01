@@ -166,7 +166,7 @@ struct ProfileSetupView: View {
                     Button {
                         setupDraft.jobGroup = item
                     } label: {
-                        Text(item.rawValue)
+                        Text(item.displayName)
                             .brykiTextStyle(
                                 size: 12 * scale,
                                 weight: setupDraft.jobGroup == item
