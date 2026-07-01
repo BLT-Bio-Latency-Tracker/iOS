@@ -7,6 +7,7 @@ struct MyPageView: View {
 
     let onBack: () -> Void
     let onWithdraw: () -> Void
+    let onLogout: () -> Void
 
     private let designWidth: CGFloat = 390
 
@@ -43,7 +44,10 @@ struct MyPageView: View {
 
                             accountSection(scale: scale)
                                 .padding(.top, 26 * scale)
-                                .padding(.bottom, 34 * scale)
+
+                            logoutButton(scale: scale)
+                                .padding(.top, 34 * scale)
+                                .padding(.bottom, 48 * scale)
                         } else if let errorMessage = viewModel.errorMessage {
                             errorState(errorMessage, scale: scale)
                                 .padding(.top, 150 * scale)
@@ -241,6 +245,26 @@ struct MyPageView: View {
                 )
             }
         }
+    }
+
+    private func logoutButton(scale: CGFloat) -> some View {
+        Button {
+            Task {
+                let isLoggedOut = await viewModel.logout()
+                guard isLoggedOut else { return }
+                onLogout()
+            }
+        } label: {
+            Text(viewModel.isLoggingOut ? "로그아웃 중..." : "로그아웃")
+                .font(.system(size: 14 * scale, weight: .regular))
+                .foregroundStyle(Color.myPageMutedText)
+                .frame(maxWidth: .infinity)
+                .frame(height: 36 * scale)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(viewModel.isLoggingOut)
+        .accessibilityLabel("로그아웃")
     }
 
     private func withdrawalConfirmationOverlay(scale: CGFloat) -> some View {

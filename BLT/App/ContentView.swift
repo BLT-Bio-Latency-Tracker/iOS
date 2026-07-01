@@ -142,11 +142,18 @@ struct ContentView: View {
                     ))
 
             case .home:
-                MainTabView {
-                    withAnimation(.easeInOut(duration: 0.35)) {
-                        route = .login
+                MainTabView(
+                    onWithdraw: {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            route = .login
+                        }
+                    },
+                    onLogout: {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            route = .login
+                        }
                     }
-                }
+                )
                     .transition(.opacity)
             }
         }

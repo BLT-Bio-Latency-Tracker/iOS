@@ -13,6 +13,7 @@ struct MainTabView: View {
 
     private let evaluationService = EvaluationService()
     var onWithdraw: () -> Void = {}
+    var onLogout: () -> Void = {}
 
     var body: some View {
         ZStack {
@@ -97,6 +98,10 @@ struct MainTabView: View {
                 onWithdraw: {
                     isMyPagePresented = false
                     onWithdraw()
+                },
+                onLogout: {
+                    isMyPagePresented = false
+                    onLogout()
                 }
             )
             .ignoresSafeArea()

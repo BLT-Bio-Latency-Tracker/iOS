@@ -35,7 +35,7 @@ struct AuthAPIService {
         let _: EmptyResponse = try await networkClient.post(
             "/api/v1/auth/logout",
             body: request,
-            requiresAuth: false
+            requiresAuth: true
         )
     }
 }

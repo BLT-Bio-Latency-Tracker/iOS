@@ -8,6 +8,7 @@ final class MyPageViewModel: ObservableObject {
     @Published private(set) var isSavingProfile = false
     @Published private(set) var isSavingNotificationSettings = false
     @Published private(set) var isWithdrawing = false
+    @Published private(set) var isLoggingOut = false
     @Published private(set) var errorMessage: String?
 
     private let service: MyPageService
@@ -95,6 +96,27 @@ final class MyPageViewModel: ObservableObject {
         } catch {
             errorMessage = "회원 탈퇴를 처리하지 못했어요."
             return false
+        }
+    }
+
+    func logout() async -> Bool {
+        guard !isLoggingOut else { return false }
+
+        isLoggingOut = true
+        errorMessage = nil
+
+        defer {
+            isLoggingOut = false
+        }
+
+        do {
+            try await service.logout()
+            localProfileStore.clear()
+            return true
+        } catch {
+            AuthSessionStore.shared.clear()
+            localProfileStore.clear()
+            return true
         }
     }
 

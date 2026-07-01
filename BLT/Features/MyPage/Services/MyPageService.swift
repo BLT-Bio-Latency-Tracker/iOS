@@ -107,6 +107,29 @@ struct MyPageService {
         AuthSessionStore.shared.clear()
     }
 
+    func logout() async throws {
+        guard let refreshToken = AuthSessionStore.shared.currentSession?.refreshToken else {
+            AuthSessionStore.shared.clear()
+            LocalProfileStore().clear()
+            return
+        }
+
+        do {
+            let _: EmptyResponse = try await networkClient.post(
+                "/api/v1/auth/logout",
+                body: RefreshTokenRequest(refreshToken: refreshToken),
+                requiresAuth: true
+            )
+        } catch {
+            AuthSessionStore.shared.clear()
+            LocalProfileStore().clear()
+            return
+        }
+
+        AuthSessionStore.shared.clear()
+        LocalProfileStore().clear()
+    }
+
     private static func serverTimeText(from displayText: String) -> String {
         let outputFormatter = DateFormatter()
         outputFormatter.locale = Locale(identifier: "en_US_POSIX")
