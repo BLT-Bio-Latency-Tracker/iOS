@@ -13,12 +13,25 @@ struct PVTEnvironmentCalibrationView: View {
     let onClose: () -> Void
     let onComplete: (PVTSummary) -> Void
     let onAbort: () -> Void
+    let brightnessSession: PVTBrightnessSession
 
     @StateObject private var calibrator = PVTEnvironmentCalibrator()
     @State private var step: Step = .calibration
     @State private var qualityWarning: PVTCalibrationQualityWarning?
 
     private let designWidth: CGFloat = 390
+
+    init(
+        brightnessSession: PVTBrightnessSession,
+        onClose: @escaping () -> Void,
+        onComplete: @escaping (PVTSummary) -> Void,
+        onAbort: @escaping () -> Void
+    ) {
+        self.brightnessSession = brightnessSession
+        self.onClose = onClose
+        self.onComplete = onComplete
+        self.onAbort = onAbort
+    }
 
     var body: some View {
         ZStack {
@@ -30,11 +43,11 @@ struct PVTEnvironmentCalibrationView: View {
                 PVTMeasurementContainerView(
                     environmentCalibration: calibrator.result,
                     onComplete: { summary in
-                        calibrator.restoreBrightness()
+                        brightnessSession.restore()
                         step = .calculation(summary)
                     },
                     onAbort: {
-                        calibrator.restoreBrightness()
+                        brightnessSession.restore()
                         onAbort()
                     }
                 )
@@ -59,7 +72,8 @@ struct PVTEnvironmentCalibrationView: View {
         }
         .onDisappear {
             if case .calibration = step {
-                calibrator.restoreBrightness()
+                calibrator.stop()
+                brightnessSession.restore()
             }
         }
         .onChange(of: calibrator.isFinished) { _, isFinished in
@@ -152,7 +166,8 @@ struct PVTEnvironmentCalibrationView: View {
 
             HStack {
                 Button {
-                    calibrator.restoreBrightness()
+                    calibrator.stop()
+                    brightnessSession.restore()
                     onClose()
                 } label: {
                     Image(systemName: "xmark")
@@ -305,6 +320,7 @@ struct PVTEnvironmentCalibrationView: View {
     }
 
     private func startCalibration() {
+        brightnessSession.start()
         calibrator.start()
     }
 
@@ -315,7 +331,8 @@ struct PVTEnvironmentCalibrationView: View {
 
     private func cancelMeasurementAfterWarning() {
         qualityWarning = nil
-        calibrator.restoreBrightness()
+        calibrator.stop()
+        brightnessSession.restore()
         onAbort()
     }
 }
@@ -326,7 +343,6 @@ private final class PVTEnvironmentCalibrator: NSObject, ObservableObject {
     @Published private(set) var isFinished = false
     @Published private(set) var result: PVTEnvironmentCalibrationResult?
 
-    private var originalBrightness: CGFloat?
     private var startTime: CFTimeInterval = 0
     private var previousTimerFire: CFTimeInterval = 0
     private var maxTimerDelay: CFTimeInterval = 0
@@ -343,12 +359,6 @@ private final class PVTEnvironmentCalibrator: NSObject, ObservableObject {
 
     func start() {
         guard timer == nil, displayLink == nil else { return }
-
-        let screen = Self.activeScreen
-        if originalBrightness == nil {
-            originalBrightness = screen.brightness
-        }
-        screen.brightness = 1
 
         let now = CACurrentMediaTime()
         startTime = now
@@ -379,13 +389,6 @@ private final class PVTEnvironmentCalibrator: NSObject, ObservableObject {
         unstableFrameCount = 0
         lastDisplayTimestamp = nil
         start()
-    }
-
-    func restoreBrightness() {
-        if let originalBrightness {
-            Self.activeScreen.brightness = originalBrightness
-        }
-        stop()
     }
 
     @objc private func timerDidFire(_ timer: Timer) {
@@ -426,19 +429,11 @@ private final class PVTEnvironmentCalibrator: NSObject, ObservableObject {
         stop()
     }
 
-    private func stop() {
+    func stop() {
         timer?.invalidate()
         timer = nil
         displayLink?.invalidate()
         displayLink = nil
-    }
-
-    private static var activeScreen: UIScreen {
-        let windowScene = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive }
-
-        return windowScene?.screen ?? UIScreen()
     }
 }
 

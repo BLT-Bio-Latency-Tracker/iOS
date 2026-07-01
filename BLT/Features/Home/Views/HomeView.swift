@@ -96,16 +96,22 @@ struct HomeView: View {
                             .background(Color.bltCard)
                             .clipShape(Circle())
 
-                        if notificationStore.hasUnreadNotifications {
-                            Circle()
-                                .fill(Color.bltNotificationBadge)
-                                .frame(width: 6 * scale, height: 6 * scale)
-                                .offset(x: -4 * scale, y: 4 * scale)
+                        if notificationStore.unreadCount > 0 {
+                            Text(notificationBadgeText)
+                                .font(.system(size: 8 * scale, weight: .bold))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                                .padding(.horizontal, 4 * scale)
+                                .frame(minWidth: 14 * scale, minHeight: 14 * scale)
+                                .background(Color.bltNotificationBadge)
+                                .clipShape(Capsule())
+                                .offset(x: 2 * scale, y: -2 * scale)
                         }
                     }
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("알림")
+                .accessibilityLabel(notificationAccessibilityLabel)
 
                 Button(action: onProfileTap) {
                     Text(viewModel.state.profileInitial)
@@ -119,6 +125,18 @@ struct HomeView: View {
                 .accessibilityLabel("마이페이지")
             }
         }
+    }
+
+    private var notificationBadgeText: String {
+        notificationStore.unreadCount > 99 ? "99+" : "\(notificationStore.unreadCount)"
+    }
+
+    private var notificationAccessibilityLabel: String {
+        if notificationStore.unreadCount > 0 {
+            return "알림, 읽지 않은 알림 \(notificationStore.unreadCount)개"
+        }
+
+        return "알림"
     }
 
     private func roiSummary(scale: CGFloat) -> some View {

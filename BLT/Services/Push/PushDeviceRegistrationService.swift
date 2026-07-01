@@ -19,20 +19,29 @@ actor PushDeviceRegistrationService {
         let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedToken.isEmpty else { return }
 
+        PushLog.debug("FCM token received: \(Self.maskedToken(trimmedToken))")
         store.fcmToken = trimmedToken
         await registerCurrentDeviceIfPossible()
     }
 
-    func registerCurrentDeviceIfPossible() async {
+    func registerCurrentDeviceIfPossible(force: Bool = false) async {
         guard !isRegistering else { return }
-        guard AuthSessionStore.shared.currentSession != nil,
-              let token = store.fcmToken,
-              !token.isEmpty else {
+
+        guard AuthSessionStore.shared.currentSession != nil else {
+            PushLog.debug("Skip device registration: missing auth session")
             return
         }
 
-        if store.registeredDeviceId != nil,
+        guard let token = store.fcmToken,
+              !token.isEmpty else {
+            PushLog.debug("Skip device registration: missing FCM token")
+            return
+        }
+
+        if !force,
+           store.registeredDeviceId != nil,
            store.registeredFcmToken == token {
+            PushLog.debug("Skip device registration: already registered")
             return
         }
 
@@ -42,6 +51,7 @@ actor PushDeviceRegistrationService {
         }
 
         do {
+            PushLog.debug("Register device request: \(Self.maskedToken(token)), force=\(force)")
             let response = try await apiService.register(
                 DeviceRegisterRequest(fcmToken: token)
             )
@@ -49,7 +59,9 @@ actor PushDeviceRegistrationService {
                 deviceId: response.deviceId,
                 fcmToken: token
             )
+            PushLog.debug("Register device succeeded: deviceId=\(response.deviceId)")
         } catch {
+            PushLog.debug("Register device failed: \(error.localizedDescription)")
             store.clearRegistration()
         }
     }
@@ -67,5 +79,10 @@ actor PushDeviceRegistrationService {
         }
 
         store.clearRegistration()
+    }
+
+    private static func maskedToken(_ token: String) -> String {
+        guard token.count > 12 else { return "***" }
+        return "\(token.prefix(6))...\(token.suffix(6))"
     }
 }

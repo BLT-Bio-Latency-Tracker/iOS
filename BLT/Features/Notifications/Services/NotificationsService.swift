@@ -21,9 +21,9 @@ struct NotificationsService {
         return response.items.map(\.appNotificationItem)
     }
 
-    func markAllAsRead() async throws {
-        let _: EmptyResponse = try await networkClient.post(
-            "/api/v1/notifications/read",
+    func deleteAllNotifications() async throws {
+        let _: EmptyResponse = try await networkClient.delete(
+            "/api/v1/notifications",
             requiresAuth: true
         )
     }

@@ -79,7 +79,7 @@ struct NotificationsView: View {
 
             Button {
                 Task {
-                    await viewModel.markAllAsRead()
+                    await viewModel.deleteAllNotifications()
                 }
             } label: {
                 Text("모두 지우기")
@@ -88,9 +88,9 @@ struct NotificationsView: View {
                     .lineLimit(1)
             }
             .buttonStyle(.plain)
-            .disabled(!viewModel.hasUnreadNotifications)
-            .opacity(viewModel.hasUnreadNotifications ? 1 : 0.55)
-            .accessibilityLabel("모든 알림 지우기 처리")
+            .disabled(!viewModel.hasNotifications)
+            .opacity(viewModel.hasNotifications ? 1 : 0.55)
+            .accessibilityLabel("모든 알림 지우기")
         }
     }
 

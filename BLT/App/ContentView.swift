@@ -40,7 +40,7 @@ struct ContentView: View {
                         let result = await authFlowViewModel.authenticateWithApple()
 
                         guard let result else { return }
-                        await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible()
+                        await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible(force: true)
 
                         withAnimation(.easeInOut(duration: 0.35)) {
                             switch result {
@@ -75,7 +75,7 @@ struct ContentView: View {
                             )
 
                             guard isCompleted else { return }
-                            await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible()
+                            await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible(force: true)
 
                             withAnimation(.easeInOut(duration: 0.35)) {
                                 route = .healthPermission
@@ -219,7 +219,7 @@ struct ContentView: View {
 
         let onboardingCompleted = remoteOnboardingCompleted ?? session.onboardingCompleted
         AuthSessionStore.shared.updateOnboardingCompleted(onboardingCompleted)
-        await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible()
+        await PushDeviceRegistrationService.shared.registerCurrentDeviceIfPossible(force: true)
 
         return onboardingCompleted ? .home : .healthPermission
     }
