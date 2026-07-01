@@ -2,10 +2,30 @@ import Foundation
 
 struct LocalProfileSnapshot {
     let name: String
+    let email: String?
+    let authProvider: String?
     let birthYear: Int?
     let gender: ProfileSetupGender?
     let wakeUpTimeText: String?
     let jobGroup: ProfileSetupJobGroup?
+
+    init(
+        name: String,
+        email: String? = nil,
+        authProvider: String? = nil,
+        birthYear: Int?,
+        gender: ProfileSetupGender?,
+        wakeUpTimeText: String?,
+        jobGroup: ProfileSetupJobGroup?
+    ) {
+        self.name = name
+        self.email = email
+        self.authProvider = authProvider
+        self.birthYear = birthYear
+        self.gender = gender
+        self.wakeUpTimeText = wakeUpTimeText
+        self.jobGroup = jobGroup
+    }
 
     var profileInitial: String {
         name.trimmingCharacters(in: .whitespacesAndNewlines).first.map(String.init) ?? "B"
@@ -24,6 +44,14 @@ struct LocalProfileStore {
         static let legacyGender = "local.profile.gender"
         static let legacyWakeUpTimeText = "local.profile.wakeUpTimeText"
         static let legacyJobGroup = "local.profile.jobGroup"
+
+        static func email(accountIdentifier: String) -> String {
+            "local.profile.\(accountIdentifier).email"
+        }
+
+        static func authProvider(accountIdentifier: String) -> String {
+            "local.profile.\(accountIdentifier).authProvider"
+        }
 
         static func name(accountIdentifier: String) -> String {
             "local.profile.\(accountIdentifier).name"
@@ -54,6 +82,8 @@ struct LocalProfileStore {
     func snapshot(fallback: LocalProfileSnapshot) -> LocalProfileSnapshot {
         LocalProfileSnapshot(
             name: storedName ?? fallback.name,
+            email: storedEmail ?? fallback.email,
+            authProvider: storedAuthProvider ?? fallback.authProvider,
             birthYear: storedBirthYear ?? fallback.birthYear,
             gender: storedGender ?? fallback.gender,
             wakeUpTimeText: storedWakeUpTimeText ?? fallback.wakeUpTimeText,
@@ -63,6 +93,8 @@ struct LocalProfileStore {
 
     func save(_ snapshot: LocalProfileSnapshot) {
         userDefaults.set(snapshot.name, forKey: Key.name(accountIdentifier: accountIdentifier))
+        userDefaults.removeObject(forKey: Key.email(accountIdentifier: accountIdentifier))
+        setOptional(snapshot.authProvider, forKey: Key.authProvider(accountIdentifier: accountIdentifier))
         setOptional(snapshot.birthYear, forKey: Key.birthYear(accountIdentifier: accountIdentifier))
         setOptional(snapshot.gender?.rawValue, forKey: Key.gender(accountIdentifier: accountIdentifier))
         setOptional(snapshot.wakeUpTimeText, forKey: Key.wakeUpTimeText(accountIdentifier: accountIdentifier))
@@ -73,6 +105,8 @@ struct LocalProfileStore {
 
     func clear() {
         userDefaults.removeObject(forKey: Key.name(accountIdentifier: accountIdentifier))
+        userDefaults.removeObject(forKey: Key.email(accountIdentifier: accountIdentifier))
+        userDefaults.removeObject(forKey: Key.authProvider(accountIdentifier: accountIdentifier))
         userDefaults.removeObject(forKey: Key.birthYear(accountIdentifier: accountIdentifier))
         userDefaults.removeObject(forKey: Key.gender(accountIdentifier: accountIdentifier))
         userDefaults.removeObject(forKey: Key.wakeUpTimeText(accountIdentifier: accountIdentifier))
@@ -84,6 +118,8 @@ struct LocalProfileStore {
     func apply(_ request: MyPageProfilePatchRequest, to state: MyPageState) -> LocalProfileSnapshot {
         let fallback = LocalProfileSnapshot(
             name: state.user.name,
+            email: state.user.email,
+            authProvider: state.user.authProvider,
             birthYear: state.profile.birthYear,
             gender: state.profile.gender,
             wakeUpTimeText: state.profile.wakeUpTimeText,
@@ -93,6 +129,8 @@ struct LocalProfileStore {
 
         let updated = LocalProfileSnapshot(
             name: request.name ?? current.name,
+            email: current.email,
+            authProvider: current.authProvider,
             birthYear: request.birthYear ?? current.birthYear,
             gender: request.gender ?? current.gender,
             wakeUpTimeText: request.wakeUpTimeText ?? current.wakeUpTimeText,
@@ -106,6 +144,14 @@ struct LocalProfileStore {
     private var storedName: String? {
         userDefaults.string(forKey: Key.name(accountIdentifier: accountIdentifier))
             ?? legacyString(forKey: Key.legacyName)
+    }
+
+    private var storedEmail: String? {
+        nil
+    }
+
+    private var storedAuthProvider: String? {
+        userDefaults.string(forKey: Key.authProvider(accountIdentifier: accountIdentifier))
     }
 
     private var storedBirthYear: Int? {

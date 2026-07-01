@@ -7,6 +7,7 @@ final class MyPageViewModel: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var isSavingProfile = false
     @Published private(set) var isSavingNotificationSettings = false
+    @Published private(set) var isWithdrawing = false
     @Published private(set) var errorMessage: String?
 
     private let service: MyPageService
@@ -28,10 +29,12 @@ final class MyPageViewModel: ObservableObject {
         }
 
         do {
-            state = applyLocalProfileSnapshot(to: try await service.fetchMyPage())
+            let remoteState = try await service.fetchMyPage()
+            let displayState = applyingCachedNameIfNeeded(to: remoteState)
+            cacheLocalProfile(displayState)
+            state = displayState
         } catch {
             errorMessage = "마이페이지 정보를 불러오지 못했어요."
-            state = applyLocalProfileSnapshot(to: MyPageState.serverPlaceholder)
         }
     }
 
@@ -75,6 +78,26 @@ final class MyPageViewModel: ObservableObject {
         }
     }
 
+    func withdraw() async -> Bool {
+        guard !isWithdrawing else { return false }
+
+        isWithdrawing = true
+        errorMessage = nil
+
+        defer {
+            isWithdrawing = false
+        }
+
+        do {
+            try await service.withdraw()
+            localProfileStore.clear()
+            return true
+        } catch {
+            errorMessage = "회원 탈퇴를 처리하지 못했어요."
+            return false
+        }
+    }
+
     func applyProfile(_ draft: MyPageProfileEditDraft) {
         guard let state else { return }
 
@@ -82,7 +105,8 @@ final class MyPageViewModel: ObservableObject {
             user: MyPageUser(
                 name: draft.name.trimmingCharacters(in: .whitespacesAndNewlines),
                 email: state.user.email,
-                authProvider: state.user.authProvider
+                authProvider: state.user.authProvider,
+                onboardingCompleted: state.user.onboardingCompleted
             ),
             profile: MyPageProfile(
                 birthYear: draft.birthYear,
@@ -96,6 +120,8 @@ final class MyPageViewModel: ObservableObject {
         localProfileStore.save(
             LocalProfileSnapshot(
                 name: updatedState.user.name,
+                email: updatedState.user.email,
+                authProvider: updatedState.user.authProvider,
                 birthYear: updatedState.profile.birthYear,
                 gender: updatedState.profile.gender,
                 wakeUpTimeText: updatedState.profile.wakeUpTimeText,
@@ -116,30 +142,69 @@ final class MyPageViewModel: ObservableObject {
         )
     }
 
-    private func applyLocalProfileSnapshot(to state: MyPageState) -> MyPageState {
-        let snapshot = localProfileStore.snapshot(
-            fallback: LocalProfileSnapshot(
+    private func cacheLocalProfile(_ state: MyPageState) {
+        localProfileStore.save(
+            LocalProfileSnapshot(
                 name: state.user.name,
+                email: state.user.email,
+                authProvider: state.user.authProvider,
                 birthYear: state.profile.birthYear,
                 gender: state.profile.gender,
                 wakeUpTimeText: state.profile.wakeUpTimeText,
                 jobGroup: state.profile.jobGroup
             )
         )
+    }
+
+    private func applyingCachedNameIfNeeded(to state: MyPageState) -> MyPageState {
+        let cachedProfile = localProfileStore.snapshot(
+            fallback: LocalProfileSnapshot(
+                name: state.user.name,
+                email: state.user.email,
+                authProvider: state.user.authProvider,
+                birthYear: state.profile.birthYear,
+                gender: state.profile.gender,
+                wakeUpTimeText: state.profile.wakeUpTimeText,
+                jobGroup: state.profile.jobGroup
+            )
+        )
+        let serverName = state.user.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let serverEmail = state.user.email.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let displayName = isPlaceholderName(serverName)
+            ? cachedProfile.name
+            : state.user.name
+        let displayEmail = serverEmail.isEmpty
+            ? (cachedProfile.email ?? state.user.email)
+            : state.user.email
 
         return MyPageState(
             user: MyPageUser(
-                name: snapshot.name,
-                email: state.user.email,
-                authProvider: state.user.authProvider
+                name: displayName,
+                email: displayEmail,
+                authProvider: cachedProfile.authProvider ?? state.user.authProvider,
+                onboardingCompleted: state.user.onboardingCompleted
             ),
             profile: MyPageProfile(
-                birthYear: snapshot.birthYear,
-                gender: snapshot.gender,
-                wakeUpTimeText: snapshot.wakeUpTimeText,
-                jobGroup: snapshot.jobGroup
+                birthYear: state.profile.birthYear,
+                gender: state.profile.gender,
+                wakeUpTimeText: state.profile.wakeUpTimeText ?? cachedProfile.wakeUpTimeText,
+                jobGroup: state.profile.jobGroup
             ),
             notificationSettings: state.notificationSettings
         )
     }
+
+    private func isPlaceholderName(_ name: String) -> Bool {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowercasedName = trimmedName.lowercased()
+
+        return trimmedName.isEmpty
+            || trimmedName == "Bryki"
+            || trimmedName == "Apple"
+            || lowercasedName.hasPrefix("user")
+            || trimmedName.hasPrefix("사용자")
+            || trimmedName.hasPrefix("게스트")
+    }
+
 }

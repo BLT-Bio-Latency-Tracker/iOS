@@ -12,12 +12,27 @@ struct AppleAuthResult {
     let email: String?
     let fullName: String?
 
-    var loginRequest: AuthLoginRequest {
-        AuthLoginRequest(
-            authType: .apple,
-            identifier: identityToken,
-            nonce: nonce
-        )
+    var preferredDisplayName: String? {
+        if let fullName = fullName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !fullName.isEmpty {
+            return fullName
+        }
+
+        return nil
+    }
+
+    var suggestedDisplayName: String? {
+        if let preferredDisplayName {
+            return preferredDisplayName
+        }
+
+        guard let email = email?.trimmingCharacters(in: .whitespacesAndNewlines),
+              let localPart = email.split(separator: "@").first,
+              !localPart.isEmpty else {
+            return nil
+        }
+
+        return String(localPart)
     }
 }
 
@@ -149,7 +164,7 @@ extension AppleAuthService: ASAuthorizationControllerDelegate {
                     nonce: currentNonce ?? "",
                     authorizationCode: authorizationCode,
                     appleUserIdentifier: credential.user,
-                    email: credential.email,
+                    email: credential.email ?? Self.email(fromIdentityToken: identityToken),
                     fullName: fullName.isEmpty ? nil : fullName
                 )
             )
@@ -161,6 +176,30 @@ extension AppleAuthService: ASAuthorizationControllerDelegate {
         didCompleteWithError error: Error
     ) {
         finish(with: .failure(error))
+    }
+
+    private static func email(fromIdentityToken identityToken: String) -> String? {
+        let segments = identityToken.split(separator: ".")
+        guard segments.count >= 2,
+              let payloadData = base64URLDecodedData(String(segments[1])),
+              let payload = try? JSONSerialization.jsonObject(with: payloadData) as? [String: Any],
+              let email = payload["email"] as? String,
+              !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+
+        return email
+    }
+
+    private static func base64URLDecodedData(_ base64URLString: String) -> Data? {
+        var base64 = base64URLString
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+
+        let paddingLength = (4 - base64.count % 4) % 4
+        base64 += String(repeating: "=", count: paddingLength)
+
+        return Data(base64Encoded: base64)
     }
 }
 

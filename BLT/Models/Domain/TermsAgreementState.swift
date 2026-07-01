@@ -27,4 +27,36 @@ struct TermsAgreementState {
             ]
         )
     }
+
+    var appleSignupConsents: [AppleSignupConsentRequest] {
+        [
+            AppleSignupConsentRequest(
+                consentType: .termsOfService,
+                policyVersion: "1.0",
+                agreed: serviceTerms,
+                options: ["ageOver14": ageOver14]
+            ),
+            AppleSignupConsentRequest(
+                consentType: .privacyPolicy,
+                policyVersion: "1.0",
+                agreed: privacyPolicy,
+                options: nil
+            ),
+            AppleSignupConsentRequest(
+                consentType: .healthData,
+                policyVersion: "1.0",
+                agreed: true,
+                options: ["anonymousAnalytics": healthDataAnalytics]
+            ),
+            AppleSignupConsentRequest(
+                consentType: .marketing,
+                policyVersion: "1.0",
+                agreed: marketing,
+                options: [
+                    "push": notification,
+                    "sms": sms
+                ]
+            )
+        ]
+    }
 }

@@ -10,6 +10,8 @@ final class TodayViewModel: ObservableObject {
 
     private let healthKitService: HealthKitService
     private let pvtResultStore: PVTResultStore
+    private let evaluationResultStore: EvaluationResultStore
+    private let evaluationService: EvaluationService
     private let calendar: Calendar
     private let timeFormatter: DateFormatter
     private var cancellables = Set<AnyCancellable>()
@@ -18,7 +20,9 @@ final class TodayViewModel: ObservableObject {
         state: TodayViewState? = nil,
         selectedComparison: TodayComparisonType = .yesterday,
         healthKitService: HealthKitService? = nil,
-        pvtResultStore: PVTResultStore? = nil
+        pvtResultStore: PVTResultStore? = nil,
+        evaluationResultStore: EvaluationResultStore? = nil,
+        evaluationService: EvaluationService? = nil
     ) {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
@@ -31,14 +35,20 @@ final class TodayViewModel: ObservableObject {
         self.timeFormatter = formatter
         self.healthKitService = healthKitService ?? HealthKitService()
         self.pvtResultStore = pvtResultStore ?? PVTResultStore.shared
+        self.evaluationResultStore = evaluationResultStore ?? EvaluationResultStore.shared
+        self.evaluationService = evaluationService ?? EvaluationService()
 
-        self.state = state ?? TodayViewState.sleepConnectedPlaceholder
+        self.state = state ?? TodayViewState.initial
         self.selectedComparison = selectedComparison
 
         bindPVTResultStore()
+        bindEvaluationResultStore()
         bindHealthKitSleepUpdates()
         startHealthKitSleepObservationIfNeeded()
         applyLatestPVTResultIfNeeded()
+        Task {
+            await loadTodayEvaluation()
+        }
     }
 
     func loadHealthKitSleepSummary() async {
@@ -92,6 +102,20 @@ final class TodayViewModel: ObservableObject {
                 scoreMode: .pvtOnly,
                 roiStatusText: "PVT만 반영"
             )
+        }
+    }
+
+    func loadTodayEvaluation() async {
+        guard AuthSessionStore.shared.accessToken != nil else {
+            evaluationResultStore.clear()
+            return
+        }
+
+        do {
+            let evaluation = try await evaluationService.fetchToday()
+            evaluationResultStore.apply(evaluation)
+        } catch {
+            evaluationResultStore.clear()
         }
     }
 
@@ -162,7 +186,15 @@ final class TodayViewModel: ObservableObject {
     var comparisonSummaryTitle: String {
         switch state.sleepStatus {
         case .available:
-            return String(format: "✨ 어제보다 %d%% 향상!", state.roiChangePercent)
+            if state.roiChangePercent > 0 {
+                return String(format: "✨ 어제보다 %d%% 향상!", state.roiChangePercent)
+            }
+
+            if state.roiChangePercent < 0 {
+                return String(format: "어제보다 %d%% 낮아요", abs(state.roiChangePercent))
+            }
+
+            return "어제와 비슷한 컨디션이에요"
         case .notConnected:
             return "수면 데이터가 없어 종합 점수 산출 불가 · 연동 시 +35%"
         case .syncing:
@@ -187,6 +219,30 @@ final class TodayViewModel: ObservableObject {
         case .notConnected:
             return nil
         }
+    }
+
+    var roiChangeText: String {
+        if state.roiChangePercent > 0 {
+            return String(format: "▲ %d%%", state.roiChangePercent)
+        }
+
+        if state.roiChangePercent < 0 {
+            return String(format: "▼ %d%%", abs(state.roiChangePercent))
+        }
+
+        return "0%"
+    }
+
+    var roiChangeDirection: TodayROIChangeDirection {
+        if state.roiChangePercent > 0 {
+            return .positive
+        }
+
+        if state.roiChangePercent < 0 {
+            return .negative
+        }
+
+        return .neutral
     }
 
     private func totalSleepText(from totalMinutes: Int) -> String {
@@ -215,6 +271,14 @@ final class TodayViewModel: ObservableObject {
             .combineLatest(pvtResultStore.$measuredAt)
             .sink { [weak self] summary, measuredAt in
                 self?.applyPVTSummary(summary, measuredAt: measuredAt)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func bindEvaluationResultStore() {
+        evaluationResultStore.$todayEvaluation
+            .sink { [weak self] evaluation in
+                self?.applyEvaluation(evaluation)
             }
             .store(in: &cancellables)
     }
@@ -265,6 +329,25 @@ final class TodayViewModel: ObservableObject {
             pvtStatus: .available,
             measuredAt: result.measuredAt
         )
+    }
+
+    private func applyEvaluation(_ evaluation: EvaluationResponse?) {
+        guard let evaluation else { return }
+
+        state = state.replacingROI(
+            score: evaluation.finalScore,
+            statusText: evaluation.statusLabel,
+            changePercent: evaluation.trendVsYesterday,
+            measuredAt: evaluation.measuredAt
+        )
+
+        if state.pvtStatus == .noMeasurement {
+            state = state.replacingPVT(
+                state.pvt,
+                pvtStatus: .available,
+                measuredAt: evaluation.measuredAt
+            )
+        }
     }
 
     private func sleepDifferenceText(

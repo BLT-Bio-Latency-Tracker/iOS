@@ -4,6 +4,10 @@ struct HistoryMonthState: Equatable {
     let month: Date
     let days: [HistoryCalendarDay]
     let summary: HistoryMonthSummary
+
+    func replacingSummary(_ summary: HistoryMonthSummary) -> HistoryMonthState {
+        HistoryMonthState(month: month, days: days, summary: summary)
+    }
 }
 
 struct HistoryCalendarDay: Identifiable, Equatable {

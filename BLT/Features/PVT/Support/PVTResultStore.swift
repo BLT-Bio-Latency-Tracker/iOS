@@ -7,6 +7,7 @@ final class PVTResultStore: ObservableObject {
 
     @Published private(set) var latestSummary: PVTSummary?
     @Published private(set) var measuredAt: Date?
+    @Published private(set) var measurementId: UUID?
 
     private let storageKey = "pvt.latestResult"
     private let userDefaults: UserDefaults
@@ -16,10 +17,11 @@ final class PVTResultStore: ObservableObject {
         restoreLatestResult()
     }
 
-    func save(_ summary: PVTSummary, measuredAt: Date = Date()) {
+    func save(_ summary: PVTSummary, measuredAt: Date = Date(), measurementId: UUID = UUID()) {
         latestSummary = summary
         self.measuredAt = measuredAt
-        persist(summary: summary, measuredAt: measuredAt)
+        self.measurementId = measurementId
+        persist(summary: summary, measuredAt: measuredAt, measurementId: measurementId)
     }
 
     func displayResult(for date: Date = Date()) -> PVTDisplayResult? {
@@ -33,7 +35,8 @@ final class PVTResultStore: ObservableObject {
 
         return PVTDisplayResult(
             summary: latestSummary,
-            measuredAt: measuredAt
+            measuredAt: measuredAt,
+            measurementId: measurementId ?? UUID()
         )
     }
 
@@ -45,10 +48,11 @@ final class PVTResultStore: ObservableObject {
 
         latestSummary = storedResult.summary
         measuredAt = storedResult.measuredAt
+        measurementId = storedResult.measurementId
     }
 
-    private func persist(summary: PVTSummary, measuredAt: Date) {
-        let storedResult = StoredPVTResult(summary: summary, measuredAt: measuredAt)
+    private func persist(summary: PVTSummary, measuredAt: Date, measurementId: UUID) {
+        let storedResult = StoredPVTResult(summary: summary, measuredAt: measuredAt, measurementId: measurementId)
 
         guard let data = try? JSONEncoder().encode(storedResult) else {
             return
@@ -86,9 +90,11 @@ final class PVTResultStore: ObservableObject {
 struct PVTDisplayResult {
     let summary: PVTSummary
     let measuredAt: Date
+    let measurementId: UUID
 }
 
 private struct StoredPVTResult: Codable {
+    let measurementId: UUID
     let measuredAt: Date
     let trials: [StoredPVTTrial]
     let lapseThresholdMilliseconds: Int
@@ -96,7 +102,8 @@ private struct StoredPVTResult: Codable {
     let falseStartCount: Int?
     let environmentCalibration: PVTEnvironmentCalibrationResult?
 
-    nonisolated init(summary: PVTSummary, measuredAt: Date) {
+    nonisolated init(summary: PVTSummary, measuredAt: Date, measurementId: UUID) {
+        self.measurementId = measurementId
         self.measuredAt = measuredAt
         self.trials = summary.trials.map(StoredPVTTrial.init)
         self.lapseThresholdMilliseconds = summary.lapseThresholdMilliseconds

@@ -44,6 +44,9 @@ struct MyPageView: View {
                             accountSection(scale: scale)
                                 .padding(.top, 26 * scale)
                                 .padding(.bottom, 34 * scale)
+                        } else if let errorMessage = viewModel.errorMessage {
+                            errorState(errorMessage, scale: scale)
+                                .padding(.top, 150 * scale)
                         } else {
                             loadingState(scale: scale)
                                 .padding(.top, 160 * scale)
@@ -73,8 +76,8 @@ struct MyPageView: View {
                         editRoute = nil
                     },
                     onSave: { draft in
-                        _ = draft.patchRequest(comparedTo: state)
-                        let isSaved = true
+                        let patchRequest = draft.patchRequest(comparedTo: state)
+                        let isSaved = await viewModel.updateProfile(patchRequest)
 
                         if isSaved {
                             viewModel.applyProfile(draft)
@@ -91,8 +94,8 @@ struct MyPageView: View {
                         editRoute = nil
                     },
                     onSave: { draft in
-                        _ = draft.patchRequest(comparedTo: settings)
-                        let isSaved = true
+                        let patchRequest = draft.patchRequest(comparedTo: settings)
+                        let isSaved = await viewModel.updateNotificationSettings(patchRequest)
 
                         if isSaved {
                             viewModel.applyNotificationSettings(draft.settingsValue)
@@ -200,7 +203,7 @@ struct MyPageView: View {
                 MyPageRow(title: "출생연도", value: state.profile.birthYear.map { "\($0)년" } ?? "미설정", isWarning: state.profile.birthYear == nil),
                 MyPageRow(title: "성별", value: state.profile.gender?.displayName ?? "미설정", isWarning: state.profile.gender == nil),
                 MyPageRow(title: "평균 기상시간", value: state.profile.wakeUpTimeText ?? "미설정", isWarning: state.profile.wakeUpTimeText == nil),
-                MyPageRow(title: "직업군", value: state.profile.jobGroup?.rawValue ?? "미설정", isWarning: state.profile.jobGroup == nil)
+                MyPageRow(title: "직업군", value: state.profile.jobGroup?.displayName ?? "미설정", isWarning: state.profile.jobGroup == nil)
             ], scale: scale)
         }
     }
@@ -295,8 +298,12 @@ struct MyPageView: View {
                         .frame(width: 1)
 
                     Button {
-                        showsWithdrawalAlert = false
-                        onWithdraw()
+                        Task {
+                            let isWithdrawn = await viewModel.withdraw()
+                            guard isWithdrawn else { return }
+                            showsWithdrawalAlert = false
+                            onWithdraw()
+                        }
                     } label: {
                         Text("탈퇴하기")
                             .font(.system(size: 15 * scale, weight: .regular))
@@ -433,6 +440,31 @@ struct MyPageView: View {
             .font(.system(size: 13 * scale, weight: .medium))
             .foregroundStyle(Color.myPageMutedText)
             .frame(maxWidth: .infinity)
+    }
+
+    private func errorState(_ message: String, scale: CGFloat) -> some View {
+        VStack(spacing: 14 * scale) {
+            Text(message)
+                .font(.system(size: 13 * scale, weight: .medium))
+                .foregroundStyle(Color.myPageMutedText)
+                .multilineTextAlignment(.center)
+
+            Button {
+                Task {
+                    await viewModel.fetchMyPage()
+                }
+            } label: {
+                Text("다시 시도")
+                    .font(.system(size: 13 * scale, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18 * scale)
+                    .frame(height: 34 * scale)
+                    .background(Color.myPagePrimary)
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func profileMissingText(for state: MyPageState) -> String? {

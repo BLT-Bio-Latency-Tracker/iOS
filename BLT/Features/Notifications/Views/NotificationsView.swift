@@ -39,6 +39,9 @@ struct NotificationsView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .task {
+            await viewModel.fetchNotifications()
+        }
     }
 
     private func header(scale: CGFloat) -> some View {
@@ -75,7 +78,9 @@ struct NotificationsView: View {
             Spacer(minLength: 8 * scale)
 
             Button {
-                viewModel.markAllAsRead()
+                Task {
+                    await viewModel.markAllAsRead()
+                }
             } label: {
                 Text("모두 읽음")
                     .font(.system(size: 13 * scale, weight: .semibold))
@@ -113,7 +118,11 @@ struct NotificationsView: View {
 
     @ViewBuilder
     private func notificationContent(scale: CGFloat) -> some View {
-        if viewModel.sectionGroups.isEmpty {
+        if viewModel.isLoading && viewModel.sectionGroups.isEmpty {
+            loadingState(scale: scale)
+        } else if let errorMessage = viewModel.errorMessage, viewModel.sectionGroups.isEmpty {
+            errorState(errorMessage, scale: scale)
+        } else if viewModel.sectionGroups.isEmpty {
             emptyState(scale: scale)
         } else {
             VStack(alignment: .leading, spacing: 0) {
@@ -205,6 +214,47 @@ struct NotificationsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
     }
 
+    private func loadingState(scale: CGFloat) -> some View {
+        VStack(spacing: 12 * scale) {
+            ProgressView()
+                .tint(.white)
+
+            Text("알림을 불러오는 중이에요")
+                .font(.system(size: 12 * scale, weight: .regular))
+                .foregroundStyle(Color.notificationMutedText)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 120 * scale)
+        .background(Color.notificationCard)
+        .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
+    }
+
+    private func errorState(_ message: String, scale: CGFloat) -> some View {
+        VStack(spacing: 12 * scale) {
+            Text(message)
+                .font(.system(size: 13 * scale, weight: .semibold))
+                .foregroundStyle(.white)
+
+            Button {
+                Task {
+                    await viewModel.fetchNotifications()
+                }
+            } label: {
+                Text("다시 시도")
+                    .font(.system(size: 12 * scale, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 96 * scale, height: 32 * scale)
+                    .background(Color.notificationPrimary)
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 120 * scale)
+        .background(Color.notificationCard)
+        .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
+    }
+
     private func footer(scale: CGFloat) -> some View {
         Text("알림 설정은 마이페이지에서 변경할 수 있어요")
             .font(.system(size: 11 * scale, weight: .regular))
@@ -214,22 +264,22 @@ struct NotificationsView: View {
     }
 
     private func iconBackgroundColor(for item: AppNotificationItem) -> Color {
-        switch item.id {
-        case "morning-measurement":
+        switch item.styleKey {
+        case .morningMeasurement:
             return Color.notificationPrimary
-        case "caffeine-limit":
+        case .sleepReminder:
             return Color.notificationCaution
-        case "weekly-report":
+        case .weeklyReport:
             return Color.notificationPositive
-        case "invalid-measurement":
+        case .invalidMeasurement:
             return Color.notificationNegative
-        default:
+        case .system:
             return Color(red: 0.11, green: 0.137, blue: 0.275)
         }
     }
 
     private func iconFontSize(for item: AppNotificationItem) -> CGFloat {
-        item.id == "invalid-measurement" ? 18 : 20
+        item.styleKey == .invalidMeasurement ? 18 : 20
     }
 
     private func cardHeight(for item: AppNotificationItem) -> CGFloat {

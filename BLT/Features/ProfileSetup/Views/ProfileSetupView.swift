@@ -62,7 +62,7 @@ struct ProfileSetupView: View {
             Spacer()
 
             Text("3 / 3")
-                .font(.system(size: 11 * scale, weight: .semibold))
+                .brykiTextStyle(size: 11 * scale, weight: SwiftUI.Font.Weight.semibold)
                 .foregroundStyle(Color(red: 0.486, green: 0.361, blue: 1))
                 .frame(width: 56 * scale, height: 22 * scale)
                 .background(Color(red: 0.486, green: 0.361, blue: 1).opacity(0.18))
@@ -77,13 +77,13 @@ struct ProfileSetupView: View {
     private func titleSection(scale: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 14 * scale) {
             Text("더 정확한 측정을 위해\n몇 가지만 알려주세요")
-                .font(.system(size: 24 * scale, weight: .heavy))
+                .brykiTextStyle(size: 24 * scale, weight: SwiftUI.Font.Weight.heavy)
                 .foregroundStyle(.white)
                 .lineSpacing(5 * scale)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Text("모두 선택사항입니다 · 나중에 변경 가능")
-                .font(.system(size: 12 * scale, weight: .regular))
+                .brykiTextStyle(size: 12 * scale, weight: SwiftUI.Font.Weight.regular)
                 .foregroundStyle(.white.opacity(0.5))
         }
     }
@@ -124,13 +124,13 @@ struct ProfileSetupView: View {
             Button(action: action) {
                 HStack {
                     Text(value)
-                        .font(.system(size: 16 * scale, weight: .semibold))
+                        .brykiTextStyle(size: 16 * scale, weight: SwiftUI.Font.Weight.semibold)
                         .foregroundStyle(value == "선택해주세요" ? .white.opacity(0.45) : .white)
 
                     Spacer()
 
                     Text("▾")
-                        .font(.system(size: 14 * scale, weight: .medium))
+                        .brykiTextStyle(size: 14 * scale, weight: SwiftUI.Font.Weight.medium)
                         .foregroundStyle(.white.opacity(0.5))
                 }
                 .padding(.horizontal, 16 * scale)
@@ -175,7 +175,12 @@ struct ProfileSetupView: View {
                         setupDraft.jobGroup = item
                     } label: {
                         Text(item.rawValue)
-                            .font(.system(size: 12 * scale, weight: setupDraft.jobGroup == item ? .semibold : .medium))
+                            .brykiTextStyle(
+                                size: 12 * scale,
+                                weight: setupDraft.jobGroup == item
+                                    ? SwiftUI.Font.Weight.semibold
+                                    : SwiftUI.Font.Weight.medium
+                            )
                             .foregroundStyle(.white.opacity(setupDraft.jobGroup == item ? 1 : 0.6))
                             .frame(maxWidth: .infinity)
                             .frame(height: 28 * scale)
@@ -207,7 +212,7 @@ struct ProfileSetupView: View {
     ) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 13 * scale, weight: .medium))
+                .brykiTextStyle(size: 13 * scale, weight: SwiftUI.Font.Weight.medium)
                 .foregroundStyle(.white.opacity(isSelected ? 1 : 0.7))
                 .frame(maxWidth: .infinity)
                 .frame(height: 36 * scale)
@@ -223,7 +228,7 @@ struct ProfileSetupView: View {
 
     private func sectionTitle(_ title: String, scale: CGFloat) -> some View {
         Text(title)
-            .font(.system(size: 11 * scale, weight: .semibold))
+            .brykiTextStyle(size: 11 * scale, weight: SwiftUI.Font.Weight.semibold)
             .tracking(1)
             .foregroundStyle(.white.opacity(0.55))
     }
@@ -232,7 +237,7 @@ struct ProfileSetupView: View {
         VStack(spacing: 20 * scale) {
             Button(action: onNext) {
                 Text("다음")
-                    .font(.system(size: 16 * scale, weight: .semibold))
+                    .brykiTextStyle(size: 16 * scale, weight: SwiftUI.Font.Weight.semibold)
                     .foregroundStyle(.white.opacity(canMoveNext ? 1 : 0.45))
                     .frame(maxWidth: .infinity)
                     .frame(height: 52 * scale)
@@ -245,7 +250,7 @@ struct ProfileSetupView: View {
                             startPoint: .leading,
                             endPoint: .trailing
                         )
-                        .opacity(canMoveNext ? 1 : 0.35)
+                       // .opacity(canMoveNext ? 1 : 0.35)
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
             }
@@ -254,7 +259,7 @@ struct ProfileSetupView: View {
 
             Button(action: onSkip) {
                 Text("건너뛰기")
-                    .font(.system(size: 14 * scale, weight: .medium))
+                    .brykiTextStyle(size: 14 * scale, weight: SwiftUI.Font.Weight.medium)
                     .foregroundStyle(.white.opacity(0.55))
                     .frame(maxWidth: .infinity)
                     .frame(height: 17 * scale)
@@ -268,7 +273,7 @@ struct ProfileSetupView: View {
         VStack(spacing: 0) {
             HStack {
                 Text(picker.title)
-                    .font(.system(size: 17, weight: .semibold))
+                    .brykiTextStyle(size: 17, weight: SwiftUI.Font.Weight.semibold)
                     .foregroundStyle(.white)
 
                 Spacer()
@@ -277,7 +282,7 @@ struct ProfileSetupView: View {
                     confirmPickerSelection(picker)
                     activePicker = nil
                 }
-                .font(.system(size: 15, weight: .semibold))
+                .brykiTextStyle(size: 15, weight: SwiftUI.Font.Weight.semibold)
                 .foregroundStyle(Color(red: 0.486, green: 0.361, blue: 1))
             }
             .padding(.horizontal, 20)

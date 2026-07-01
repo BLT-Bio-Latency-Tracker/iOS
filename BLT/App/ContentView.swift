@@ -8,21 +8,20 @@ struct ContentView: View {
     @State private var profileSetupDraft = ProfileSetupDraft()
     @StateObject private var authFlowViewModel = AuthFlowViewModel()
 
-    private let routeAfterSplash: AppRoute
-
-    init() {
-        routeAfterSplash = UserDefaults.standard.bool(
-            forKey: AppStorageKey.hasCompletedOnboarding
-        ) ? .login : .onboarding
-    }
+    private let profileService = MyPageService()
+    private let localProfileStore = LocalProfileStore()
 
     var body: some View {
         ZStack {
             switch route {
             case .splash:
                 SplashView {
-                    withAnimation(.easeInOut(duration: 0.35)) {
-                        route = routeAfterSplash
+                    Task {
+                        let restoredRoute = await initialRouteAfterSplash()
+
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            route = restoredRoute
+                        }
                     }
                 }
                 .transition(.opacity)
@@ -38,12 +37,18 @@ struct ContentView: View {
                 LoginView(
                     onAppleButtonTapped: {
                         Task {
-                            let isAuthenticated = await authFlowViewModel.authenticateWithApple()
+                            let result = await authFlowViewModel.authenticateWithApple()
 
-                            guard isAuthenticated else { return }
+                            guard let result else { return }
 
                             withAnimation(.easeInOut(duration: 0.35)) {
-                                route = .termsAgreement
+                                switch result {
+                                case .existingUser(let onboardingCompleted):
+                                    hasCompletedOnboarding = true
+                                    route = onboardingCompleted ? .home : .healthPermission
+                                case .newUserNeedsTerms:
+                                    route = .termsAgreement
+                                }
                             }
                         }
                     },
@@ -103,13 +108,13 @@ struct ContentView: View {
                         }
                     },
                     onNext: {
-                        withAnimation(.easeInOut(duration: 0.35)) {
-                            route = .startReady
+                        Task {
+                            await completeProfileSetup(profileSetupDraft)
                         }
                     },
                     onSkip: {
-                        withAnimation(.easeInOut(duration: 0.35)) {
-                            route = .startReady
+                        Task {
+                            await completeProfileSetup(ProfileSetupDraft())
                         }
                     }
                 )
@@ -153,6 +158,148 @@ struct ContentView: View {
         withAnimation(.easeInOut(duration: 0.35)) {
             route = .login
         }
+    }
+
+    private func completeProfileSetup(_ draft: ProfileSetupDraft) async {
+        let cachedProfile = currentCachedProfileSnapshot()
+
+        do {
+            try await profileService.completeOnboarding(draft)
+        } catch {
+            authFlowViewModel.errorMessage = "프로필 저장에 실패했어요. 잠시 후 다시 시도해주세요."
+            return
+        }
+
+        await syncAuthenticatedUserProfile(
+            fallback: LocalProfileSnapshot(
+                name: cachedProfile.name,
+                email: cachedProfile.email,
+                authProvider: cachedProfile.authProvider,
+                birthYear: draft.birthYear,
+                gender: draft.gender,
+                wakeUpTimeText: draft.wakeUpTime.map(Self.profileTimeText),
+                jobGroup: draft.jobGroup
+            )
+        )
+        hasCompletedOnboarding = true
+        AuthSessionStore.shared.updateOnboardingCompleted(true)
+
+        withAnimation(.easeInOut(duration: 0.35)) {
+            route = .startReady
+        }
+    }
+
+    private static func profileTimeText(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
+
+    private func initialRouteAfterSplash() async -> AppRoute {
+        guard let session = AuthSessionStore.shared.currentSession else {
+            return hasCompletedOnboarding ? .login : .onboarding
+        }
+
+        hasCompletedOnboarding = true
+        let remoteOnboardingCompleted = await syncAuthenticatedUserProfile(
+            fallback: LocalProfileSnapshot(
+                name: currentCachedProfileSnapshot().name,
+                email: currentCachedProfileSnapshot().email,
+                authProvider: currentCachedProfileSnapshot().authProvider,
+                birthYear: nil,
+                gender: nil,
+                wakeUpTimeText: nil,
+                jobGroup: nil
+            )
+        )
+        guard AuthSessionStore.shared.currentSession != nil else {
+            return .login
+        }
+
+        let onboardingCompleted = remoteOnboardingCompleted ?? session.onboardingCompleted
+        AuthSessionStore.shared.updateOnboardingCompleted(onboardingCompleted)
+
+        return onboardingCompleted ? .home : .healthPermission
+    }
+
+    @discardableResult
+    private func syncAuthenticatedUserProfile(fallback: LocalProfileSnapshot) async -> Bool? {
+        guard let remoteState = try? await profileService.fetchUser() else {
+            localProfileStore.save(fallback)
+            return nil
+        }
+
+        let remoteName = remoteState.user.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let remoteEmail = remoteState.user.email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fallbackName = fallback.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let displayName = preferredIdentityName(
+            remoteName: remoteName,
+            fallbackName: fallbackName,
+            cachedName: fallback.name
+        )
+        let displayEmail = remoteEmail.isEmpty ? fallback.email : remoteState.user.email
+
+        localProfileStore.save(
+            LocalProfileSnapshot(
+                name: displayName,
+                email: displayEmail,
+                authProvider: remoteState.user.authProvider.isEmpty ? fallback.authProvider : remoteState.user.authProvider,
+                birthYear: remoteState.profile.birthYear ?? fallback.birthYear,
+                gender: remoteState.profile.gender ?? fallback.gender,
+                wakeUpTimeText: remoteState.profile.wakeUpTimeText ?? fallback.wakeUpTimeText,
+                jobGroup: remoteState.profile.jobGroup ?? fallback.jobGroup
+            )
+        )
+
+        return remoteState.user.onboardingCompleted
+    }
+
+    private func preferredIdentityName(
+        remoteName: String,
+        fallbackName: String,
+        cachedName: String
+    ) -> String {
+        if !isPlaceholderName(remoteName) {
+            return remoteName
+        }
+
+        if !fallbackName.isEmpty {
+            return fallbackName
+        }
+
+        let cachedName = cachedName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !isPlaceholderName(cachedName) {
+            return cachedName
+        }
+
+        return remoteName.isEmpty ? "Bryki" : remoteName
+    }
+
+    private func isPlaceholderName(_ name: String) -> Bool {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowercasedName = trimmedName.lowercased()
+
+        return trimmedName.isEmpty
+            || trimmedName == "Bryki"
+            || trimmedName == "Apple"
+            || lowercasedName.hasPrefix("user")
+            || trimmedName.hasPrefix("사용자")
+            || trimmedName.hasPrefix("게스트")
+    }
+
+    private func currentCachedProfileSnapshot() -> LocalProfileSnapshot {
+        localProfileStore.snapshot(
+            fallback: LocalProfileSnapshot(
+                name: "Bryki",
+                email: nil,
+                authProvider: nil,
+                birthYear: nil,
+                gender: nil,
+                wakeUpTimeText: nil,
+                jobGroup: nil
+            )
+        )
     }
 }
 

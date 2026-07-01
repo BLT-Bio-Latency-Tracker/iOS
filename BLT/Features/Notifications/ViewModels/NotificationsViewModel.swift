@@ -4,12 +4,17 @@ import Foundation
 @MainActor
 final class NotificationsViewModel: ObservableObject {
     @Published var selectedCategory: AppNotificationCategory = .all
+    @Published private(set) var isLoading = false
+    @Published private(set) var errorMessage: String?
 
     private let store: AppNotificationStore
+    private let service: NotificationsService
     private var cancellables = Set<AnyCancellable>()
+    private var fetchTask: Task<Void, Never>?
 
-    init(store: AppNotificationStore? = nil) {
+    init(store: AppNotificationStore? = nil, service: NotificationsService = NotificationsService()) {
         self.store = store ?? .shared
+        self.service = service
 
         self.store.objectWillChange
             .sink { [weak self] _ in
@@ -35,10 +40,45 @@ final class NotificationsViewModel: ObservableObject {
 
     func selectCategory(_ category: AppNotificationCategory) {
         selectedCategory = category
+        scheduleFetchNotifications()
     }
 
-    func markAllAsRead() {
-        store.markAllAsRead()
+    func markAllAsRead() async {
+        do {
+            try await service.markAllAsRead()
+            store.markAllAsRead()
+        } catch {
+            errorMessage = "알림 읽음 처리에 실패했어요."
+        }
+    }
+
+    func fetchNotifications() async {
+        let requestedCategory = selectedCategory
+
+        isLoading = true
+        errorMessage = nil
+
+        defer {
+            isLoading = false
+        }
+
+        do {
+            let notifications = try await service.fetchNotifications(category: requestedCategory)
+            guard requestedCategory == selectedCategory else {
+                scheduleFetchNotifications()
+                return
+            }
+            store.applyServerNotifications(
+                notifications
+            )
+        } catch {
+            guard requestedCategory == selectedCategory else {
+                scheduleFetchNotifications()
+                return
+            }
+            errorMessage = "알림을 불러오지 못했어요."
+            store.applyServerNotifications([])
+        }
     }
 
     func applyServerNotifications(_ serverNotifications: [AppNotificationItem]) {
@@ -47,5 +87,12 @@ final class NotificationsViewModel: ObservableObject {
 
     private func matchesSelectedCategory(_ item: AppNotificationItem) -> Bool {
         selectedCategory == .all || item.category == selectedCategory
+    }
+
+    private func scheduleFetchNotifications() {
+        fetchTask?.cancel()
+        fetchTask = Task { [weak self] in
+            await self?.fetchNotifications()
+        }
     }
 }

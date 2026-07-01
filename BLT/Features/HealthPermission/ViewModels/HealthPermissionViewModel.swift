@@ -71,10 +71,7 @@ final class HealthPermissionViewModel: ObservableObject {
     }
 
     private func submitIfNeeded(_ request: HealthPermissionAgreementRequest) async throws {
-        guard NetworkClient.shared.baseURL != nil else {
-            return
-        }
-
+        guard AuthSessionStore.shared.accessToken != nil else { return }
         _ = try await healthPermissionAPIService.submitHealthPermissionAgreement(request)
     }
 }

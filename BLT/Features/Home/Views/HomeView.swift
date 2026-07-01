@@ -5,10 +5,6 @@ struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
     @StateObject private var notificationStore = AppNotificationStore.shared
     @State private var isTodoSheetPresented = false
-    #if DEBUG
-    @State private var debugROIInput = ""
-    @State private var isDebugROIAlertPresented = false
-    #endif
 
     var onPVTStart: () -> Void = {}
     var onNotificationTap: () -> Void = {}
@@ -57,26 +53,6 @@ struct HomeView: View {
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .preferredColorScheme(.dark)
-        #if DEBUG
-        .alert("테스트용 ROI 점수 수정", isPresented: $isDebugROIAlertPresented) {
-            TextField("0~100", text: $debugROIInput)
-                .keyboardType(.numberPad)
-
-            Button("적용") {
-                viewModel.applyDebugROIInput(debugROIInput)
-                debugROIInput = String(viewModel.displayedBrainROI)
-            }
-
-            Button("초기화", role: .destructive) {
-                viewModel.resetDebugROIOverride()
-                debugROIInput = String(viewModel.state.brainROI)
-            }
-
-            Button("취소", role: .cancel) {}
-        } message: {
-            Text("테스트를 위해 홈 화면에 표시되는 Brain ROI 점수만 임시로 변경합니다.")
-        }
-        #endif
         .sheet(isPresented: $isTodoSheetPresented) {
             HomeTodoEditorSheet(
                 suggestedDifficulty: viewModel.focusStrategy.recommendedDefaultDifficulty,
@@ -165,13 +141,6 @@ struct HomeView: View {
                     .font(.system(size: 14 * scale, weight: .bold))
                     .foregroundStyle(roiColor)
                     .padding(.leading, 4 * scale)
-                    #if DEBUG
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        debugROIInput = String(roiDisplay.score)
-                        isDebugROIAlertPresented = true
-                    }
-                    #endif
 
                 Text("· \(roiDisplay.statusText)")
                     .font(.system(size: 11 * scale, weight: .regular))

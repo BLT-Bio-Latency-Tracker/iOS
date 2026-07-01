@@ -177,15 +177,17 @@ struct TodayView: View {
     }
 
     private func roiChangeBadge(scale: CGFloat) -> some View {
-        Text(String(format: "▲ %d%%", viewModel.state.roiChangePercent))
+        let changeColor = roiChangeColor(for: viewModel.roiChangeDirection)
+
+        return Text(viewModel.roiChangeText)
             .font(.system(size: 11 * scale, weight: .bold))
-            .foregroundStyle(Color.todayPositive)
+            .foregroundStyle(changeColor)
             .frame(width: 76 * scale, height: 22 * scale)
-            .background(Color.todayPositive.opacity(0.18))
+            .background(changeColor.opacity(0.18))
             .clipShape(Capsule())
             .overlay {
                 Capsule()
-                    .stroke(Color.todayPositive.opacity(0.4), lineWidth: 1)
+                    .stroke(changeColor.opacity(0.4), lineWidth: 1)
             }
     }
 
@@ -709,6 +711,17 @@ struct TodayView: View {
 
     private var comparisonNoticeBackground: Color {
         comparisonNoticeForeground
+    }
+
+    private func roiChangeColor(for direction: TodayROIChangeDirection) -> Color {
+        switch direction {
+        case .positive:
+            return Color.todayPositive
+        case .negative:
+            return Color.todayNegative
+        case .neutral:
+            return Color.todayMutedText
+        }
     }
 
     private var sleepStatusBadgeText: String {
