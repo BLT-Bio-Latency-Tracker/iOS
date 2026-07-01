@@ -6,15 +6,14 @@ final class HomeViewModel: ObservableObject {
     @Published private(set) var state: HomeViewState
     @Published private(set) var currentDate: Date
     @Published private(set) var todoItems: [HomeTodoItem] = []
-    // QA-only ROI override for TestFlight score-state checks. Remove before production release.
-    #if DEBUG
-    @Published private(set) var debugROIOverride: Int?
-    #endif
 
     private let calendar: Calendar
     private let timeFormatter: DateFormatter
     private let healthKitService: HealthKitService
     private let pvtResultStore: PVTResultStore
+    private let evaluationResultStore: EvaluationResultStore
+    private let evaluationService: EvaluationService
+    private let myPageService: MyPageService
     private let localProfileStore: LocalProfileStore
     private let todoStore: HomeTodoStore
     private var cancellables = Set<AnyCancellable>()
@@ -24,6 +23,9 @@ final class HomeViewModel: ObservableObject {
         currentDate: Date = Date(),
         healthKitService: HealthKitService? = nil,
         pvtResultStore: PVTResultStore? = nil,
+        evaluationResultStore: EvaluationResultStore? = nil,
+        evaluationService: EvaluationService? = nil,
+        myPageService: MyPageService? = nil,
         localProfileStore: LocalProfileStore? = nil,
         todoStore: HomeTodoStore? = nil
     ) {
@@ -38,27 +40,31 @@ final class HomeViewModel: ObservableObject {
         self.timeFormatter = formatter
         self.healthKitService = healthKitService ?? HealthKitService()
         self.pvtResultStore = pvtResultStore ?? PVTResultStore.shared
+        self.evaluationResultStore = evaluationResultStore ?? EvaluationResultStore.shared
+        self.evaluationService = evaluationService ?? EvaluationService()
+        self.myPageService = myPageService ?? MyPageService()
         self.localProfileStore = localProfileStore ?? LocalProfileStore()
         self.todoStore = todoStore ?? HomeTodoStore(now: currentDate)
 
-        self.state = state ?? HomeViewState.placeholder
+        self.state = state ?? HomeViewState.initial
         self.currentDate = currentDate
 
         bindPVTResultStore()
+        bindEvaluationResultStore()
         bindHealthKitSleepUpdates()
         bindLocalProfileUpdates()
         bindTodoStore()
         startHealthKitSleepObservationIfNeeded()
         applyLocalProfileSnapshot()
         applyLatestPVTResultIfNeeded()
+        Task {
+            await loadRemoteProfile()
+            await loadTodayEvaluation()
+        }
     }
 
     var displayedBrainROI: Int {
-        #if DEBUG
-        debugROIOverride ?? state.brainROI
-        #else
         state.brainROI
-        #endif
     }
 
     var roiDisplay: HomeROIDisplayState {
@@ -112,22 +118,6 @@ final class HomeViewModel: ObservableObject {
         todoStore.delete(item)
     }
 
-    func applyDebugROIInput(_ input: String) {
-        #if DEBUG
-        guard let value = Int(input.trimmingCharacters(in: .whitespacesAndNewlines)) else {
-            return
-        }
-
-        debugROIOverride = min(max(value, 0), 100)
-        #endif
-    }
-
-    func resetDebugROIOverride() {
-        #if DEBUG
-        debugROIOverride = nil
-        #endif
-    }
-
     func loadHealthKitSleepSummary() async {
         do {
             let resolvedSleep = try await healthKitService.fetchDisplaySleepSummary(for: Date())
@@ -154,11 +144,74 @@ final class HomeViewModel: ObservableObject {
         }
     }
 
+    func loadTodayEvaluation() async {
+        guard AuthSessionStore.shared.accessToken != nil else { return }
+
+        if let evaluation = try? await evaluationService.fetchToday() {
+            evaluationResultStore.apply(evaluation)
+        }
+    }
+
+    func loadRemoteProfile() async {
+        guard AuthSessionStore.shared.accessToken != nil else { return }
+        guard let remoteState = try? await myPageService.fetchUser() else { return }
+        let cachedProfile = localProfileStore.snapshot(
+            fallback: LocalProfileSnapshot(
+                name: state.userName,
+                birthYear: nil,
+                gender: nil,
+                wakeUpTimeText: nil,
+                jobGroup: nil
+            )
+        )
+        let remoteName = remoteState.user.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let displayName = isPlaceholderName(remoteName)
+            ? cachedProfile.name
+            : remoteState.user.name
+
+        localProfileStore.save(
+            LocalProfileSnapshot(
+                name: displayName,
+                email: remoteState.user.email.isEmpty ? cachedProfile.email : remoteState.user.email,
+                authProvider: remoteState.user.authProvider.isEmpty ? cachedProfile.authProvider : remoteState.user.authProvider,
+                birthYear: remoteState.profile.birthYear,
+                gender: remoteState.profile.gender,
+                wakeUpTimeText: remoteState.profile.wakeUpTimeText,
+                jobGroup: remoteState.profile.jobGroup
+            )
+        )
+
+        state = state.replacingUser(
+            name: displayName,
+            profileInitial: displayName.trimmingCharacters(in: .whitespacesAndNewlines).first.map(String.init) ?? "B"
+        )
+    }
+
+    private func isPlaceholderName(_ name: String) -> Bool {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowercasedName = trimmedName.lowercased()
+
+        return trimmedName.isEmpty
+            || trimmedName == "Bryki"
+            || trimmedName == "Apple"
+            || lowercasedName.hasPrefix("user")
+            || trimmedName.hasPrefix("사용자")
+            || trimmedName.hasPrefix("게스트")
+    }
+
     private func bindPVTResultStore() {
         pvtResultStore.$latestSummary
             .combineLatest(pvtResultStore.$measuredAt)
             .sink { [weak self] summary, measuredAt in
                 self?.applyPVTSummary(summary, measuredAt: measuredAt)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func bindEvaluationResultStore() {
+        evaluationResultStore.$todayEvaluation
+            .sink { [weak self] evaluation in
+                self?.applyEvaluation(evaluation)
             }
             .store(in: &cancellables)
     }
@@ -202,6 +255,8 @@ final class HomeViewModel: ObservableObject {
         let snapshot = localProfileStore.snapshot(
             fallback: LocalProfileSnapshot(
                 name: state.userName,
+                email: nil,
+                authProvider: nil,
                 birthYear: nil,
                 gender: nil,
                 wakeUpTimeText: nil,
@@ -229,6 +284,16 @@ final class HomeViewModel: ObservableObject {
             measuredAt: result.measuredAt,
             pvtSummary: "PVT \(averageMilliseconds)ms",
             pvtStatus: .available
+        )
+    }
+
+    private func applyEvaluation(_ evaluation: EvaluationResponse?) {
+        guard let evaluation else { return }
+
+        state = state.replacingROI(
+            score: evaluation.finalScore,
+            changePercent: evaluation.trendVsYesterday,
+            measuredAt: evaluation.measuredAt
         )
     }
 

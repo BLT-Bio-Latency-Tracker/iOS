@@ -8,13 +8,16 @@ final class HistoryViewModel: ObservableObject {
     private var selectedMonth: Date
     private var records: [HistoryDailyRecord]
     private let calendar: Calendar
+    private let service: HistoryService
 
     init(
         currentDate: Date = Date(),
         records: [HistoryDailyRecord] = [],
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        service: HistoryService = HistoryService()
     ) {
         self.calendar = calendar
+        self.service = service
         self.records = records
         self.selectedMonth = calendar.startOfMonth(for: currentDate)
         self.state = HistoryViewModel.makeState(
@@ -28,12 +31,18 @@ final class HistoryViewModel: ObservableObject {
     func moveToPreviousMonth() {
         selectedMonth = calendar.date(byAdding: .month, value: -1, to: selectedMonth) ?? selectedMonth
         reload()
+        Task {
+            await fetchSelectedMonth()
+        }
     }
 
     func moveToNextMonth() {
         guard canMoveToNextMonth else { return }
         selectedMonth = calendar.date(byAdding: .month, value: 1, to: selectedMonth) ?? selectedMonth
         reload()
+        Task {
+            await fetchSelectedMonth()
+        }
     }
 
     func selectMonth(year: Int, month: Int) {
@@ -46,6 +55,9 @@ final class HistoryViewModel: ObservableObject {
 
         selectedMonth = calendar.date(from: components).map { calendar.startOfMonth(for: $0) } ?? selectedMonth
         reload()
+        Task {
+            await fetchSelectedMonth()
+        }
     }
 
     func applyServerRecords(_ records: [HistoryDailyRecord]) {
@@ -99,6 +111,29 @@ final class HistoryViewModel: ObservableObject {
             currentDate: Date(),
             calendar: calendar
         )
+    }
+
+    func fetchSelectedMonth() async {
+        guard AuthSessionStore.shared.accessToken != nil else { return }
+
+        let monthStart = calendar.startOfMonth(for: selectedMonth)
+        guard let monthEnd = calendar.date(
+            byAdding: DateComponents(month: 1, day: -1),
+            to: monthStart
+        ) else { return }
+
+        do {
+            let serverMonth = try await service.fetchMonth(from: monthStart, to: monthEnd)
+            records = serverMonth.records
+            state = Self.makeState(
+                month: selectedMonth,
+                records: serverMonth.records,
+                currentDate: Date(),
+                calendar: calendar
+            ).replacingSummary(serverMonth.summary)
+        } catch {
+            // 서버 연동 실패 시 기존 로컬/빈 캘린더 상태를 유지합니다.
+        }
     }
 
     private static func makeState(

@@ -7,17 +7,33 @@ struct AuthAPIService {
         self.networkClient = networkClient
     }
 
-    func login(_ request: AuthLoginRequest) async throws -> AuthLoginResponse {
+    func verifyApple(_ request: AppleVerifyRequest) async throws -> AppleAuthResponse {
         try await networkClient.post(
-            "/api/v1/auth/login",
+            "/api/v1/auth/apple/verify",
             body: request,
             requiresAuth: false
         )
     }
 
-    func refreshToken(_ request: RefreshTokenRequest) async throws -> RefreshTokenResponse {
+    func signupWithApple(_ request: AppleSignupRequest) async throws -> AuthSessionResponse {
+        try await networkClient.post(
+            "/api/v1/auth/apple/signup",
+            body: request,
+            requiresAuth: false
+        )
+    }
+
+    func refreshToken(_ request: RefreshTokenRequest) async throws -> AuthSessionResponse {
         try await networkClient.post(
             "/api/v1/auth/refresh",
+            body: request,
+            requiresAuth: false
+        )
+    }
+
+    func logout(_ request: RefreshTokenRequest) async throws {
+        let _: EmptyResponse = try await networkClient.post(
+            "/api/v1/auth/logout",
             body: request,
             requiresAuth: false
         )

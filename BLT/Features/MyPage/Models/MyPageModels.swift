@@ -26,6 +26,7 @@ struct MyPageUser {
     let name: String
     let email: String
     let authProvider: String
+    let onboardingCompleted: Bool
 
     var profileInitial: String {
         name.trimmingCharacters(in: .whitespacesAndNewlines).first.map(String.init) ?? "B"
@@ -101,24 +102,11 @@ struct MyPageNotificationPatchRequest {
     }
 }
 
-extension MyPageState {
-    static let serverPlaceholder = MyPageState(
-        user: MyPageUser(
-            name: "Bryki",
-            email: "bryki@example.com",
-            authProvider: "Apple"
-        ),
-        profile: MyPageProfile(
-            birthYear: nil,
-            gender: nil,
-            wakeUpTimeText: nil,
-            jobGroup: nil
-        ),
-        notificationSettings: MyPageNotificationSettings(
-            isEnabled: false,
-            measurementTimeText: nil,
-            bedtimeText: nil,
-            channels: []
-        )
+extension MyPageNotificationSettings {
+    static let empty = MyPageNotificationSettings(
+        isEnabled: false,
+        measurementTimeText: nil,
+        bedtimeText: nil,
+        channels: []
     )
 }

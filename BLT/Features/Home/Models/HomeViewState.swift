@@ -41,29 +41,29 @@ struct HomeViewState {
         )
     }
 
-    static let placeholder: HomeViewState = {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
-
-        let now = Date()
-        let measuredAt = calendar.date(
-            bySettingHour: 9,
-            minute: 43,
-            second: 0,
-            of: now
-        ) ?? now
-
-        return HomeViewState(
-            userName: "Bryki",
-            profileInitial: "B",
-            brainROI: 50,
-            roiChangePercent: 12,
-            measuredAt: measuredAt,
-            sleepSummary: "Sleep 6h 40m",
-            pvtSummary: "PVT 미측정",
-            pvtStatus: .noMeasurement
+    func replacingROI(score: Int, changePercent: Int?, measuredAt: Date?) -> HomeViewState {
+        HomeViewState(
+            userName: userName,
+            profileInitial: profileInitial,
+            brainROI: score,
+            roiChangePercent: changePercent ?? roiChangePercent,
+            measuredAt: measuredAt ?? self.measuredAt,
+            sleepSummary: sleepSummary,
+            pvtSummary: pvtSummary,
+            pvtStatus: pvtStatus
         )
-    }()
+    }
+
+    static let initial = HomeViewState(
+        userName: "Bryki",
+        profileInitial: "B",
+        brainROI: 0,
+        roiChangePercent: 0,
+        measuredAt: Date(),
+        sleepSummary: "Sleep --",
+        pvtSummary: "PVT 미측정",
+        pvtStatus: .noMeasurement
+    )
 }
 
 enum HomePVTDataStatus {

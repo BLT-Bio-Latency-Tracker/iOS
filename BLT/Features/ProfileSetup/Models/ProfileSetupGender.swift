@@ -1,6 +1,6 @@
 import Foundation
 
-enum ProfileSetupGender: String, CaseIterable, Identifiable {
+enum ProfileSetupGender: String, CaseIterable, Codable, Identifiable {
     case male = "MALE"
     case female = "FEMALE"
 

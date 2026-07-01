@@ -7,7 +7,7 @@ struct MyPageNotificationEditView: View {
 
     let settings: MyPageNotificationSettings
     let onBack: () -> Void
-    let onSave: (MyPageNotificationEditDraft) -> Bool
+    let onSave: (MyPageNotificationEditDraft) async -> Bool
 
     @State private var draft: MyPageNotificationEditDraft
     @State private var activePicker: NotificationTimePicker?
@@ -22,7 +22,7 @@ struct MyPageNotificationEditView: View {
     init(
         settings: MyPageNotificationSettings,
         onBack: @escaping () -> Void,
-        onSave: @escaping (MyPageNotificationEditDraft) -> Bool
+        onSave: @escaping (MyPageNotificationEditDraft) async -> Bool
     ) {
         self.settings = settings
         self.onBack = onBack
@@ -289,10 +289,12 @@ struct MyPageNotificationEditView: View {
     private func saveButton(scale: CGFloat) -> some View {
         Button {
             guard canSave else { return }
-            let isSaved = onSave(draft)
+            Task {
+                let isSaved = await onSave(draft)
 
-            if isSaved {
-                onBack()
+                if isSaved {
+                    onBack()
+                }
             }
         } label: {
             Text("저장하기")

@@ -39,6 +39,9 @@ struct NotificationsView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .task {
+            await viewModel.fetchNotifications()
+        }
     }
 
     private func header(scale: CGFloat) -> some View {
@@ -75,7 +78,9 @@ struct NotificationsView: View {
             Spacer(minLength: 8 * scale)
 
             Button {
-                viewModel.markAllAsRead()
+                Task {
+                    await viewModel.markAllAsRead()
+                }
             } label: {
                 Text("모두 읽음")
                     .font(.system(size: 13 * scale, weight: .semibold))

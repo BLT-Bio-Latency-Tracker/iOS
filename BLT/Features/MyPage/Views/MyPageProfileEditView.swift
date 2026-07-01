@@ -3,7 +3,7 @@ import SwiftUI
 struct MyPageProfileEditView: View {
     let state: MyPageState
     let onBack: () -> Void
-    let onSave: (MyPageProfileEditDraft) -> Bool
+    let onSave: (MyPageProfileEditDraft) async -> Bool
 
     @State private var draft: MyPageProfileEditDraft
     @State private var activePicker: MyPageProfileEditPicker?
@@ -19,7 +19,7 @@ struct MyPageProfileEditView: View {
     init(
         state: MyPageState,
         onBack: @escaping () -> Void,
-        onSave: @escaping (MyPageProfileEditDraft) -> Bool
+        onSave: @escaping (MyPageProfileEditDraft) async -> Bool
     ) {
         self.state = state
         self.onBack = onBack
@@ -78,14 +78,14 @@ struct MyPageProfileEditView: View {
     private func header(scale: CGFloat) -> some View {
         ZStack {
             Text("내 정보 수정")
-                .font(.system(size: 16 * scale, weight: .semibold))
+                .brykiTextStyle(size: 16 * scale, weight: SwiftUI.Font.Weight.semibold)
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
 
             HStack {
                 Button(action: onBack) {
                     Image(systemName: "arrow.left")
-                        .font(.system(size: 18 * scale, weight: .semibold))
+                        .brykiTextStyle(size: 18 * scale, weight: SwiftUI.Font.Weight.semibold)
                         .foregroundStyle(.white)
                         .frame(width: 32 * scale, height: 32 * scale)
                         .background(Color.myPageCard)
@@ -105,7 +105,7 @@ struct MyPageProfileEditView: View {
             sectionTitle("이름", scale: scale)
 
             TextField("이름을 입력해주세요", text: $draft.name)
-                .font(.system(size: 16 * scale, weight: .semibold))
+                .brykiTextStyle(size: 16 * scale, weight: SwiftUI.Font.Weight.semibold)
                 .foregroundStyle(.white)
                 .focused($focusedField, equals: .name)
                 .textInputAutocapitalization(.never)
@@ -158,13 +158,13 @@ struct MyPageProfileEditView: View {
             Button(action: action) {
                 HStack {
                     Text(value)
-                        .font(.system(size: 16 * scale, weight: .semibold))
+                        .brykiTextStyle(size: 16 * scale, weight: SwiftUI.Font.Weight.semibold)
                         .foregroundStyle(value == "선택해주세요" ? .white.opacity(0.45) : .white)
 
                     Spacer()
 
                     Text("▾")
-                        .font(.system(size: 14 * scale, weight: .medium))
+                        .brykiTextStyle(size: 14 * scale, weight: SwiftUI.Font.Weight.medium)
                         .foregroundStyle(.white.opacity(0.5))
                 }
                 .padding(.horizontal, 16 * scale)
@@ -208,8 +208,13 @@ struct MyPageProfileEditView: View {
                     Button {
                         draft.jobGroup = item
                     } label: {
-                        Text(item.rawValue)
-                            .font(.system(size: 12 * scale, weight: draft.jobGroup == item ? .semibold : .medium))
+                        Text(item.displayName)
+                            .brykiTextStyle(
+                                size: 12 * scale,
+                                weight: draft.jobGroup == item
+                                    ? SwiftUI.Font.Weight.semibold
+                                    : SwiftUI.Font.Weight.medium
+                            )
                             .foregroundStyle(.white.opacity(draft.jobGroup == item ? 1 : 0.6))
                             .frame(maxWidth: .infinity)
                             .frame(height: 28 * scale)
@@ -241,7 +246,7 @@ struct MyPageProfileEditView: View {
     ) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 13 * scale, weight: .medium))
+                .brykiTextStyle(size: 13 * scale, weight: SwiftUI.Font.Weight.medium)
                 .foregroundStyle(.white.opacity(isSelected ? 1 : 0.7))
                 .frame(maxWidth: .infinity)
                 .frame(height: 36 * scale)
@@ -258,14 +263,16 @@ struct MyPageProfileEditView: View {
     private func saveButton(scale: CGFloat) -> some View {
         Button {
             focusedField = nil
-            let isSaved = onSave(draft)
+            Task {
+                let isSaved = await onSave(draft)
 
-            if isSaved {
-                onBack()
+                if isSaved {
+                    onBack()
+                }
             }
         } label: {
             Text("저장하기")
-                .font(.system(size: 16 * scale, weight: .semibold))
+                .brykiTextStyle(size: 16 * scale, weight: SwiftUI.Font.Weight.semibold)
                 .foregroundStyle(.white.opacity(draft.canSave ? 1 : 0.45))
                 .frame(maxWidth: .infinity)
                 .frame(height: 52 * scale)
@@ -278,7 +285,7 @@ struct MyPageProfileEditView: View {
                         startPoint: .leading,
                         endPoint: .trailing
                     )
-                    .opacity(draft.canSave ? 1 : 0.35)
+                    //.opacity(draft.canSave ? 1 : 0.35)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
         }
@@ -288,7 +295,7 @@ struct MyPageProfileEditView: View {
 
     private func sectionTitle(_ title: String, scale: CGFloat) -> some View {
         Text(title)
-            .font(.system(size: 11 * scale, weight: .semibold))
+            .brykiTextStyle(size: 11 * scale, weight: SwiftUI.Font.Weight.semibold)
             .tracking(1)
             .foregroundStyle(.white.opacity(0.55))
     }
@@ -298,7 +305,7 @@ struct MyPageProfileEditView: View {
         VStack(spacing: 0) {
             HStack {
                 Text(picker.title)
-                    .font(.system(size: 17, weight: .semibold))
+                    .brykiTextStyle(size: 17, weight: SwiftUI.Font.Weight.semibold)
                     .foregroundStyle(.white)
 
                 Spacer()
@@ -307,7 +314,7 @@ struct MyPageProfileEditView: View {
                     confirmPickerSelection(picker)
                     activePicker = nil
                 }
-                .font(.system(size: 15, weight: .semibold))
+                .brykiTextStyle(size: 15, weight: SwiftUI.Font.Weight.semibold)
                 .foregroundStyle(Color.myPagePrimary)
             }
             .padding(.horizontal, 20)
@@ -449,4 +456,10 @@ private extension Color {
     static let myPageBackground = Color(red: 0.039, green: 0.055, blue: 0.153)
     static let myPageCard = Color(red: 0.078, green: 0.098, blue: 0.216)
     static let myPagePrimary = Color(red: 0.486, green: 0.361, blue: 1)
+}
+
+private extension View {
+    func brykiTextStyle(size: CGFloat, weight: SwiftUI.Font.Weight) -> some View {
+        environment(\.font, SwiftUI.Font.system(size: size, weight: weight))
+    }
 }

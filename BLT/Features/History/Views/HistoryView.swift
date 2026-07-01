@@ -54,6 +54,9 @@ struct HistoryView: View {
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .preferredColorScheme(.dark)
+        .task {
+            await viewModel.fetchSelectedMonth()
+        }
     }
 
     private func monthSelector(scale: CGFloat) -> some View {

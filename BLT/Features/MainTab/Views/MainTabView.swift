@@ -7,7 +7,9 @@ struct MainTabView: View {
     @State private var isNotificationPresented = false
     @State private var isMyPagePresented = false
     @State private var pvtResultRefreshTrigger = 0
+    @StateObject private var latestSleepEvaluationSyncService = LatestSleepEvaluationSyncService()
 
+    private let evaluationService = EvaluationService()
     var onWithdraw: () -> Void = {}
 
     var body: some View {
@@ -36,13 +38,27 @@ struct MainTabView: View {
         .onChange(of: selectedTab) { _, _ in
             isTabBarHidden = false
         }
+        .onAppear {
+            latestSleepEvaluationSyncService.start()
+        }
         .fullScreenCover(isPresented: $isPVTMeasurementPresented) {
             PVTReadyView(
                 onClose: {
                     isPVTMeasurementPresented = false
                 },
                 onComplete: { summary in
-                    PVTResultStore.shared.save(summary)
+                    let measuredAt = Date()
+                    PVTResultStore.shared.save(summary, measuredAt: measuredAt)
+                    Task {
+                        if let evaluation = try? await evaluationService.submit(
+                            summary: summary,
+                            measuredAt: measuredAt
+                        ) {
+                            await MainActor.run {
+                                EvaluationResultStore.shared.apply(evaluation)
+                            }
+                        }
+                    }
                     pvtResultRefreshTrigger += 1
                     selectedTab = .today
                     isPVTMeasurementPresented = false

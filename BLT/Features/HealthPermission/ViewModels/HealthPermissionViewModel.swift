@@ -71,10 +71,8 @@ final class HealthPermissionViewModel: ObservableObject {
     }
 
     private func submitIfNeeded(_ request: HealthPermissionAgreementRequest) async throws {
-        guard NetworkClient.shared.baseURL != nil else {
-            return
-        }
-
-        _ = try await healthPermissionAPIService.submitHealthPermissionAgreement(request)
+        // OpenAPI 기준으로 HealthKit 권한 동의 저장 엔드포인트가 아직 없습니다.
+        // 서버 API가 추가되기 전까지는 로컬 플로우만 유지합니다.
+        _ = request
     }
 }
