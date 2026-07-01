@@ -168,7 +168,9 @@ final class HistoryViewModel: ObservableObject {
         var recordsByDay: [Int: HistoryDailyRecord] = [:]
         for record in monthlyRecords {
             let day = calendar.component(.day, from: record.date)
-            recordsByDay[day] = record
+            if recordsByDay[day] == nil {
+                recordsByDay[day] = record
+            }
         }
 
         var days: [HistoryCalendarDay] = []
