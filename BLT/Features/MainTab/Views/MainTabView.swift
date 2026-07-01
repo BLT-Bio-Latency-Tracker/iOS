@@ -7,6 +7,8 @@ struct MainTabView: View {
     @State private var isNotificationPresented = false
     @State private var isMyPagePresented = false
     @State private var pvtResultRefreshTrigger = 0
+    @State private var pvtSubmissionErrorMessage: String?
+    @State private var pendingPVTSubmission: PendingPVTSubmission?
     @StateObject private var latestSleepEvaluationSyncService = LatestSleepEvaluationSyncService()
 
     private let evaluationService = EvaluationService()
@@ -48,17 +50,14 @@ struct MainTabView: View {
                 },
                 onComplete: { summary in
                     let measuredAt = Date()
-                    PVTResultStore.shared.save(summary, measuredAt: measuredAt)
-                    Task {
-                        if let evaluation = try? await evaluationService.submit(
-                            summary: summary,
-                            measuredAt: measuredAt
-                        ) {
-                            await MainActor.run {
-                                EvaluationResultStore.shared.apply(evaluation)
-                            }
-                        }
-                    }
+                    let measurementId = UUID()
+                    PVTResultStore.shared.save(summary, measuredAt: measuredAt, measurementId: measurementId)
+                    pendingPVTSubmission = PendingPVTSubmission(
+                        summary: summary,
+                        measuredAt: measuredAt,
+                        measurementId: measurementId
+                    )
+                    submitPendingEvaluation()
                     pvtResultRefreshTrigger += 1
                     selectedTab = .today
                     isPVTMeasurementPresented = false
@@ -69,6 +68,20 @@ struct MainTabView: View {
                 }
             )
             .ignoresSafeArea()
+        }
+        .alert(
+            "측정 결과 저장 실패",
+            isPresented: Binding(
+                get: { pvtSubmissionErrorMessage != nil },
+                set: { if !$0 { pvtSubmissionErrorMessage = nil } }
+            )
+        ) {
+            Button("다시 시도") {
+                submitPendingEvaluation()
+            }
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text(pvtSubmissionErrorMessage ?? "")
         }
         .fullScreenCover(isPresented: $isNotificationPresented) {
             NotificationsView {
@@ -121,6 +134,35 @@ struct MainTabView: View {
             HistoryView()
         }
     }
+
+    private func submitPendingEvaluation() {
+        guard let pendingPVTSubmission else { return }
+
+        Task {
+            do {
+                let evaluation = try await evaluationService.submit(
+                    summary: pendingPVTSubmission.summary,
+                    measuredAt: pendingPVTSubmission.measuredAt,
+                    measurementId: pendingPVTSubmission.measurementId
+                )
+                await MainActor.run {
+                    EvaluationResultStore.shared.apply(evaluation)
+                    self.pendingPVTSubmission = nil
+                    pvtSubmissionErrorMessage = nil
+                }
+            } catch {
+                await MainActor.run {
+                    pvtSubmissionErrorMessage = "네트워크 상태를 확인한 뒤 다시 시도해주세요."
+                }
+            }
+        }
+    }
+}
+
+private struct PendingPVTSubmission {
+    let summary: PVTSummary
+    let measuredAt: Date
+    let measurementId: UUID
 }
 
 private struct MainTabBar: View {

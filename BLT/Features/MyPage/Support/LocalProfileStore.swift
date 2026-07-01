@@ -93,7 +93,7 @@ struct LocalProfileStore {
 
     func save(_ snapshot: LocalProfileSnapshot) {
         userDefaults.set(snapshot.name, forKey: Key.name(accountIdentifier: accountIdentifier))
-        setOptional(snapshot.email, forKey: Key.email(accountIdentifier: accountIdentifier))
+        userDefaults.removeObject(forKey: Key.email(accountIdentifier: accountIdentifier))
         setOptional(snapshot.authProvider, forKey: Key.authProvider(accountIdentifier: accountIdentifier))
         setOptional(snapshot.birthYear, forKey: Key.birthYear(accountIdentifier: accountIdentifier))
         setOptional(snapshot.gender?.rawValue, forKey: Key.gender(accountIdentifier: accountIdentifier))
@@ -147,7 +147,7 @@ struct LocalProfileStore {
     }
 
     private var storedEmail: String? {
-        userDefaults.string(forKey: Key.email(accountIdentifier: accountIdentifier))
+        nil
     }
 
     private var storedAuthProvider: String? {

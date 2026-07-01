@@ -12,21 +12,32 @@ struct EvaluationService {
         self.healthKitService = healthKitService
     }
 
-    func submit(summary: PVTSummary, measuredAt: Date = Date()) async throws -> EvaluationResponse {
+    func submit(
+        summary: PVTSummary,
+        measuredAt: Date = Date(),
+        measurementId: UUID = UUID()
+    ) async throws -> EvaluationResponse {
         let sleep = try? await healthKitService.fetchDisplaySleepSummary(for: measuredAt)
-        return try await submit(summary: summary, measuredAt: measuredAt, resolvedSleep: sleep)
+        return try await submit(
+            summary: summary,
+            measuredAt: measuredAt,
+            measurementId: measurementId,
+            resolvedSleep: sleep
+        )
     }
 
     func submit(
         summary: PVTSummary,
         measuredAt: Date,
+        measurementId: UUID,
         resolvedSleep: HealthKitResolvedSleepSummary?
     ) async throws -> EvaluationResponse {
+        let timezone = TimeZone.current
         let request = EvaluationCreateRequest(
             evaluatedAt: measuredAt,
-            timezone: TimeZone.current.identifier,
-            healthKitData: resolvedSleep.flatMap { HealthKitDataRequest(resolvedSleep: $0) },
-            pvt: PvtRequest(summary: summary, measuredAt: measuredAt)
+            timezone: timezone.identifier,
+            healthKitData: resolvedSleep.flatMap { HealthKitDataRequest(resolvedSleep: $0, timezone: timezone) },
+            pvt: PvtRequest(summary: summary, measuredAt: measuredAt, measurementId: measurementId)
         )
 
         return try await networkClient.post(
@@ -61,12 +72,12 @@ struct HealthKitDataRequest: Encodable {
     let inBedMinutes: Int
     let dataCompleteness: String
 
-    init?(resolvedSleep: HealthKitResolvedSleepSummary) {
+    init?(resolvedSleep: HealthKitResolvedSleepSummary, timezone: TimeZone) {
         guard let summary = resolvedSleep.summary else { return nil }
 
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "Asia/Seoul")
+        formatter.timeZone = timezone
         formatter.dateFormat = "yyyy-MM-dd"
 
         sleepDate = formatter.string(from: resolvedSleep.date)
@@ -96,7 +107,7 @@ struct PvtRequest: Encodable {
     let invalidReason: String?
     let trials: [PvtTrialRequest]
 
-    init(summary: PVTSummary, measuredAt: Date) {
+    init(summary: PVTSummary, measuredAt: Date, measurementId: UUID) {
         let rawReactionTimes = summary.trials.map(\.reactionTimeMilliseconds)
         let sortedReactionTimes = rawReactionTimes.sorted()
         let median: Double
@@ -109,7 +120,7 @@ struct PvtRequest: Encodable {
             median = Double(sortedReactionTimes[sortedReactionTimes.count / 2])
         }
 
-        measurementId = UUID()
+        self.measurementId = measurementId
         endedAt = measuredAt
         startedAt = measuredAt.addingTimeInterval(-30)
         totalDurationMs = 30_000

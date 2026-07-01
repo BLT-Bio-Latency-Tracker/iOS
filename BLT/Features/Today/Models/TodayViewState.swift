@@ -64,7 +64,7 @@ struct TodayViewState {
             score: score,
             scoreMode: scoreMode,
             roiStatusText: statusText,
-            roiChangePercent: changePercent ?? roiChangePercent,
+            roiChangePercent: changePercent ?? 0,
             measuredAt: measuredAt ?? self.measuredAt,
             comparisonSummary: comparisonSummary,
             sleep: sleep,

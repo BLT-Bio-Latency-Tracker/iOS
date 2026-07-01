@@ -35,9 +35,10 @@ final class NetworkClient {
     private let session: URLSession
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
+    private var refreshTask: Task<String?, Never>?
 
     init(
-        baseURL: URL? = URL(string: "https://api.bryki.site"),
+        baseURL: URL? = nil,
         accessTokenProvider: @escaping () -> String? = { nil },
         session: URLSession = .shared
     ) {
@@ -174,7 +175,7 @@ final class NetworkClient {
 
         if httpResponse.statusCode == 401,
            requiresAuth,
-           let refreshedToken = await accessTokenRefreshHandler?() {
+           let refreshedToken = await refreshAccessTokenIfNeeded() {
             request.setValue("Bearer \(refreshedToken)", forHTTPHeaderField: "Authorization")
             (data, response) = try await session.data(for: request)
 
@@ -205,6 +206,21 @@ final class NetworkClient {
         }
 
         return try decoder.decode(Response.self, from: data)
+    }
+
+    private func refreshAccessTokenIfNeeded() async -> String? {
+        if let refreshTask {
+            return await refreshTask.value
+        }
+
+        let task = Task { [accessTokenRefreshHandler] in
+            await accessTokenRefreshHandler?()
+        }
+        refreshTask = task
+
+        let refreshedToken = await task.value
+        refreshTask = nil
+        return refreshedToken
     }
 }
 

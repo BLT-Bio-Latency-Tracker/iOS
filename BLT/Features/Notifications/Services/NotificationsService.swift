@@ -44,6 +44,7 @@ private struct NotificationItemResponse: Decodable {
     var appNotificationItem: AppNotificationItem {
         AppNotificationItem(
             id: String(logId),
+            styleKey: notificationType.styleKey,
             category: notificationType.category,
             section: scheduledAt.notificationSection,
             icon: notificationType.icon,
@@ -81,6 +82,19 @@ private enum NotificationType: String, Decodable {
             return "📊"
         case .system:
             return "⚠️"
+        }
+    }
+
+    var styleKey: AppNotificationStyleKey {
+        switch self {
+        case .pvtReminder:
+            return .morningMeasurement
+        case .sleepReminder:
+            return .sleepReminder
+        case .roiScore, .recommendation:
+            return .weeklyReport
+        case .system:
+            return .invalidMeasurement
         }
     }
 }

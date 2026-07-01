@@ -157,12 +157,6 @@ final class MyPageViewModel: ObservableObject {
     }
 
     private func applyingCachedNameIfNeeded(to state: MyPageState) -> MyPageState {
-        let serverName = state.user.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let serverEmail = state.user.email.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard isPlaceholderName(serverName) || serverEmail.isEmpty else {
-            return state
-        }
-
         let cachedProfile = localProfileStore.snapshot(
             fallback: LocalProfileSnapshot(
                 name: state.user.name,
@@ -174,13 +168,8 @@ final class MyPageViewModel: ObservableObject {
                 jobGroup: state.profile.jobGroup
             )
         )
-        let cachedName = cachedProfile.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let cachedEmail = cachedProfile.email?.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard (!isPlaceholderName(cachedName))
-            || (cachedEmail?.isEmpty == false) else {
-            return state
-        }
+        let serverName = state.user.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let serverEmail = state.user.email.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let displayName = isPlaceholderName(serverName)
             ? cachedProfile.name
@@ -196,7 +185,12 @@ final class MyPageViewModel: ObservableObject {
                 authProvider: cachedProfile.authProvider ?? state.user.authProvider,
                 onboardingCompleted: state.user.onboardingCompleted
             ),
-            profile: state.profile,
+            profile: MyPageProfile(
+                birthYear: state.profile.birthYear,
+                gender: state.profile.gender,
+                wakeUpTimeText: state.profile.wakeUpTimeText ?? cachedProfile.wakeUpTimeText,
+                jobGroup: state.profile.jobGroup
+            ),
             notificationSettings: state.notificationSettings
         )
     }

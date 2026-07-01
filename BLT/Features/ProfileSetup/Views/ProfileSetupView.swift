@@ -341,12 +341,6 @@ struct ProfileSetupView: View {
     }
 }
 
-private extension View {
-    func brykiTextStyle(size: CGFloat, weight: SwiftUI.Font.Weight) -> some View {
-        environment(\.font, SwiftUI.Font.system(size: size, weight: weight))
-    }
-}
-
 private enum ActivePicker: Identifiable {
     case birthYear
     case wakeUpTime

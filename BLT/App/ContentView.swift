@@ -166,7 +166,8 @@ struct ContentView: View {
         do {
             try await profileService.completeOnboarding(draft)
         } catch {
-            // 서버 저장 실패 시에도 사용자가 앱을 둘러볼 수 있게 로컬 상태를 우선 보존합니다.
+            authFlowViewModel.errorMessage = "프로필 저장에 실패했어요. 잠시 후 다시 시도해주세요."
+            return
         }
 
         await syncAuthenticatedUserProfile(

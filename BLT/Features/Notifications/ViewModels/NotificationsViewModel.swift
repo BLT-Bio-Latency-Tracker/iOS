@@ -10,6 +10,7 @@ final class NotificationsViewModel: ObservableObject {
     private let store: AppNotificationStore
     private let service: NotificationsService
     private var cancellables = Set<AnyCancellable>()
+    private var fetchTask: Task<Void, Never>?
 
     init(store: AppNotificationStore? = nil, service: NotificationsService = NotificationsService()) {
         self.store = store ?? .shared
@@ -39,9 +40,7 @@ final class NotificationsViewModel: ObservableObject {
 
     func selectCategory(_ category: AppNotificationCategory) {
         selectedCategory = category
-        Task {
-            await fetchNotifications()
-        }
+        scheduleFetchNotifications()
     }
 
     func markAllAsRead() async {
@@ -54,7 +53,7 @@ final class NotificationsViewModel: ObservableObject {
     }
 
     func fetchNotifications() async {
-        guard !isLoading else { return }
+        let requestedCategory = selectedCategory
 
         isLoading = true
         errorMessage = nil
@@ -64,10 +63,19 @@ final class NotificationsViewModel: ObservableObject {
         }
 
         do {
+            let notifications = try await service.fetchNotifications(category: requestedCategory)
+            guard requestedCategory == selectedCategory else {
+                scheduleFetchNotifications()
+                return
+            }
             store.applyServerNotifications(
-                try await service.fetchNotifications(category: selectedCategory)
+                notifications
             )
         } catch {
+            guard requestedCategory == selectedCategory else {
+                scheduleFetchNotifications()
+                return
+            }
             errorMessage = "알림을 불러오지 못했어요."
             store.applyServerNotifications([])
         }
@@ -79,5 +87,12 @@ final class NotificationsViewModel: ObservableObject {
 
     private func matchesSelectedCategory(_ item: AppNotificationItem) -> Bool {
         selectedCategory == .all || item.category == selectedCategory
+    }
+
+    private func scheduleFetchNotifications() {
+        fetchTask?.cancel()
+        fetchTask = Task { [weak self] in
+            await self?.fetchNotifications()
+        }
     }
 }

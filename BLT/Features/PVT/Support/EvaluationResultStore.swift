@@ -12,4 +12,8 @@ final class EvaluationResultStore: ObservableObject {
     func apply(_ evaluation: EvaluationResponse) {
         todayEvaluation = evaluation
     }
+
+    func clear() {
+        todayEvaluation = nil
+    }
 }

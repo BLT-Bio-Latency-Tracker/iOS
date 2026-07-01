@@ -77,6 +77,7 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
             let evaluation = try await evaluationService.submit(
                 summary: pvtResult.summary,
                 measuredAt: pvtResult.measuredAt,
+                measurementId: pvtResult.measurementId,
                 resolvedSleep: resolvedSleep
             )
 

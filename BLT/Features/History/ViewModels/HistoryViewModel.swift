@@ -9,6 +9,7 @@ final class HistoryViewModel: ObservableObject {
     private var records: [HistoryDailyRecord]
     private let calendar: Calendar
     private let service: HistoryService
+    private var fetchTask: Task<Void, Never>?
 
     init(
         currentDate: Date = Date(),
@@ -16,33 +17,31 @@ final class HistoryViewModel: ObservableObject {
         calendar: Calendar = .current,
         service: HistoryService = HistoryService()
     ) {
-        self.calendar = calendar
+        var normalizedCalendar = calendar
+        normalizedCalendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? calendar.timeZone
+        self.calendar = normalizedCalendar
         self.service = service
         self.records = records
-        self.selectedMonth = calendar.startOfMonth(for: currentDate)
+        self.selectedMonth = normalizedCalendar.startOfMonth(for: currentDate)
         self.state = HistoryViewModel.makeState(
             month: selectedMonth,
             records: records,
             currentDate: currentDate,
-            calendar: calendar
+            calendar: normalizedCalendar
         )
     }
 
     func moveToPreviousMonth() {
         selectedMonth = calendar.date(byAdding: .month, value: -1, to: selectedMonth) ?? selectedMonth
         reload()
-        Task {
-            await fetchSelectedMonth()
-        }
+        scheduleFetchSelectedMonth()
     }
 
     func moveToNextMonth() {
         guard canMoveToNextMonth else { return }
         selectedMonth = calendar.date(byAdding: .month, value: 1, to: selectedMonth) ?? selectedMonth
         reload()
-        Task {
-            await fetchSelectedMonth()
-        }
+        scheduleFetchSelectedMonth()
     }
 
     func selectMonth(year: Int, month: Int) {
@@ -55,9 +54,7 @@ final class HistoryViewModel: ObservableObject {
 
         selectedMonth = calendar.date(from: components).map { calendar.startOfMonth(for: $0) } ?? selectedMonth
         reload()
-        Task {
-            await fetchSelectedMonth()
-        }
+        scheduleFetchSelectedMonth()
     }
 
     func applyServerRecords(_ records: [HistoryDailyRecord]) {
@@ -117,6 +114,21 @@ final class HistoryViewModel: ObservableObject {
         guard AuthSessionStore.shared.accessToken != nil else { return }
 
         let monthStart = calendar.startOfMonth(for: selectedMonth)
+        await fetchMonth(monthStart)
+    }
+
+    private func scheduleFetchSelectedMonth() {
+        fetchTask?.cancel()
+        let requestedMonth = calendar.startOfMonth(for: selectedMonth)
+        fetchTask = Task { [weak self] in
+            await self?.fetchMonth(requestedMonth)
+        }
+    }
+
+    private func fetchMonth(_ requestedMonth: Date) async {
+        guard AuthSessionStore.shared.accessToken != nil else { return }
+
+        let monthStart = calendar.startOfMonth(for: requestedMonth)
         guard let monthEnd = calendar.date(
             byAdding: DateComponents(month: 1, day: -1),
             to: monthStart
@@ -124,9 +136,13 @@ final class HistoryViewModel: ObservableObject {
 
         do {
             let serverMonth = try await service.fetchMonth(from: monthStart, to: monthEnd)
+            guard !Task.isCancelled,
+                  calendar.isDate(selectedMonth, equalTo: requestedMonth, toGranularity: .month) else {
+                return
+            }
             records = serverMonth.records
             state = Self.makeState(
-                month: selectedMonth,
+                month: requestedMonth,
                 records: serverMonth.records,
                 currentDate: Date(),
                 calendar: calendar

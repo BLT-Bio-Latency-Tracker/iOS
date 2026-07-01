@@ -5,11 +5,12 @@
 //  Created by 신찬솔 on 4/27/26.
 //
 
-import FirebaseCore
 import SwiftUI
 
 @main
 struct BrykiApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     init() {
         FreshInstallSessionReset.clearStaleSessionIfNeeded()
         NetworkClient.shared.baseURL = URL(string: "https://api.bryki.site")
@@ -24,9 +25,6 @@ struct BrykiApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .task {
-                    FirebaseBootstrap.configureIfNeeded()
-                }
         }
     }
 }
@@ -44,17 +42,5 @@ private enum FreshInstallSessionReset {
         authSessionStore.clear()
         localProfileStore.clear()
         userDefaults.set(true, forKey: installMarkerKey)
-    }
-}
-
-private enum FirebaseBootstrap {
-    @MainActor
-    static func configureIfNeeded() {
-        #if DEBUG
-        return
-        #else
-        guard FirebaseApp.app() == nil else { return }
-        FirebaseApp.configure()
-        #endif
     }
 }

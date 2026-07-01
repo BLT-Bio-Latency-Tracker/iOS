@@ -145,10 +145,16 @@ final class HomeViewModel: ObservableObject {
     }
 
     func loadTodayEvaluation() async {
-        guard AuthSessionStore.shared.accessToken != nil else { return }
+        guard AuthSessionStore.shared.accessToken != nil else {
+            evaluationResultStore.clear()
+            return
+        }
 
-        if let evaluation = try? await evaluationService.fetchToday() {
+        do {
+            let evaluation = try await evaluationService.fetchToday()
             evaluationResultStore.apply(evaluation)
+        } catch {
+            evaluationResultStore.clear()
         }
     }
 
@@ -288,7 +294,10 @@ final class HomeViewModel: ObservableObject {
     }
 
     private func applyEvaluation(_ evaluation: EvaluationResponse?) {
-        guard let evaluation else { return }
+        guard let evaluation else {
+            state = state.replacingROI(score: 0, changePercent: nil, measuredAt: nil)
+            return
+        }
 
         state = state.replacingROI(
             score: evaluation.finalScore,

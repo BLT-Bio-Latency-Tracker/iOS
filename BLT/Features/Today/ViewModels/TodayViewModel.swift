@@ -106,10 +106,16 @@ final class TodayViewModel: ObservableObject {
     }
 
     func loadTodayEvaluation() async {
-        guard AuthSessionStore.shared.accessToken != nil else { return }
+        guard AuthSessionStore.shared.accessToken != nil else {
+            evaluationResultStore.clear()
+            return
+        }
 
-        if let evaluation = try? await evaluationService.fetchToday() {
+        do {
+            let evaluation = try await evaluationService.fetchToday()
             evaluationResultStore.apply(evaluation)
+        } catch {
+            evaluationResultStore.clear()
         }
     }
 
@@ -334,6 +340,14 @@ final class TodayViewModel: ObservableObject {
             changePercent: evaluation.trendVsYesterday,
             measuredAt: evaluation.measuredAt
         )
+
+        if state.pvtStatus == .noMeasurement {
+            state = state.replacingPVT(
+                state.pvt,
+                pvtStatus: .available,
+                measuredAt: evaluation.measuredAt
+            )
+        }
     }
 
     private func sleepDifferenceText(

@@ -457,9 +457,3 @@ private extension Color {
     static let myPageCard = Color(red: 0.078, green: 0.098, blue: 0.216)
     static let myPagePrimary = Color(red: 0.486, green: 0.361, blue: 1)
 }
-
-private extension View {
-    func brykiTextStyle(size: CGFloat, weight: SwiftUI.Font.Weight) -> some View {
-        environment(\.font, SwiftUI.Font.system(size: size, weight: weight))
-    }
-}

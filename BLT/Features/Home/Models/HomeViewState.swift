@@ -46,7 +46,7 @@ struct HomeViewState {
             userName: userName,
             profileInitial: profileInitial,
             brainROI: score,
-            roiChangePercent: changePercent ?? roiChangePercent,
+            roiChangePercent: changePercent ?? 0,
             measuredAt: measuredAt ?? self.measuredAt,
             sleepSummary: sleepSummary,
             pvtSummary: pvtSummary,

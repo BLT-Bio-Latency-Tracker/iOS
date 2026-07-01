@@ -12,7 +12,7 @@ struct MyPageService {
             "/api/v1/users/me",
             requiresAuth: true
         )
-        let notificationResponse = try? await fetchNotificationSettings()
+        let notificationResponse = try await fetchNotificationSettingsIfAvailable()
 
         return MyPageState(
             user: userResponse,
@@ -37,6 +37,14 @@ struct MyPageService {
             "/api/v1/users/me/notification-settings",
             requiresAuth: true
         )
+    }
+
+    private func fetchNotificationSettingsIfAvailable() async throws -> NotificationSettingsResponse? {
+        do {
+            return try await fetchNotificationSettings()
+        } catch NetworkError.serverError(let statusCode, _) where statusCode == 404 {
+            return nil
+        }
     }
 
     func updateProfile(_ request: MyPageProfilePatchRequest) async throws {

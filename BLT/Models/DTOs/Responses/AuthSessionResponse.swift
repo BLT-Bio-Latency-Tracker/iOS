@@ -28,6 +28,7 @@ struct AppleAuthResponse: Decodable {
     let tokenType: String?
     let expiresInSeconds: Int64?
     let verificationExpiresInSeconds: Int64?
+    let userId: Int64?
     let onboardingCompleted: Bool?
 
     var session: AuthSession? {
@@ -43,7 +44,7 @@ struct AppleAuthResponse: Decodable {
             refreshToken: refreshToken,
             tokenType: tokenType,
             expiresInSeconds: expiresInSeconds,
-            userId: nil,
+            userId: userId,
             onboardingCompleted: onboardingCompleted ?? false
         )
     }

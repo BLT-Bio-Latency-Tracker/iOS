@@ -2,6 +2,7 @@ import Foundation
 
 struct AppNotificationItem: Identifiable, Equatable {
     let id: String
+    let styleKey: AppNotificationStyleKey
     let category: AppNotificationCategory
     let section: AppNotificationSection
     let icon: String
@@ -9,6 +10,14 @@ struct AppNotificationItem: Identifiable, Equatable {
     let message: String
     let timeText: String
     var isRead: Bool
+}
+
+enum AppNotificationStyleKey: String, Equatable {
+    case morningMeasurement
+    case sleepReminder
+    case weeklyReport
+    case invalidMeasurement
+    case system
 }
 
 enum AppNotificationCategory: String, CaseIterable, Identifiable {
