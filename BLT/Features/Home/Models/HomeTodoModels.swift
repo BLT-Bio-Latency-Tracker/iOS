@@ -53,13 +53,14 @@ struct HomeTodoItem: Identifiable, Codable, Equatable {
 }
 
 enum HomeTodoFocusStrategy {
+    case unmeasured
     case lowOnly
     case mediumAndLow
     case all
 
     init(brainROI: Int?) {
         guard let brainROI else {
-            self = .all
+            self = .unmeasured
             return
         }
 
@@ -74,6 +75,8 @@ enum HomeTodoFocusStrategy {
 
     var focusedDifficulties: Set<HomeTodoDifficulty> {
         switch self {
+        case .unmeasured:
+            return Set(HomeTodoDifficulty.allCases)
         case .lowOnly:
             return [.low]
         case .mediumAndLow:
@@ -89,6 +92,8 @@ enum HomeTodoFocusStrategy {
 
     var recommendedDifficulties: [HomeTodoDifficulty] {
         switch self {
+        case .unmeasured:
+            return [.high, .medium, .low]
         case .lowOnly:
             return [.low, .medium, .high]
         case .mediumAndLow:
@@ -104,6 +109,10 @@ enum HomeTodoFocusStrategy {
 
     func recommendationMessage(for difficulty: HomeTodoDifficulty) -> String {
         let selectedTitle = "\(difficulty.title) 난이도 선택됨"
+
+        if case .unmeasured = self {
+            return "\(selectedTitle) — ROI를 측정하면 더 정확한 난이도를 추천해드려요"
+        }
 
         guard let rank = recommendedDifficulties.firstIndex(of: difficulty) else {
             return "\(selectedTitle) — 현재 뇌 점수에서는 비추천"
