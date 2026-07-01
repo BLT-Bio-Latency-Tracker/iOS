@@ -2,6 +2,8 @@ import SwiftUI
 
 struct NotificationsView: View {
     @StateObject private var viewModel = NotificationsViewModel()
+    @State private var isDeleteAllConfirmationPresented = false
+    @State private var isDeletingAllNotifications = false
 
     let onBack: () -> Void
 
@@ -78,19 +80,34 @@ struct NotificationsView: View {
             Spacer(minLength: 8 * scale)
 
             Button {
-                Task {
-                    await viewModel.deleteAllNotifications()
-                }
+                isDeleteAllConfirmationPresented = true
             } label: {
-                Text("모두 지우기")
+                Text(isDeletingAllNotifications ? "삭제 중" : "모두 지우기")
                     .font(.system(size: 13 * scale, weight: .semibold))
                     .foregroundStyle(Color.notificationCyan)
                     .lineLimit(1)
             }
             .buttonStyle(.plain)
-            .disabled(!viewModel.hasNotifications)
-            .opacity(viewModel.hasNotifications ? 1 : 0.55)
+            .disabled(!viewModel.hasNotifications || isDeletingAllNotifications)
+            .opacity(viewModel.hasNotifications && !isDeletingAllNotifications ? 1 : 0.55)
             .accessibilityLabel("모든 알림 지우기")
+            .confirmationDialog(
+                "모든 알림을 지울까요?",
+                isPresented: $isDeleteAllConfirmationPresented,
+                titleVisibility: .visible
+            ) {
+                Button("모두 지우기", role: .destructive) {
+                    Task {
+                        isDeletingAllNotifications = true
+                        await viewModel.deleteAllNotifications()
+                        isDeletingAllNotifications = false
+                    }
+                }
+
+                Button("취소", role: .cancel) {}
+            } message: {
+                Text("삭제한 알림은 목록에서 사라집니다.")
+            }
         }
     }
 

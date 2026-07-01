@@ -34,11 +34,7 @@ struct HistoryService {
     }
 
     private static func dateText(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "Asia/Seoul")
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
+        EvaluationDateFormatter.dateText(date)
     }
 }
 

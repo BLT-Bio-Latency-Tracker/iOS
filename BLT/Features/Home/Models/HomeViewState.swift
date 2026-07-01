@@ -93,16 +93,8 @@ struct HomeROIDisplayState {
 
         self.accent = HomeROIAccent(score: score)
 
-        if let changePercent, changePercent > 0 {
-            self.changeDirection = .positive
-            self.changeText = "▲ \(changePercent)%"
-        } else if let changePercent, changePercent < 0 {
-            self.changeDirection = .negative
-            self.changeText = "▼ \(abs(changePercent))%"
-        } else {
-            self.changeDirection = .neutral
-            self.changeText = "-"
-        }
+        self.changeDirection = HomeROIChangeDirection(roiDirection: ROIChangeFormatter.direction(for: changePercent))
+        self.changeText = ROIChangeFormatter.text(for: changePercent, spacing: true)
 
         switch score {
         case ..<20:
@@ -125,6 +117,60 @@ enum HomeROIChangeDirection {
     case positive
     case neutral
     case negative
+
+    init(roiDirection: ROIChangeDirection) {
+        switch roiDirection {
+        case .positive:
+            self = .positive
+        case .neutral:
+            self = .neutral
+        case .negative:
+            self = .negative
+        }
+    }
+}
+
+enum ROIChangeDirection {
+    case positive
+    case neutral
+    case negative
+}
+
+enum ROIChangeFormatter {
+    static func text(
+        for changePercent: Int?,
+        spacing: Bool = false,
+        nilText: String = "-",
+        zeroText: String = "-"
+    ) -> String {
+        guard let changePercent else { return nilText }
+
+        let separator = spacing ? " " : ""
+
+        if changePercent > 0 {
+            return "▲\(separator)\(changePercent)%"
+        }
+
+        if changePercent < 0 {
+            return "▼\(separator)\(abs(changePercent))%"
+        }
+
+        return zeroText
+    }
+
+    static func direction(for changePercent: Int?) -> ROIChangeDirection {
+        guard let changePercent else { return .neutral }
+
+        if changePercent > 0 {
+            return .positive
+        }
+
+        if changePercent < 0 {
+            return .negative
+        }
+
+        return .neutral
+    }
 }
 
 enum HomeROIAccent {

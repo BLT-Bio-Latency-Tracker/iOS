@@ -68,9 +68,15 @@ struct EvaluationService {
     }
 
     private static func dateText(_ date: Date) -> String {
+        EvaluationDateFormatter.dateText(date)
+    }
+}
+
+enum EvaluationDateFormatter {
+    static func dateText(_ date: Date, timeZone: TimeZone = TimeZone(identifier: "Asia/Seoul") ?? .current) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "Asia/Seoul")
+        formatter.timeZone = timeZone
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: date)
     }

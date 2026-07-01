@@ -106,6 +106,17 @@ enum TodayROIChangeDirection {
     case positive
     case neutral
     case negative
+
+    init(roiDirection: ROIChangeDirection) {
+        switch roiDirection {
+        case .positive:
+            self = .positive
+        case .neutral:
+            self = .neutral
+        case .negative:
+            self = .negative
+        }
+    }
 }
 
 enum TodaySleepDataStatus {

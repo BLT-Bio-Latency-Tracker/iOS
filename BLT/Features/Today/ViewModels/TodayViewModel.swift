@@ -254,35 +254,16 @@ final class TodayViewModel: ObservableObject {
     }
 
     var roiChangeText: String {
-        guard let roiChangePercent = selectedComparisonChangePercent else {
-            return "-"
-        }
-
-        if roiChangePercent > 0 {
-            return String(format: "▲ %d%%", roiChangePercent)
-        }
-
-        if roiChangePercent < 0 {
-            return String(format: "▼ %d%%", abs(roiChangePercent))
-        }
-
-        return "0%"
+        ROIChangeFormatter.text(
+            for: selectedComparisonChangePercent,
+            spacing: true,
+            nilText: "-",
+            zeroText: "0%"
+        )
     }
 
     var roiChangeDirection: TodayROIChangeDirection {
-        guard let roiChangePercent = selectedComparisonChangePercent else {
-            return .neutral
-        }
-
-        if roiChangePercent > 0 {
-            return .positive
-        }
-
-        if roiChangePercent < 0 {
-            return .negative
-        }
-
-        return .neutral
+        TodayROIChangeDirection(roiDirection: ROIChangeFormatter.direction(for: selectedComparisonChangePercent))
     }
 
     private var selectedComparisonBaselineTitle: String {
@@ -492,11 +473,7 @@ final class TodayViewModel: ObservableObject {
     }
 
     private func dateText(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = calendar.timeZone
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
+        EvaluationDateFormatter.dateText(date, timeZone: calendar.timeZone)
     }
 
     private func sleepDifferenceText(

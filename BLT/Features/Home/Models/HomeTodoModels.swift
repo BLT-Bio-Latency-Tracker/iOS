@@ -75,14 +75,12 @@ enum HomeTodoFocusStrategy {
 
     var focusedDifficulties: Set<HomeTodoDifficulty> {
         switch self {
-        case .unmeasured:
+        case .unmeasured, .all:
             return Set(HomeTodoDifficulty.allCases)
         case .lowOnly:
             return [.low]
         case .mediumAndLow:
             return [.medium, .low]
-        case .all:
-            return Set(HomeTodoDifficulty.allCases)
         }
     }
 
@@ -92,14 +90,12 @@ enum HomeTodoFocusStrategy {
 
     var recommendedDifficulties: [HomeTodoDifficulty] {
         switch self {
-        case .unmeasured:
+        case .unmeasured, .all:
             return [.high, .medium, .low]
         case .lowOnly:
             return [.low, .medium, .high]
         case .mediumAndLow:
             return [.medium, .low, .high]
-        case .all:
-            return [.high, .medium, .low]
         }
     }
 
