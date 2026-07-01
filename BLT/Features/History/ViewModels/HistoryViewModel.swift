@@ -164,7 +164,14 @@ final class HistoryViewModel: ObservableObject {
         let leadingEmptyDays = max(0, firstWeekday - 1)
         let today = calendar.startOfDay(for: currentDate)
 
-        let monthlyRecords = records.filter { calendar.isDate($0.date, equalTo: monthStart, toGranularity: .month) }
+        let monthlyRecords = records
+            .filter { calendar.isDate($0.date, equalTo: monthStart, toGranularity: .month) }
+            .sorted { lhs, rhs in
+                if calendar.isDate(lhs.date, inSameDayAs: rhs.date) {
+                    return lhs.date > rhs.date
+                }
+                return lhs.date < rhs.date
+            }
         var recordsByDay: [Int: HistoryDailyRecord] = [:]
         for record in monthlyRecords {
             let day = calendar.component(.day, from: record.date)

@@ -53,7 +53,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNU
     ) {
         let keys = userInfo.keys.map { String(describing: $0) }
         PushLog.debug("Remote notification received: keys=\(keys)")
-        completionHandler(.newData)
+        completionHandler(.noData)
     }
 
     func messaging(
@@ -83,7 +83,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNU
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        // 추후 알림 딥링크가 정해지면 response.notification.request.content.userInfo를 사용한다.
+        handleNotificationTap(response.notification.request.content.userInfo)
+    }
+
+    private func handleNotificationTap(_ userInfo: [AnyHashable: Any]) {
+        let keys = userInfo.keys.map { String(describing: $0) }
+        PushLog.debug("Notification tapped: keys=\(keys)")
     }
 
     private func refreshFCMTokenIfAvailable() {

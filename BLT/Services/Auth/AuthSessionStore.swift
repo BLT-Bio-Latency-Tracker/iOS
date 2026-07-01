@@ -28,20 +28,20 @@ final class AuthSessionStore {
 
     func refreshAccessToken(using service: AuthAPIService = AuthAPIService()) async -> String? {
         guard let refreshToken = currentSession?.refreshToken else {
-            clear()
+            clearForSignOut()
             return nil
         }
 
         do {
             let response = try await service.refreshToken(RefreshTokenRequest(refreshToken: refreshToken))
             guard save(response.session) else {
-                clear()
+                clearForSignOut()
                 return nil
             }
             return response.accessToken
         } catch {
             if Self.shouldClearSession(after: error) {
-                clear()
+                clearForSignOut()
             }
             return nil
         }

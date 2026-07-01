@@ -29,6 +29,10 @@ final class PushDeviceRegistrationService {
 
     func registerCurrentDeviceIfPossible(force: Bool = false) async {
         guard !isRegistering else { return }
+        isRegistering = true
+        defer {
+            isRegistering = false
+        }
 
         guard AuthSessionStore.shared.currentSession != nil else {
             PushLog.debug("Skip device registration: missing auth session")
@@ -48,11 +52,6 @@ final class PushDeviceRegistrationService {
            store.registeredFcmToken == token {
             PushLog.debug("Skip device registration: already registered")
             return
-        }
-
-        isRegistering = true
-        defer {
-            isRegistering = false
         }
 
         do {
