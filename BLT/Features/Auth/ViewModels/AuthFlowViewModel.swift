@@ -153,6 +153,8 @@ final class AuthFlowViewModel: ObservableObject {
                 errorMessage = "가입 세션을 저장하지 못했어요. 다시 로그인해주세요."
                 return false
             }
+            await syncInitialNotificationSettings(from: termsAgreement)
+
             guard let profileSyncResult = await syncAuthenticatedUserProfile(
                 fallbackName: latestAppleDisplayName,
                 fallbackEmail: latestAppleEmail
@@ -174,6 +176,29 @@ final class AuthFlowViewModel: ObservableObject {
             errorMessage = error.localizedDescription
             return false
         }
+    }
+
+    private func syncInitialNotificationSettings(from termsAgreement: TermsAgreementState) async {
+        var channels: Set<MyPageNotificationChannel> = []
+
+        if termsAgreement.notification {
+            channels.insert(.appPush)
+        }
+
+        if termsAgreement.sms {
+            channels.insert(.sms)
+        }
+
+        guard !channels.isEmpty else { return }
+
+        try? await myPageService.updateNotificationSettings(
+            MyPageNotificationPatchRequest(
+                isEnabled: true,
+                measurementTimeText: nil,
+                bedtimeText: nil,
+                channels: channels
+            )
+        )
     }
 
     private func isAppleLoginCanceled(_ error: Error) -> Bool {

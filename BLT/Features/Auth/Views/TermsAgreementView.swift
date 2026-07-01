@@ -1,4 +1,6 @@
 import SwiftUI
+import UIKit
+import UserNotifications
 
 struct TermsAgreementView: View {
     var onBack: () -> Void = {}
@@ -14,6 +16,7 @@ struct TermsAgreementView: View {
     @State private var isPushAgreed = false
     @State private var isSmsAgreed = false
     @State private var selectedAgreementDetail: AgreementDetail?
+    @State private var isRequestingNotificationPermission = false
 
     private let designWidth: CGFloat = 375
     private let designHeight: CGFloat = 812
@@ -283,10 +286,14 @@ struct TermsAgreementView: View {
 
     private func nextButton(scale: CGFloat) -> some View {
         Button {
-            guard isRequiredAgreed, !isProcessing else { return }
-            onNext(termsAgreementState)
+            guard isRequiredAgreed, !isProcessing, !isRequestingNotificationPermission else { return }
+
+            Task {
+                await requestNotificationPermissionIfNeeded()
+                onNext(termsAgreementState)
+            }
         } label: {
-            Text(isProcessing ? "처리 중" : "동의하고 계속하기")
+            Text(isProcessing || isRequestingNotificationPermission ? "처리 중" : "동의하고 계속하기")
                 .font(.system(size: 15 * scale, weight: .bold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -309,7 +316,7 @@ struct TermsAgreementView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
         }
         .buttonStyle(.plain)
-        .disabled(!isRequiredAgreed || isProcessing)
+        .disabled(!isRequiredAgreed || isProcessing || isRequestingNotificationPermission)
     }
 
     private func toggleAllAgreement() {
@@ -327,6 +334,36 @@ struct TermsAgreementView: View {
     private func updateMarketingAgreementFromChannels() {
         if !isPushAgreed && !isSmsAgreed {
             isMarketingAgreed = false
+        }
+    }
+
+    @MainActor
+    private func requestNotificationPermissionIfNeeded() async {
+        guard isPushAgreed else { return }
+
+        isRequestingNotificationPermission = true
+        defer { isRequestingNotificationPermission = false }
+
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+
+        switch settings.authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            UIApplication.shared.registerForRemoteNotifications()
+        case .notDetermined:
+            do {
+                let isGranted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+
+                if isGranted {
+                    UIApplication.shared.registerForRemoteNotifications()
+                }
+            } catch {
+                break
+            }
+        case .denied:
+            break
+        @unknown default:
+            break
         }
     }
 }
