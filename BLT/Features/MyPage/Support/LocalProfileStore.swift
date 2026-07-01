@@ -1,4 +1,5 @@
 import Foundation
+import Security
 
 struct LocalProfileSnapshot {
     let name: String
@@ -84,7 +85,7 @@ struct LocalProfileStore {
 
     func save(_ snapshot: LocalProfileSnapshot) {
         userDefaults.set(snapshot.name, forKey: Key.name(accountIdentifier: accountIdentifier))
-        userDefaults.removeObject(forKey: Key.email(accountIdentifier: accountIdentifier))
+        setSecureOptional(snapshot.email, forKey: Key.email(accountIdentifier: accountIdentifier))
         setOptional(snapshot.authProvider, forKey: Key.authProvider(accountIdentifier: accountIdentifier))
         setOptional(snapshot.birthYear, forKey: Key.birthYear(accountIdentifier: accountIdentifier))
         setOptional(snapshot.gender?.rawValue, forKey: Key.gender(accountIdentifier: accountIdentifier))
@@ -95,7 +96,7 @@ struct LocalProfileStore {
 
     func clear() {
         userDefaults.removeObject(forKey: Key.name(accountIdentifier: accountIdentifier))
-        userDefaults.removeObject(forKey: Key.email(accountIdentifier: accountIdentifier))
+        removeSecureValue(forKey: Key.email(accountIdentifier: accountIdentifier))
         userDefaults.removeObject(forKey: Key.authProvider(accountIdentifier: accountIdentifier))
         userDefaults.removeObject(forKey: Key.birthYear(accountIdentifier: accountIdentifier))
         userDefaults.removeObject(forKey: Key.gender(accountIdentifier: accountIdentifier))
@@ -134,7 +135,8 @@ struct LocalProfileStore {
     }
 
     private var storedEmail: String? {
-        nil
+        secureString(forKey: Key.email(accountIdentifier: accountIdentifier))
+            ?? migrateLegacyEmailIfNeeded()
     }
 
     private var storedAuthProvider: String? {
@@ -182,5 +184,70 @@ struct LocalProfileStore {
         } else {
             userDefaults.removeObject(forKey: key)
         }
+    }
+
+    private func migrateLegacyEmailIfNeeded() -> String? {
+        let key = Key.email(accountIdentifier: accountIdentifier)
+        guard let legacyEmail = userDefaults.string(forKey: key)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !legacyEmail.isEmpty else {
+            return nil
+        }
+
+        setSecureOptional(legacyEmail, forKey: key)
+        userDefaults.removeObject(forKey: key)
+        return legacyEmail
+    }
+
+    private func setSecureOptional(_ value: String?, forKey key: String) {
+        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty,
+              let data = value.data(using: .utf8) else {
+            removeSecureValue(forKey: key)
+            return
+        }
+
+        removeSecureValue(forKey: key)
+
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Bundle.main.bundleIdentifier ?? "bryki",
+            kSecAttrAccount as String: key,
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        ]
+
+        SecItemAdd(query as CFDictionary, nil)
+    }
+
+    private func secureString(forKey key: String) -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Bundle.main.bundleIdentifier ?? "bryki",
+            kSecAttrAccount as String: key,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+
+        guard status == errSecSuccess,
+              let data = item as? Data,
+              let value = String(data: data, encoding: .utf8),
+              !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+
+        return value
+    }
+
+    private func removeSecureValue(forKey key: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Bundle.main.bundleIdentifier ?? "bryki",
+            kSecAttrAccount as String: key
+        ]
+
+        SecItemDelete(query as CFDictionary)
     }
 }

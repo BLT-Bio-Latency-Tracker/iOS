@@ -10,19 +10,13 @@ final class HealthPermissionViewModel: ObservableObject {
     private(set) var latestPermissionAgreementRequest: HealthPermissionAgreementRequest?
 
     private let healthKitService: HealthKitService
-    private let healthPermissionAPIService: HealthPermissionAPIService
 
     init() {
         self.healthKitService = HealthKitService()
-        self.healthPermissionAPIService = HealthPermissionAPIService()
     }
 
-    init(
-        healthKitService: HealthKitService,
-        healthPermissionAPIService: HealthPermissionAPIService
-    ) {
+    init(healthKitService: HealthKitService) {
         self.healthKitService = healthKitService
-        self.healthPermissionAPIService = healthPermissionAPIService
     }
 
     func requestHealthKitPermission() async -> Bool {
@@ -44,7 +38,6 @@ final class HealthPermissionViewModel: ObservableObject {
                 pvtOnlyMode: false
             )
             latestPermissionAgreementRequest = request
-            try await submitIfNeeded(request)
             return true
         } catch {
             errorMessage = error.localizedDescription
@@ -62,16 +55,5 @@ final class HealthPermissionViewModel: ObservableObject {
             pvtOnlyMode: true
         )
         latestPermissionAgreementRequest = request
-
-        do {
-            try await submitIfNeeded(request)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func submitIfNeeded(_ request: HealthPermissionAgreementRequest) async throws {
-        guard AuthSessionStore.shared.accessToken != nil else { return }
-        _ = try await healthPermissionAPIService.submitHealthPermissionAgreement(request)
     }
 }

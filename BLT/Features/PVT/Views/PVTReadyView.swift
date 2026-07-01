@@ -102,7 +102,7 @@ struct PVTReadyView: View {
 
     private func header(scale: CGFloat) -> some View {
         ZStack {
-            Text("PVT 측정 · 1/2")
+            Text("PVT 측정")
                 .font(.system(size: 14 * scale, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
