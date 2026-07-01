@@ -6,6 +6,7 @@ final class TodayViewModel: ObservableObject {
     @Published private(set) var state: TodayViewState
     @Published private(set) var latestPVTSummary: PVTSummary?
     @Published private(set) var isRequestingHealthKitAuthorization = false
+    @Published private var comparisonRecords: [EvaluationSummary] = []
     @Published var selectedComparison: TodayComparisonType
 
     private let healthKitService: HealthKitService
@@ -15,6 +16,7 @@ final class TodayViewModel: ObservableObject {
     private let calendar: Calendar
     private let timeFormatter: DateFormatter
     private var cancellables = Set<AnyCancellable>()
+    private var comparisonFetchTask: Task<Void, Never>?
 
     init(
         state: TodayViewState? = nil,
@@ -209,15 +211,19 @@ final class TodayViewModel: ObservableObject {
 
         switch state.sleepStatus {
         case .available:
-            if let roiChangePercent = state.roiChangePercent, roiChangePercent > 0 {
-                return String(format: "✨ 어제보다 %d%% 향상!", roiChangePercent)
+            guard let roiChangePercent = selectedComparisonChangePercent else {
+                return "\(selectedComparisonBaselineTitle) 비교 기록이 없어요"
             }
 
-            if let roiChangePercent = state.roiChangePercent, roiChangePercent < 0 {
-                return String(format: "어제보다 %d%% 낮아요", abs(roiChangePercent))
+            if roiChangePercent > 0 {
+                return String(format: "✨ %@보다 %d%% 향상!", selectedComparisonBaselineTitle, roiChangePercent)
             }
 
-            return "어제와 비슷한 컨디션이에요"
+            if roiChangePercent < 0 {
+                return String(format: "%@보다 %d%% 낮아요", selectedComparisonBaselineTitle, abs(roiChangePercent))
+            }
+
+            return "\(selectedComparisonBaselineTitle)과 비슷한 컨디션이에요"
         case .notConnected:
             return "수면 데이터가 없어 종합 점수 산출 불가 · 연동 시 +35%"
         case .syncing:
@@ -232,7 +238,10 @@ final class TodayViewModel: ObservableObject {
     var comparisonSummarySubtitle: String? {
         switch state.sleepStatus {
         case .available:
-            return state.comparisonSummary
+            guard let baselineScore = selectedComparisonBaselineScore else {
+                return nil
+            }
+            return "\(selectedComparisonBaselineTitle) \(baselineScore)점 기준으로 계산했어요"
         case .syncing:
             return "HealthKit 반영까지 시간이 걸릴 수 있어요"
         case .noSleep:
@@ -245,7 +254,7 @@ final class TodayViewModel: ObservableObject {
     }
 
     var roiChangeText: String {
-        guard let roiChangePercent = state.roiChangePercent else {
+        guard let roiChangePercent = selectedComparisonChangePercent else {
             return "-"
         }
 
@@ -261,7 +270,7 @@ final class TodayViewModel: ObservableObject {
     }
 
     var roiChangeDirection: TodayROIChangeDirection {
-        guard let roiChangePercent = state.roiChangePercent else {
+        guard let roiChangePercent = selectedComparisonChangePercent else {
             return .neutral
         }
 
@@ -274,6 +283,52 @@ final class TodayViewModel: ObservableObject {
         }
 
         return .neutral
+    }
+
+    private var selectedComparisonBaselineTitle: String {
+        switch selectedComparison {
+        case .yesterday:
+            return "어제"
+        case .lastSevenDays:
+            return "지난 7일 평균"
+        case .myAverage:
+            return "내 평균"
+        }
+    }
+
+    private var selectedComparisonChangePercent: Int? {
+        guard let todayScore = state.score,
+              let baselineScore = selectedComparisonBaselineScore,
+              baselineScore > 0 else {
+            return nil
+        }
+
+        return Int(((Double(todayScore - baselineScore) / Double(baselineScore)) * 100).rounded())
+    }
+
+    private var selectedComparisonBaselineScore: Int? {
+        guard state.hasROIResult else { return nil }
+
+        let referenceDate = calendar.startOfDay(for: state.measuredAt)
+
+        switch selectedComparison {
+        case .yesterday:
+            guard let yesterday = calendar.date(byAdding: .day, value: -1, to: referenceDate) else {
+                return nil
+            }
+            return averageScore(for: Set([dateText(yesterday)]))
+        case .lastSevenDays:
+            let dateTexts = (1...7).compactMap { offset in
+                calendar.date(byAdding: .day, value: -offset, to: referenceDate).map(dateText)
+            }
+            return averageScore(for: Set(dateTexts))
+        case .myAverage:
+            let todayText = dateText(referenceDate)
+            let scores = comparisonRecords
+                .filter { $0.date < todayText }
+                .map(\.finalScore)
+            return averageScore(from: scores)
+        }
     }
 
     private func totalSleepText(from totalMinutes: Int) -> String {
@@ -364,6 +419,8 @@ final class TodayViewModel: ObservableObject {
 
     private func applyEvaluation(_ evaluation: EvaluationResponse?) {
         guard let evaluation else {
+            comparisonFetchTask?.cancel()
+            comparisonRecords = []
             state = state.replacingROI(
                 score: nil,
                 statusText: "PVT 미측정",
@@ -372,6 +429,8 @@ final class TodayViewModel: ObservableObject {
             )
             return
         }
+
+        scheduleComparisonRecordFetch(referenceDate: evaluation.measuredAt)
 
         state = state.replacingROI(
             score: evaluation.finalScore,
@@ -387,6 +446,57 @@ final class TodayViewModel: ObservableObject {
                 measuredAt: evaluation.measuredAt
             )
         }
+    }
+
+    private func scheduleComparisonRecordFetch(referenceDate: Date) {
+        comparisonFetchTask?.cancel()
+        comparisonFetchTask = Task { [weak self] in
+            await self?.loadComparisonRecords(referenceDate: referenceDate)
+        }
+    }
+
+    private func loadComparisonRecords(referenceDate: Date) async {
+        guard AuthSessionStore.shared.accessToken != nil else {
+            comparisonRecords = []
+            return
+        }
+
+        let todayStart = calendar.startOfDay(for: referenceDate)
+        guard let endDate = calendar.date(byAdding: .day, value: -1, to: todayStart),
+              let startDate = calendar.date(byAdding: .year, value: -10, to: todayStart) else {
+            comparisonRecords = []
+            return
+        }
+
+        do {
+            comparisonRecords = try await evaluationService.fetchSummaries(
+                from: startDate,
+                to: endDate,
+                size: 1000
+            )
+        } catch {
+            comparisonRecords = []
+        }
+    }
+
+    private func averageScore(for dateTexts: Set<String>) -> Int? {
+        let scores = comparisonRecords
+            .filter { dateTexts.contains($0.date) }
+            .map(\.finalScore)
+        return averageScore(from: scores)
+    }
+
+    private func averageScore(from scores: [Int]) -> Int? {
+        guard !scores.isEmpty else { return nil }
+        return Int(round(Double(scores.reduce(0, +)) / Double(scores.count)))
+    }
+
+    private func dateText(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
     }
 
     private func sleepDifferenceText(
