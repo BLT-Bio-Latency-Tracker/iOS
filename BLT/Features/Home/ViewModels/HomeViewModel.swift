@@ -166,7 +166,6 @@ final class HomeViewModel: ObservableObject {
                 name: state.userName,
                 birthYear: nil,
                 gender: nil,
-                wakeUpTimeText: nil,
                 jobGroup: nil
             )
         )
@@ -182,7 +181,6 @@ final class HomeViewModel: ObservableObject {
                 authProvider: remoteState.user.authProvider.isEmpty ? cachedProfile.authProvider : remoteState.user.authProvider,
                 birthYear: remoteState.profile.birthYear,
                 gender: remoteState.profile.gender,
-                wakeUpTimeText: remoteState.profile.wakeUpTimeText,
                 jobGroup: remoteState.profile.jobGroup
             )
         )
@@ -265,7 +263,6 @@ final class HomeViewModel: ObservableObject {
                 authProvider: nil,
                 birthYear: nil,
                 gender: nil,
-                wakeUpTimeText: nil,
                 jobGroup: nil
             )
         )

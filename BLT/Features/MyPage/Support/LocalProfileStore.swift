@@ -6,7 +6,6 @@ struct LocalProfileSnapshot {
     let authProvider: String?
     let birthYear: Int?
     let gender: ProfileSetupGender?
-    let wakeUpTimeText: String?
     let jobGroup: ProfileSetupJobGroup?
 
     init(
@@ -15,7 +14,6 @@ struct LocalProfileSnapshot {
         authProvider: String? = nil,
         birthYear: Int?,
         gender: ProfileSetupGender?,
-        wakeUpTimeText: String?,
         jobGroup: ProfileSetupJobGroup?
     ) {
         self.name = name
@@ -23,7 +21,6 @@ struct LocalProfileSnapshot {
         self.authProvider = authProvider
         self.birthYear = birthYear
         self.gender = gender
-        self.wakeUpTimeText = wakeUpTimeText
         self.jobGroup = jobGroup
     }
 
@@ -42,7 +39,6 @@ struct LocalProfileStore {
         static let legacyName = "local.profile.name"
         static let legacyBirthYear = "local.profile.birthYear"
         static let legacyGender = "local.profile.gender"
-        static let legacyWakeUpTimeText = "local.profile.wakeUpTimeText"
         static let legacyJobGroup = "local.profile.jobGroup"
 
         static func email(accountIdentifier: String) -> String {
@@ -65,10 +61,6 @@ struct LocalProfileStore {
             "local.profile.\(accountIdentifier).gender"
         }
 
-        static func wakeUpTimeText(accountIdentifier: String) -> String {
-            "local.profile.\(accountIdentifier).wakeUpTimeText"
-        }
-
         static func jobGroup(accountIdentifier: String) -> String {
             "local.profile.\(accountIdentifier).jobGroup"
         }
@@ -86,7 +78,6 @@ struct LocalProfileStore {
             authProvider: storedAuthProvider ?? fallback.authProvider,
             birthYear: storedBirthYear ?? fallback.birthYear,
             gender: storedGender ?? fallback.gender,
-            wakeUpTimeText: storedWakeUpTimeText ?? fallback.wakeUpTimeText,
             jobGroup: storedJobGroup ?? fallback.jobGroup
         )
     }
@@ -97,7 +88,6 @@ struct LocalProfileStore {
         setOptional(snapshot.authProvider, forKey: Key.authProvider(accountIdentifier: accountIdentifier))
         setOptional(snapshot.birthYear, forKey: Key.birthYear(accountIdentifier: accountIdentifier))
         setOptional(snapshot.gender?.rawValue, forKey: Key.gender(accountIdentifier: accountIdentifier))
-        setOptional(snapshot.wakeUpTimeText, forKey: Key.wakeUpTimeText(accountIdentifier: accountIdentifier))
         setOptional(snapshot.jobGroup?.rawValue, forKey: Key.jobGroup(accountIdentifier: accountIdentifier))
 
         NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
@@ -109,7 +99,6 @@ struct LocalProfileStore {
         userDefaults.removeObject(forKey: Key.authProvider(accountIdentifier: accountIdentifier))
         userDefaults.removeObject(forKey: Key.birthYear(accountIdentifier: accountIdentifier))
         userDefaults.removeObject(forKey: Key.gender(accountIdentifier: accountIdentifier))
-        userDefaults.removeObject(forKey: Key.wakeUpTimeText(accountIdentifier: accountIdentifier))
         userDefaults.removeObject(forKey: Key.jobGroup(accountIdentifier: accountIdentifier))
 
         NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
@@ -122,7 +111,6 @@ struct LocalProfileStore {
             authProvider: state.user.authProvider,
             birthYear: state.profile.birthYear,
             gender: state.profile.gender,
-            wakeUpTimeText: state.profile.wakeUpTimeText,
             jobGroup: state.profile.jobGroup
         )
         let current = snapshot(fallback: fallback)
@@ -133,7 +121,6 @@ struct LocalProfileStore {
             authProvider: current.authProvider,
             birthYear: request.birthYear ?? current.birthYear,
             gender: request.gender ?? current.gender,
-            wakeUpTimeText: request.wakeUpTimeText ?? current.wakeUpTimeText,
             jobGroup: request.jobGroup ?? current.jobGroup
         )
 
@@ -169,11 +156,6 @@ struct LocalProfileStore {
             userDefaults.string(forKey: Key.gender(accountIdentifier: accountIdentifier))
                 ?? legacyString(forKey: Key.legacyGender)
         ).flatMap(ProfileSetupGender.init(rawValue:))
-    }
-
-    private var storedWakeUpTimeText: String? {
-        userDefaults.string(forKey: Key.wakeUpTimeText(accountIdentifier: accountIdentifier))
-            ?? legacyString(forKey: Key.legacyWakeUpTimeText)
     }
 
     private var storedJobGroup: ProfileSetupJobGroup? {

@@ -138,7 +138,6 @@ private extension MyPageState {
             profile: MyPageProfile(
                 birthYear: user.birthYear,
                 gender: user.gender,
-                wakeUpTimeText: nil,
                 jobGroup: user.occupation
             ),
             notificationSettings: notificationSettings.map(MyPageNotificationSettings.init(response:))

@@ -197,7 +197,6 @@ final class AuthFlowViewModel: ObservableObject {
                 authProvider: "Apple",
                 birthYear: nil,
                 gender: nil,
-                wakeUpTimeText: nil,
                 jobGroup: nil
             )
         )
@@ -219,7 +218,6 @@ final class AuthFlowViewModel: ObservableObject {
                 authProvider: "Apple",
                 birthYear: current.birthYear,
                 gender: current.gender,
-                wakeUpTimeText: current.wakeUpTimeText,
                 jobGroup: current.jobGroup
             )
         )
@@ -245,7 +243,6 @@ final class AuthFlowViewModel: ObservableObject {
                 authProvider: remoteState.user.authProvider,
                 birthYear: remoteState.profile.birthYear,
                 gender: remoteState.profile.gender,
-                wakeUpTimeText: remoteState.profile.wakeUpTimeText,
                 jobGroup: remoteState.profile.jobGroup
             )
         )
@@ -277,7 +274,6 @@ final class AuthFlowViewModel: ObservableObject {
                     : remoteState.user.authProvider,
                 birthYear: remoteState.profile.birthYear,
                 gender: remoteState.profile.gender,
-                wakeUpTimeText: remoteState.profile.wakeUpTimeText,
                 jobGroup: remoteState.profile.jobGroup
             )
         )

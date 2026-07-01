@@ -202,7 +202,6 @@ struct MyPageView: View {
             infoRows([
                 MyPageRow(title: "출생연도", value: state.profile.birthYear.map { "\($0)년" } ?? "미설정", isWarning: state.profile.birthYear == nil),
                 MyPageRow(title: "성별", value: state.profile.gender?.displayName ?? "미설정", isWarning: state.profile.gender == nil),
-                MyPageRow(title: "평균 기상시간", value: state.profile.wakeUpTimeText ?? "미설정", isWarning: state.profile.wakeUpTimeText == nil),
                 MyPageRow(title: "직업군", value: state.profile.jobGroup?.displayName ?? "미설정", isWarning: state.profile.jobGroup == nil)
             ], scale: scale)
         }

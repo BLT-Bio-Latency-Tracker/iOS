@@ -111,7 +111,6 @@ final class MyPageViewModel: ObservableObject {
             profile: MyPageProfile(
                 birthYear: draft.birthYear,
                 gender: draft.gender,
-                wakeUpTimeText: draft.wakeUpTimeText,
                 jobGroup: draft.jobGroup
             ),
             notificationSettings: state.notificationSettings
@@ -124,7 +123,6 @@ final class MyPageViewModel: ObservableObject {
                 authProvider: updatedState.user.authProvider,
                 birthYear: updatedState.profile.birthYear,
                 gender: updatedState.profile.gender,
-                wakeUpTimeText: updatedState.profile.wakeUpTimeText,
                 jobGroup: updatedState.profile.jobGroup
             )
         )
@@ -150,7 +148,6 @@ final class MyPageViewModel: ObservableObject {
                 authProvider: state.user.authProvider,
                 birthYear: state.profile.birthYear,
                 gender: state.profile.gender,
-                wakeUpTimeText: state.profile.wakeUpTimeText,
                 jobGroup: state.profile.jobGroup
             )
         )
@@ -164,7 +161,6 @@ final class MyPageViewModel: ObservableObject {
                 authProvider: state.user.authProvider,
                 birthYear: state.profile.birthYear,
                 gender: state.profile.gender,
-                wakeUpTimeText: state.profile.wakeUpTimeText,
                 jobGroup: state.profile.jobGroup
             )
         )
@@ -188,7 +184,6 @@ final class MyPageViewModel: ObservableObject {
             profile: MyPageProfile(
                 birthYear: state.profile.birthYear,
                 gender: state.profile.gender,
-                wakeUpTimeText: state.profile.wakeUpTimeText ?? cachedProfile.wakeUpTimeText,
                 jobGroup: state.profile.jobGroup
             ),
             notificationSettings: state.notificationSettings
