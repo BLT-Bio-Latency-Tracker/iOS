@@ -22,7 +22,6 @@ final class AuthFlowViewModel: ObservableObject {
 
     private let appleAuthService: AppleAuthService
     private let authAPIService: AuthAPIService
-    private let termsAPIService: TermsAPIService
     private let authSessionStore: AuthSessionStore
     private let myPageService: MyPageService
     private let localProfileStore: LocalProfileStore
@@ -32,7 +31,6 @@ final class AuthFlowViewModel: ObservableObject {
     init() {
         self.appleAuthService = AppleAuthService()
         self.authAPIService = AuthAPIService()
-        self.termsAPIService = TermsAPIService()
         self.authSessionStore = .shared
         self.myPageService = MyPageService()
         self.localProfileStore = LocalProfileStore()
@@ -41,14 +39,12 @@ final class AuthFlowViewModel: ObservableObject {
     init(
         appleAuthService: AppleAuthService,
         authAPIService: AuthAPIService,
-        termsAPIService: TermsAPIService,
         authSessionStore: AuthSessionStore = .shared,
         myPageService: MyPageService = MyPageService(),
         localProfileStore: LocalProfileStore = LocalProfileStore()
     ) {
         self.appleAuthService = appleAuthService
         self.authAPIService = authAPIService
-        self.termsAPIService = termsAPIService
         self.authSessionStore = authSessionStore
         self.myPageService = myPageService
         self.localProfileStore = localProfileStore
