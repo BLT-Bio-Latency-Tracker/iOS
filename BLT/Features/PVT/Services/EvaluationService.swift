@@ -67,8 +67,58 @@ struct EvaluationService {
         return response.items
     }
 
+    func fetchDetail(id: Int) async throws -> EvaluationDetailResponse {
+        try await networkClient.get(
+            "/api/v1/evaluations/\(id)",
+            requiresAuth: true
+        )
+    }
+
+    func fetchPVTDetailsForMeasurementDay(containing date: Date = Date()) async throws -> [EvaluationPVTMeasurement] {
+        let interval = Self.measurementDayInterval(containing: date)
+        let summaries = try await fetchSummaries(from: interval.start, to: interval.end, size: 100)
+        let filteredSummaries = summaries
+            .filter { $0.measuredAt >= interval.start && $0.measuredAt < interval.end }
+            .sorted { $0.measuredAt < $1.measuredAt }
+
+        var measurementsByMeasurementId: [UUID: EvaluationPVTMeasurement] = [:]
+        for summary in filteredSummaries {
+            let detail = try await fetchDetail(id: summary.evaluationId)
+            let measurement = EvaluationPVTMeasurement(
+                evaluationId: summary.evaluationId,
+                measuredAt: detail.evaluation.measuredAt,
+                pvt: detail.pvt
+            )
+            if let previous = measurementsByMeasurementId[detail.pvt.measurementId],
+               previous.measuredAt >= measurement.measuredAt {
+                continue
+            } else {
+                measurementsByMeasurementId[detail.pvt.measurementId] = measurement
+            }
+        }
+
+        return measurementsByMeasurementId.values.sorted { $0.measuredAt < $1.measuredAt }
+    }
+
     private static func dateText(_ date: Date) -> String {
         EvaluationDateFormatter.dateText(date)
+    }
+
+    private static func measurementDayInterval(containing date: Date) -> DateInterval {
+        let startOfDay = koreaCalendar.startOfDay(for: date)
+        let hour = koreaCalendar.component(.hour, from: date)
+        let baseDay = hour < 6
+            ? koreaCalendar.date(byAdding: .day, value: -1, to: startOfDay) ?? startOfDay
+            : startOfDay
+        let start = koreaCalendar.date(byAdding: .hour, value: 6, to: baseDay) ?? baseDay
+        let end = koreaCalendar.date(byAdding: .day, value: 1, to: start) ?? date
+        return DateInterval(start: start, end: end)
+    }
+
+    private static var koreaCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+        return calendar
     }
 }
 
@@ -162,8 +212,14 @@ struct PvtRequest: Encodable {
         lapsesMild = summary.lapseCount
         lapsesTimeout = 0
         falseStarts = summary.falseStartCount
-        isValid = summary.falseStartCount < 3 && !summary.trials.isEmpty
-        invalidReason = isValid ? nil : "FALSE_START_OR_EMPTY_TRIALS"
+        isValid = !summary.trials.isEmpty && summary.averageMilliseconds != nil
+        if isValid {
+            invalidReason = nil
+        } else if summary.trials.isEmpty {
+            invalidReason = "EMPTY_TRIALS"
+        } else {
+            invalidReason = "MISSING_AVERAGE_RT"
+        }
         trials = summary.trials.map(PvtTrialRequest.init)
     }
 }
@@ -193,5 +249,30 @@ struct EvaluationResponse: Decodable {
 struct EvaluationSummary: Decodable {
     let evaluationId: Int
     let date: String
+    let measuredAt: Date
     let finalScore: Int
+}
+
+struct EvaluationDetailResponse: Decodable {
+    let evaluation: EvaluationResponse
+    let pvt: PvtDetail
+}
+
+struct PvtDetail: Decodable {
+    let measurementId: UUID
+    let avgRtMs: Double
+    let bestRtMs: Int?
+    let medianRtMs: Double?
+    let lapsesMild: Int
+    let lapsesTimeout: Int
+    let falseStarts: Int
+    let totalCount: Int
+    let rawRtMs: [Int]
+    let isValid: Bool
+}
+
+struct EvaluationPVTMeasurement {
+    let evaluationId: Int
+    let measuredAt: Date
+    let pvt: PvtDetail
 }

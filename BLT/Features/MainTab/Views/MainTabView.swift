@@ -52,14 +52,12 @@ struct MainTabView: View {
                 onComplete: { summary in
                     let measuredAt = Date()
                     let measurementId = UUID()
-                    PVTResultStore.shared.save(summary, measuredAt: measuredAt, measurementId: measurementId)
                     pendingPVTSubmission = PendingPVTSubmission(
                         summary: summary,
                         measuredAt: measuredAt,
                         measurementId: measurementId
                     )
                     submitPendingEvaluation()
-                    pvtResultRefreshTrigger += 1
                     selectedTab = .today
                     isPVTMeasurementPresented = false
                 },
@@ -145,19 +143,36 @@ struct MainTabView: View {
 
         Task {
             do {
+#if DEBUG
+                print("[PVT] Submit evaluation start")
+#endif
                 let evaluation = try await evaluationService.submit(
                     summary: pendingPVTSubmission.summary,
                     measuredAt: pendingPVTSubmission.measuredAt,
                     measurementId: pendingPVTSubmission.measurementId
                 )
                 await MainActor.run {
+                    guard self.pendingPVTSubmission?.measurementId == pendingPVTSubmission.measurementId else { return }
+#if DEBUG
+                    print("[PVT] Submit evaluation succeeded")
+#endif
+                    PVTResultStore.shared.save(
+                        pendingPVTSubmission.summary,
+                        measuredAt: pendingPVTSubmission.measuredAt,
+                        measurementId: pendingPVTSubmission.measurementId
+                    )
                     EvaluationResultStore.shared.apply(evaluation)
                     self.pendingPVTSubmission = nil
                     pvtSubmissionErrorMessage = nil
+                    pvtResultRefreshTrigger += 1
                 }
             } catch {
                 await MainActor.run {
-                    pvtSubmissionErrorMessage = "네트워크 상태를 확인한 뒤 다시 시도해주세요."
+#if DEBUG
+                    print("[PVT] Submit evaluation failed")
+#endif
+                    guard self.pendingPVTSubmission?.measurementId == pendingPVTSubmission.measurementId else { return }
+                    pvtSubmissionErrorMessage = error.localizedDescription
                 }
             }
         }
