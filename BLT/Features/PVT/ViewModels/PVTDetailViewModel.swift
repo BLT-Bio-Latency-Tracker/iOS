@@ -3,62 +3,47 @@ import Foundation
 
 @MainActor
 final class PVTDetailViewModel: ObservableObject {
-    @Published private(set) var state: PVTDetailViewState
+    @Published private(set) var state = PVTDetailViewState.empty
 
-    init(summary: PVTSummary?) {
-        self.state = Self.makeState(from: summary)
+    private let evaluationService: EvaluationService
+    private let date: Date
+
+    init(
+        date: Date = Date(),
+        evaluationService: EvaluationService = EvaluationService()
+    ) {
+        self.date = date
+        self.evaluationService = evaluationService
     }
 
-    private static func makeState(from summary: PVTSummary?) -> PVTDetailViewState {
-        guard let summary,
-              let averageMilliseconds = summary.averageMilliseconds,
-              let bestMilliseconds = summary.bestMilliseconds,
-              !summary.trials.isEmpty else {
-            return .placeholder
-        }
+    func load() async {
+        state.isLoading = true
+        state.errorMessage = nil
 
-        let trialPoints = summary.trials.map {
-            PVTDetailTrialPoint(index: $0.index, milliseconds: $0.reactionTimeMilliseconds)
+        do {
+            let records = try await evaluationService.fetchPVTDetailsForMeasurementDay(containing: date)
+            state = PVTDetailViewState(
+                isLoading: false,
+                errorMessage: nil,
+                measurements: records.map(Self.makeMeasurement(from:))
+            )
+        } catch {
+            state.isLoading = false
+            state.errorMessage = "PVT 기록을 불러오지 못했어요."
         }
+    }
 
-        return PVTDetailViewState(
-            averageMilliseconds: averageMilliseconds,
-            bestMilliseconds: bestMilliseconds,
-            lapseCount: summary.lapseCount,
-            falseStartCount: summary.falseStartCount,
-            responseStability: responseStability(for: summary.environmentCalibration),
-            arousalLevel: arousalLevel(for: averageMilliseconds),
-            trials: trialPoints
+    private static func makeMeasurement(from record: EvaluationPVTMeasurement) -> PVTDetailMeasurement {
+        PVTDetailMeasurement(
+            id: record.evaluationId,
+            measurementId: record.pvt.measurementId,
+            measuredAt: record.measuredAt,
+            averageMilliseconds: Int(record.pvt.avgRtMs.rounded()),
+            bestMilliseconds: record.pvt.bestRtMs ?? record.pvt.rawRtMs.min(),
+            lapseCount: record.pvt.lapsesMild + record.pvt.lapsesTimeout,
+            falseStartCount: record.pvt.falseStarts,
+            totalCount: record.pvt.totalCount,
+            rawReactionTimes: record.pvt.rawRtMs
         )
-    }
-
-    private static func responseStability(for calibration: PVTEnvironmentCalibrationResult?) -> PVTDetailStatus {
-        guard let calibration else {
-            return .good
-        }
-
-        if calibration.maxTimerDriftMilliseconds >= 150 || calibration.unstableFrameCount >= 8 {
-            return .poor
-        }
-
-        if calibration.maxTimerDriftMilliseconds >= 80 ||
-            calibration.unstableFrameCount >= 3 ||
-            calibration.isLowPowerModeEnabled {
-            return .caution
-        }
-
-        return .good
-    }
-
-    private static func arousalLevel(for averageMilliseconds: Int) -> PVTDetailStatus {
-        if averageMilliseconds <= 350 {
-            return .good
-        }
-
-        if averageMilliseconds <= 500 {
-            return .caution
-        }
-
-        return .poor
     }
 }

@@ -52,14 +52,12 @@ struct MainTabView: View {
                 onComplete: { summary in
                     let measuredAt = Date()
                     let measurementId = UUID()
-                    PVTResultStore.shared.save(summary, measuredAt: measuredAt, measurementId: measurementId)
                     pendingPVTSubmission = PendingPVTSubmission(
                         summary: summary,
                         measuredAt: measuredAt,
                         measurementId: measurementId
                     )
                     submitPendingEvaluation()
-                    pvtResultRefreshTrigger += 1
                     selectedTab = .today
                     isPVTMeasurementPresented = false
                 },
@@ -145,19 +143,28 @@ struct MainTabView: View {
 
         Task {
             do {
+                print("[PVT] Submit evaluation start: measurementId=\(pendingPVTSubmission.measurementId)")
                 let evaluation = try await evaluationService.submit(
                     summary: pendingPVTSubmission.summary,
                     measuredAt: pendingPVTSubmission.measuredAt,
                     measurementId: pendingPVTSubmission.measurementId
                 )
                 await MainActor.run {
+                    print("[PVT] Submit evaluation succeeded: evaluationId=\(evaluation.evaluationId)")
+                    PVTResultStore.shared.save(
+                        pendingPVTSubmission.summary,
+                        measuredAt: pendingPVTSubmission.measuredAt,
+                        measurementId: pendingPVTSubmission.measurementId
+                    )
                     EvaluationResultStore.shared.apply(evaluation)
                     self.pendingPVTSubmission = nil
                     pvtSubmissionErrorMessage = nil
+                    pvtResultRefreshTrigger += 1
                 }
             } catch {
+                print("[PVT] Submit evaluation failed: \(error.localizedDescription)")
                 await MainActor.run {
-                    pvtSubmissionErrorMessage = "네트워크 상태를 확인한 뒤 다시 시도해주세요."
+                    pvtSubmissionErrorMessage = error.localizedDescription
                 }
             }
         }

@@ -88,7 +88,7 @@ struct TodayView: View {
                 }
             }
             .navigationDestination(isPresented: $isPVTDetailPresented) {
-                PVTDetailView(summary: viewModel.latestPVTSummary) {
+                PVTDetailView {
                     isPVTDetailPresented = false
                 }
                 .navigationBarBackButtonHidden(true)

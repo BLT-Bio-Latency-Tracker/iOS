@@ -13,13 +13,50 @@ enum NetworkError: LocalizedError {
             return "API baseURL이 아직 설정되지 않았습니다."
         case .invalidResponse:
             return "서버 응답을 확인할 수 없습니다."
-        case .serverError(let statusCode, _):
+        case .serverError(let statusCode, let data):
+            if let problemDetail = try? JSONDecoder().decode(ServerProblemDetail.self, from: data) {
+                return problemDetail.displayMessage(statusCode: statusCode)
+            }
             return "서버 요청에 실패했습니다. statusCode: \(statusCode)"
         case .missingAccessToken:
             return "인증 토큰이 없습니다."
         case .emptyResponse:
             return "서버 응답이 비어 있습니다."
         }
+    }
+}
+
+struct ServerProblemDetail: Decodable {
+    let title: String?
+    let detail: String?
+    let errorCode: String?
+    let validationErrors: [ValidationError]?
+
+    struct ValidationError: Decodable {
+        let field: String?
+        let reason: String?
+    }
+
+    func displayMessage(statusCode: Int) -> String {
+        if let validationError = validationErrors?.first {
+            let field = validationError.field ?? "요청값"
+            let reason = validationError.reason ?? "유효하지 않습니다."
+            return "\(field): \(reason)"
+        }
+
+        if let detail, !detail.isEmpty {
+            return detail
+        }
+
+        if let title, !title.isEmpty {
+            return title
+        }
+
+        if let errorCode, !errorCode.isEmpty {
+            return "\(errorCode) (statusCode: \(statusCode))"
+        }
+
+        return "서버 요청에 실패했습니다. statusCode: \(statusCode)"
     }
 }
 
@@ -194,6 +231,10 @@ final class NetworkClient {
         response: HTTPURLResponse
     ) throws -> Response {
         guard (200..<300).contains(response.statusCode) else {
+#if DEBUG
+            let bodyText = String(data: data, encoding: .utf8) ?? "<non-utf8 body>"
+            print("[Network] \(response.statusCode) \(response.url?.path ?? ""): \(bodyText)")
+#endif
             throw NetworkError.serverError(statusCode: response.statusCode, data: data)
         }
 
