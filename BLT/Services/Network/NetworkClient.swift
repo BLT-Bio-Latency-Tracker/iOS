@@ -232,8 +232,7 @@ final class NetworkClient {
     ) throws -> Response {
         guard (200..<300).contains(response.statusCode) else {
 #if DEBUG
-            let bodyText = String(data: data, encoding: .utf8) ?? "<non-utf8 body>"
-            print("[Network] \(response.statusCode) \(response.url?.path ?? ""): \(bodyText)")
+            print("[Network] \(response.statusCode) \(response.url?.path ?? "") bodyBytes=\(data.count)")
 #endif
             throw NetworkError.serverError(statusCode: response.statusCode, data: data)
         }

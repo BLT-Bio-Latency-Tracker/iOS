@@ -69,6 +69,7 @@ struct PVTMeasurementDetailView: View {
                         .frame(width: 30 * scale, height: 27 * scale)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("뒤로가기")
 
                 Spacer()
             }
@@ -104,8 +105,8 @@ struct PVTMeasurementDetailView: View {
         HStack(spacing: 16 * scale) {
             statCard(
                 title: "BEST",
-                value: String(measurement.bestMilliseconds ?? measurement.averageMilliseconds),
-                suffix: "ms",
+                value: measurement.bestMilliseconds.map(String.init) ?? "-",
+                suffix: measurement.bestMilliseconds == nil ? "" : "ms",
                 valueColor: Color.pvtRecordPositive,
                 scale: scale
             )
@@ -169,14 +170,14 @@ struct PVTMeasurementDetailView: View {
             )
             metricRow(
                 title: "응답 안정성",
-                value: responseStabilityText,
-                valueColor: responseStabilityColor,
+                value: responseStabilityStatus.title,
+                valueColor: responseStabilityStatus.color,
                 scale: scale
             )
             metricRow(
                 title: "각성 수준",
-                value: arousalLevelText,
-                valueColor: arousalLevelColor,
+                value: arousalLevelStatus.title,
+                valueColor: arousalLevelStatus.color,
                 scale: scale
             )
         }
@@ -207,44 +208,32 @@ struct PVTMeasurementDetailView: View {
         }
     }
 
-    private var responseStabilityText: String {
+    private var responseStabilityStatus: PVTRecordMetricStatus {
         if measurement.lapseCount <= 1 && measurement.falseStartCount <= 1 {
-            return "양호"
+            return .good
         }
         if measurement.lapseCount <= 2 && measurement.falseStartCount <= 3 {
-            return "주의"
+            return .caution
         }
-        return "불안정"
+        return .unstable
     }
 
-    private var responseStabilityColor: Color {
-        responseStabilityText == "양호" ? .pvtRecordPositive : .pvtRecordCaution
-    }
-
-    private var arousalLevelText: String {
+    private var arousalLevelStatus: PVTRecordMetricStatus {
         switch measurement.averageMilliseconds {
         case ...320:
-            return "양호"
+            return .good
         case ...350:
-            return "주의"
+            return .caution
         default:
-            return "저하"
+            return .low
         }
-    }
-
-    private var arousalLevelColor: Color {
-        arousalLevelText == "양호" ? .pvtRecordPositive : .pvtRecordCaution
     }
 
     private func datePrefixText(_ date: Date) -> String {
         if Self.koreaCalendar.isDateInToday(date) {
             return "오늘"
         }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ko_KR")
-        formatter.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
-        formatter.dateFormat = "M월 d일"
-        return formatter.string(from: date)
+        return Self.dateFormatter.string(from: date)
     }
 
     private func timeText(_ date: Date) -> String {
@@ -259,10 +248,47 @@ struct PVTMeasurementDetailView: View {
         return formatter
     }()
 
-    private static var koreaCalendar: Calendar {
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+        formatter.dateFormat = "M월 d일"
+        return formatter
+    }()
+
+    private static let koreaCalendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
         return calendar
+    }()
+}
+
+private enum PVTRecordMetricStatus {
+    case good
+    case caution
+    case unstable
+    case low
+
+    var title: String {
+        switch self {
+        case .good:
+            return "양호"
+        case .caution:
+            return "주의"
+        case .unstable:
+            return "불안정"
+        case .low:
+            return "저하"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .good:
+            return .pvtRecordPositive
+        case .caution, .unstable, .low:
+            return .pvtRecordCaution
+        }
     }
 }
 

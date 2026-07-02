@@ -25,7 +25,9 @@ final class PVTDetailViewModel: ObservableObject {
             state = PVTDetailViewState(
                 isLoading: false,
                 errorMessage: nil,
-                measurements: records.map(Self.makeMeasurement(from:))
+                measurements: records
+                    .filter { $0.pvt.isValid }
+                    .map(Self.makeMeasurement(from:))
             )
         } catch {
             state.isLoading = false

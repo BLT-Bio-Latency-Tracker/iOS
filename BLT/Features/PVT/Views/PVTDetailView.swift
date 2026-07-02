@@ -293,7 +293,7 @@ struct PVTDetailView: View {
                         .foregroundStyle(.white.opacity(0.62))
                         .padding(.top, 16 * scale)
 
-                    Text("Trial \(measurement.totalCount)/7 완료 · False Start \(measurement.falseStartCount)")
+                    Text("Trial \(measurement.totalCount)/\(measurement.totalCount) 완료 · False Start \(measurement.falseStartCount)")
                         .font(.system(size: 11 * scale, weight: .regular))
                         .foregroundStyle(.white.opacity(0.42))
                         .padding(.top, 4 * scale)

@@ -213,7 +213,13 @@ struct PvtRequest: Encodable {
         lapsesTimeout = 0
         falseStarts = summary.falseStartCount
         isValid = !summary.trials.isEmpty && summary.averageMilliseconds != nil
-        invalidReason = isValid ? nil : "FALSE_START_OR_EMPTY_TRIALS"
+        if isValid {
+            invalidReason = nil
+        } else if summary.trials.isEmpty {
+            invalidReason = "EMPTY_TRIALS"
+        } else {
+            invalidReason = "MISSING_AVERAGE_RT"
+        }
         trials = summary.trials.map(PvtTrialRequest.init)
     }
 }

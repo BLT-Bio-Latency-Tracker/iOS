@@ -18,6 +18,13 @@ private struct InteractivePopGestureEnabler: UIViewControllerRepresentable {
 }
 
 private final class InteractivePopGestureViewController: UIViewController {
+    private weak var originalPopGestureDelegate: UIGestureRecognizerDelegate?
+    private var didOverridePopGestureDelegate = false
+
+    deinit {
+        restoreInteractivePopGestureDelegate()
+    }
+
     override func didMove(toParent parent: UIViewController?) {
         super.didMove(toParent: parent)
         enableInteractivePopGesture()
@@ -28,10 +35,29 @@ private final class InteractivePopGestureViewController: UIViewController {
         enableInteractivePopGesture()
     }
 
-    func enableInteractivePopGesture() {
-        guard let navigationController else { return }
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        restoreInteractivePopGestureDelegate()
+    }
 
-        navigationController.interactivePopGestureRecognizer?.isEnabled = true
-        navigationController.interactivePopGestureRecognizer?.delegate = nil
+    func enableInteractivePopGesture() {
+        guard let popGesture = navigationController?.interactivePopGestureRecognizer else { return }
+
+        if !didOverridePopGestureDelegate {
+            originalPopGestureDelegate = popGesture.delegate
+            didOverridePopGestureDelegate = true
+        }
+
+        popGesture.isEnabled = true
+        popGesture.delegate = nil
+    }
+
+    private func restoreInteractivePopGestureDelegate() {
+        guard didOverridePopGestureDelegate,
+              let popGesture = navigationController?.interactivePopGestureRecognizer else { return }
+
+        popGesture.delegate = originalPopGestureDelegate
+        originalPopGestureDelegate = nil
+        didOverridePopGestureDelegate = false
     }
 }

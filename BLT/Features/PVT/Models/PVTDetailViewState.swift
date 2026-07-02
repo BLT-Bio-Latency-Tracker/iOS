@@ -18,7 +18,7 @@ struct PVTDetailViewState {
     }
 
     var bestMilliseconds: Int {
-        measurements.map(\.averageMilliseconds).min() ?? 0
+        measurements.compactMap(\.bestMilliseconds).min() ?? 0
     }
 
     var averageLapseCount: Int {

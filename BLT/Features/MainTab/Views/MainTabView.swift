@@ -143,14 +143,19 @@ struct MainTabView: View {
 
         Task {
             do {
-                print("[PVT] Submit evaluation start: measurementId=\(pendingPVTSubmission.measurementId)")
+#if DEBUG
+                print("[PVT] Submit evaluation start")
+#endif
                 let evaluation = try await evaluationService.submit(
                     summary: pendingPVTSubmission.summary,
                     measuredAt: pendingPVTSubmission.measuredAt,
                     measurementId: pendingPVTSubmission.measurementId
                 )
                 await MainActor.run {
-                    print("[PVT] Submit evaluation succeeded: evaluationId=\(evaluation.evaluationId)")
+                    guard self.pendingPVTSubmission?.measurementId == pendingPVTSubmission.measurementId else { return }
+#if DEBUG
+                    print("[PVT] Submit evaluation succeeded")
+#endif
                     PVTResultStore.shared.save(
                         pendingPVTSubmission.summary,
                         measuredAt: pendingPVTSubmission.measuredAt,
@@ -162,8 +167,11 @@ struct MainTabView: View {
                     pvtResultRefreshTrigger += 1
                 }
             } catch {
-                print("[PVT] Submit evaluation failed: \(error.localizedDescription)")
                 await MainActor.run {
+#if DEBUG
+                    print("[PVT] Submit evaluation failed")
+#endif
+                    guard self.pendingPVTSubmission?.measurementId == pendingPVTSubmission.measurementId else { return }
                     pvtSubmissionErrorMessage = error.localizedDescription
                 }
             }
