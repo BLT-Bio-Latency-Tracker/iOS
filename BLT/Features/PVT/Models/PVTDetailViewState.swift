@@ -42,7 +42,7 @@ struct PVTDetailViewState {
     }
 }
 
-struct PVTDetailMeasurement: Identifiable, Equatable {
+struct PVTDetailMeasurement: Identifiable, Hashable {
     let id: Int
     let measurementId: UUID
     let measuredAt: Date
@@ -66,7 +66,7 @@ struct PVTDetailMeasurement: Identifiable, Equatable {
     }
 }
 
-enum PVTDetailStatus: Equatable {
+enum PVTDetailStatus: Hashable {
     case good
     case caution
     case poor

@@ -33,6 +33,11 @@ final class PVTDetailViewModel: ObservableObject {
         }
     }
 
+    func loadIfNeeded() async {
+        guard !state.isLoading, !state.hasMeasurements else { return }
+        await load()
+    }
+
     private static func makeMeasurement(from record: EvaluationPVTMeasurement) -> PVTDetailMeasurement {
         PVTDetailMeasurement(
             id: record.evaluationId,

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PVTDetailView: View {
     @StateObject private var viewModel: PVTDetailViewModel
+    @State private var selectedMeasurement: PVTDetailMeasurement?
 
     let onBack: () -> Void
 
@@ -51,10 +52,17 @@ struct PVTDetailView: View {
             }
         }
         .task {
-            await viewModel.load()
+            await viewModel.loadIfNeeded()
         }
         .preferredColorScheme(.dark)
         .enablesInteractivePopGesture()
+        .navigationDestination(item: $selectedMeasurement) { measurement in
+            PVTMeasurementDetailView(measurement: measurement) {
+                selectedMeasurement = nil
+            }
+            .navigationBarBackButtonHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
+        }
     }
 
     private func header(scale: CGFloat) -> some View {
@@ -261,52 +269,57 @@ struct PVTDetailView: View {
     }
 
     private func measurementCard(_ measurement: PVTDetailMeasurement, scale: CGFloat) -> some View {
-        HStack(alignment: .center, spacing: 0) {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .center, spacing: 14 * scale) {
-                    Text("\(timeText(measurement.measuredAt)) · \(dayPartText(measurement.measuredAt))")
-                        .font(.system(size: 11 * scale, weight: .bold))
-                        .foregroundStyle(.black.opacity(0.9))
-                        .padding(.horizontal, 6 * scale)
-                        .frame(height: 24 * scale)
-                        .background(color(for: measurement.status))
-                        .clipShape(Capsule())
+        Button {
+            selectedMeasurement = measurement
+        } label: {
+            HStack(alignment: .center, spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(alignment: .center, spacing: 14 * scale) {
+                        Text("\(timeText(measurement.measuredAt)) · \(dayPartText(measurement.measuredAt))")
+                            .font(.system(size: 11 * scale, weight: .bold))
+                            .foregroundStyle(.black.opacity(0.9))
+                            .padding(.horizontal, 6 * scale)
+                            .frame(height: 24 * scale)
+                            .background(color(for: measurement.status))
+                            .clipShape(Capsule())
 
-                    Text("\(measurement.averageMilliseconds)ms")
-                        .font(.system(size: 20 * scale, weight: .heavy))
-                        .foregroundStyle(.white)
+                        Text("\(measurement.averageMilliseconds)ms")
+                            .font(.system(size: 20 * scale, weight: .heavy))
+                            .foregroundStyle(.white)
+                    }
+
+                    Text("평균 \(measurement.averageMilliseconds)ms · BEST \(measurement.bestMilliseconds ?? 0)ms · Lapse \(measurement.lapseCount)")
+                        .font(.system(size: 12 * scale, weight: .regular))
+                        .foregroundStyle(.white.opacity(0.62))
+                        .padding(.top, 16 * scale)
+
+                    Text("Trial \(measurement.totalCount)/7 완료 · False Start \(measurement.falseStartCount)")
+                        .font(.system(size: 11 * scale, weight: .regular))
+                        .foregroundStyle(.white.opacity(0.42))
+                        .padding(.top, 4 * scale)
                 }
 
-                Text("평균 \(measurement.averageMilliseconds)ms · BEST \(measurement.bestMilliseconds ?? 0)ms · Lapse \(measurement.lapseCount)")
-                    .font(.system(size: 12 * scale, weight: .regular))
-                    .foregroundStyle(.white.opacity(0.62))
-                    .padding(.top, 16 * scale)
+                Spacer(minLength: 12 * scale)
 
-                Text("Trial \(measurement.totalCount)/7 완료 · False Start \(measurement.falseStartCount)")
-                    .font(.system(size: 11 * scale, weight: .regular))
-                    .foregroundStyle(.white.opacity(0.42))
-                    .padding(.top, 4 * scale)
+                Text(measurement.status.title)
+                    .font(.system(size: 12 * scale, weight: .bold))
+                    .foregroundStyle(.black.opacity(0.9))
+                    .frame(width: 52 * scale, height: 22 * scale)
+                    .background(color(for: measurement.status))
+                    .clipShape(Capsule())
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12 * scale, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.45))
+                    .padding(.leading, 10 * scale)
             }
-
-            Spacer(minLength: 12 * scale)
-
-            Text(measurement.status.title)
-                .font(.system(size: 12 * scale, weight: .bold))
-                .foregroundStyle(.black.opacity(0.9))
-                .frame(width: 52 * scale, height: 22 * scale)
-                .background(color(for: measurement.status))
-                .clipShape(Capsule())
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12 * scale, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.45))
-                .padding(.leading, 10 * scale)
+            .padding(.leading, 16 * scale)
+            .padding(.trailing, 18 * scale)
+            .frame(height: 88 * scale)
+            .background(Color.pvtDetailCard)
+            .clipShape(RoundedRectangle(cornerRadius: 16 * scale, style: .continuous))
         }
-        .padding(.leading, 16 * scale)
-        .padding(.trailing, 18 * scale)
-        .frame(height: 88 * scale)
-        .background(Color.pvtDetailCard)
-        .clipShape(RoundedRectangle(cornerRadius: 16 * scale, style: .continuous))
+        .buttonStyle(.plain)
     }
 
     private func loadingState(scale: CGFloat) -> some View {
