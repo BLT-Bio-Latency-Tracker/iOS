@@ -45,7 +45,10 @@ final class PVTDetailViewModel: ObservableObject {
 
     func reloadAfterDeletion() async {
         await load()
-        await storeSyncService.refreshTodayStoresAfterDeletion(on: date)
+        await storeSyncService.refreshTodayStoresAfterDeletion(
+            on: date,
+            remainingMeasurements: state.measurements
+        )
     }
 
     private static func makeMeasurement(from record: EvaluationPVTMeasurement) -> PVTDetailMeasurement {

@@ -42,7 +42,10 @@ final class HistoryDayDetailViewModel: ObservableObject {
         let selectedDate = state.selectedDate
         loadedDate = nil
         await load(for: selectedDate)
-        await storeSyncService.refreshTodayStoresAfterDeletion(on: selectedDate)
+        await storeSyncService.refreshTodayStoresAfterDeletion(
+            on: selectedDate,
+            remainingMeasurements: state.sortedEvaluations.map(Self.makePVTMeasurement(from:))
+        )
     }
 
     func moveDay(by value: Int) {
@@ -144,5 +147,19 @@ final class HistoryDayDetailViewModel: ObservableObject {
         }
 
         return nil
+    }
+
+    private static func makePVTMeasurement(from evaluation: HistoryDayEvaluation) -> PVTDetailMeasurement {
+        PVTDetailMeasurement(
+            id: evaluation.id,
+            measurementId: evaluation.pvt.measurementId,
+            measuredAt: evaluation.measuredAt,
+            averageMilliseconds: evaluation.pvt.averageMilliseconds,
+            bestMilliseconds: evaluation.pvt.bestMilliseconds,
+            lapseCount: evaluation.pvt.lapseCount,
+            falseStartCount: evaluation.pvt.falseStartCount,
+            totalCount: evaluation.pvt.totalCount,
+            rawReactionTimes: evaluation.pvt.rawReactionTimes
+        )
     }
 }

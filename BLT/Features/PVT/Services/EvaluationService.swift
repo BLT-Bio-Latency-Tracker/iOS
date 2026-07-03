@@ -82,7 +82,24 @@ struct EvaluationService {
     }
 
     func fetchLatestPVTMeasurementForMeasurementDay(containing date: Date = Date()) async throws -> EvaluationPVTMeasurement? {
-        try await fetchPVTDetailsForMeasurementDay(containing: date).last
+        let interval = Self.measurementDayInterval(containing: date)
+        let summaries = try await fetchSummaries(from: interval.start, to: interval.end, size: 100)
+        let filteredSummaries = summaries
+            .filter { $0.measuredAt >= interval.start && $0.measuredAt < interval.end }
+            .sorted { $0.measuredAt > $1.measuredAt }
+
+        for summary in filteredSummaries {
+            let detail = try await fetchDetail(id: summary.evaluationId)
+            guard detail.pvt.isValid else { continue }
+
+            return EvaluationPVTMeasurement(
+                evaluationId: summary.evaluationId,
+                measuredAt: detail.evaluation.measuredAt,
+                pvt: detail.pvt
+            )
+        }
+
+        return nil
     }
 
     func fetchPVTDetailsForMeasurementDay(containing date: Date = Date()) async throws -> [EvaluationPVTMeasurement] {

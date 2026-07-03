@@ -10,6 +10,7 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
 
     private enum UserDefaultsKey {
         static let lastSyncedSignature = "evaluation.latestSleepSync.lastSignature"
+        static let pendingDeletionEvaluationID = "evaluation.latestSleepSync.pendingDeletionEvaluationID"
     }
 
     private let healthKitService: HealthKitService
@@ -61,6 +62,7 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
 
     private func resubmitLatestPVTIfSleepBecameAvailable() async {
         guard AuthSessionStore.shared.accessToken != nil else { return }
+        guard await retryPendingDeletionIfNeeded() else { return }
         guard let pvtResult = pvtResultStore.displayResult() else { return }
         let plan = await sleepBackfillPlan(for: pvtResult.measuredAt)
         guard case .submit(let replacingEvaluationID) = plan else { return }
@@ -87,14 +89,32 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
                 resolvedSleep: resolvedSleep
             )
 
-            userDefaults.set(signature, forKey: UserDefaultsKey.lastSyncedSignature)
             evaluationResultStore.apply(evaluation)
             if let replacingEvaluationID,
                replacingEvaluationID != evaluation.evaluationId {
-                try? await evaluationService.deleteEvaluation(id: replacingEvaluationID)
+                do {
+                    try await evaluationService.deleteEvaluation(id: replacingEvaluationID)
+                    userDefaults.removeObject(forKey: UserDefaultsKey.pendingDeletionEvaluationID)
+                } catch {
+                    userDefaults.set(replacingEvaluationID, forKey: UserDefaultsKey.pendingDeletionEvaluationID)
+                }
             }
+            userDefaults.set(signature, forKey: UserDefaultsKey.lastSyncedSignature)
         } catch {
             // 다음 HealthKit 변경 또는 앱 재진입 시 다시 시도한다.
+        }
+    }
+
+    private func retryPendingDeletionIfNeeded() async -> Bool {
+        let pendingDeletionID = userDefaults.integer(forKey: UserDefaultsKey.pendingDeletionEvaluationID)
+        guard pendingDeletionID > 0 else { return true }
+
+        do {
+            try await evaluationService.deleteEvaluation(id: pendingDeletionID)
+            userDefaults.removeObject(forKey: UserDefaultsKey.pendingDeletionEvaluationID)
+            return true
+        } catch {
+            return false
         }
     }
 
