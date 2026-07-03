@@ -4,6 +4,13 @@ import SwiftUI
 struct HistoryDailyRecord: Identifiable, Equatable {
     let date: Date
     let roiScore: Int
+    let measuredAt: Date?
+
+    init(date: Date, roiScore: Int, measuredAt: Date? = nil) {
+        self.date = date
+        self.roiScore = roiScore
+        self.measuredAt = measuredAt
+    }
 
     var id: Date { Calendar.current.startOfDay(for: date) }
 }
@@ -48,4 +55,3 @@ enum HistoryROILevel: Equatable {
         }
     }
 }
-

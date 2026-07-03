@@ -67,6 +67,7 @@ struct MyPageProfileEditView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .enablesInteractivePopGesture()
         .sheet(item: $activePicker) { picker in
             pickerSheet(for: picker)
                 .presentationDetents([.height(300)])

@@ -65,6 +65,7 @@ struct MyPageNotificationEditView: View {
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .preferredColorScheme(.dark)
+        .enablesInteractivePopGesture()
         .sheet(item: $activePicker) { picker in
             pickerSheet(for: picker)
                 .presentationDetents([.height(300)])

@@ -68,16 +68,26 @@ struct MyPageView: View {
             .animation(.easeInOut(duration: 0.18), value: showsWithdrawalAlert)
         }
         .preferredColorScheme(.dark)
+        .enablesInteractivePopGesture()
+        .navigationDestination(item: $editRoute) { route in
+            editDestination(for: route)
+                .navigationBarBackButtonHidden(true)
+                .toolbar(.hidden, for: .navigationBar)
+        }
         .task {
             await viewModel.fetchMyPage()
         }
-        .fullScreenCover(item: $editRoute) { route in
-            switch route {
-            case .profile(let state):
+    }
+
+    @ViewBuilder
+    private func editDestination(for route: MyPageEditRoute) -> some View {
+        switch route {
+        case .profile:
+            if let state = viewModel.state {
                 MyPageProfileEditView(
                     state: state,
                     onBack: {
-                        editRoute = nil
+                        closeEditRoute()
                     },
                     onSave: { draft in
                         let patchRequest = draft.patchRequest(comparedTo: state)
@@ -90,12 +100,13 @@ struct MyPageView: View {
                         return isSaved
                     }
                 )
-                .ignoresSafeArea()
-            case .notification(let settings):
+            }
+        case .notification:
+            if let settings = viewModel.state?.notificationSettings {
                 MyPageNotificationEditView(
                     settings: settings,
                     onBack: {
-                        editRoute = nil
+                        closeEditRoute()
                     },
                     onSave: { draft in
                         let patchRequest = draft.patchRequest(comparedTo: settings)
@@ -108,9 +119,16 @@ struct MyPageView: View {
                         return isSaved
                     }
                 )
-                .ignoresSafeArea()
             }
         }
+    }
+
+    private func openEditRoute(_ route: MyPageEditRoute) {
+        editRoute = route
+    }
+
+    private func closeEditRoute() {
+        editRoute = nil
     }
 
     private func header(scale: CGFloat) -> some View {
@@ -200,7 +218,7 @@ struct MyPageView: View {
             trailing: profileMissingText(for: state),
             scale: scale,
             action: {
-                editRoute = .profile(state)
+                openEditRoute(.profile)
             }
         ) {
             infoRows([
@@ -217,7 +235,7 @@ struct MyPageView: View {
             trailing: nil,
             scale: scale,
             action: {
-                editRoute = .notification(settings)
+                openEditRoute(.notification)
             }
         ) {
             infoRows([
@@ -502,17 +520,12 @@ private struct MyPageRow {
     let isWarning: Bool
 }
 
-private enum MyPageEditRoute: Identifiable {
-    case profile(MyPageState)
-    case notification(MyPageNotificationSettings)
+private enum MyPageEditRoute: String, Identifiable, Hashable {
+    case profile
+    case notification
 
     var id: String {
-        switch self {
-        case .profile:
-            return "profile"
-        case .notification:
-            return "notification"
-        }
+        rawValue
     }
 }
 

@@ -3,57 +3,75 @@ import SwiftUI
 struct HistoryView: View {
     @StateObject private var viewModel = HistoryViewModel()
     @State private var isMonthPickerPresented = false
+    @State private var selectedDetailDate: HistoryDetailDate?
     @State private var draftYear = Calendar.current.component(.year, from: Date())
     @State private var draftMonth = Calendar.current.component(.month, from: Date())
+
+    var onDetailVisibilityChanged: (Bool) -> Void = { _ in }
 
     private let designWidth: CGFloat = 390
 
     var body: some View {
-        GeometryReader { proxy in
-            let scale = proxy.size.width / designWidth
-            let contentWidth = max(0, proxy.size.width - 40 * scale)
-            let horizontalInset = (proxy.size.width - contentWidth) / 2
-            let topPadding = max(18 * scale, 36 * scale - proxy.safeAreaInsets.top)
+        NavigationStack {
+            GeometryReader { proxy in
+                let scale = proxy.size.width / designWidth
+                let contentWidth = max(0, proxy.size.width - 40 * scale)
+                let horizontalInset = (proxy.size.width - contentWidth) / 2
+                let topPadding = max(18 * scale, 36 * scale - proxy.safeAreaInsets.top)
 
-            ZStack {
-                Color.historyBackground
-                    .ignoresSafeArea()
+                ZStack {
+                    Color.historyBackground
+                        .ignoresSafeArea()
 
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("History")
-                            .font(.system(size: 22 * scale, weight: .bold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.top, topPadding)
-                            .padding(.horizontal, 4 * scale)
+                    ScrollView(showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text("History")
+                                .font(.system(size: 22 * scale, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.top, topPadding)
+                                .padding(.horizontal, 4 * scale)
 
-                        monthSelector(scale: scale)
-                            .padding(.top, 28 * scale)
+                            monthSelector(scale: scale)
+                                .padding(.top, 28 * scale)
 
-                        calendarSection(scale: scale)
-                            .padding(.top, 24 * scale)
+                            calendarSection(scale: scale)
+                                .padding(.top, 24 * scale)
 
-                        legendSection(scale: scale)
-                            .padding(.top, 22 * scale)
-                            .padding(.horizontal, 4 * scale)
+                            legendSection(scale: scale)
+                                .padding(.top, 22 * scale)
+                                .padding(.horizontal, 4 * scale)
 
-                        summarySection(scale: scale)
-                            .padding(.top, 18 * scale)
+                            summarySection(scale: scale)
+                                .padding(.top, 18 * scale)
 
-                        Spacer(minLength: 24 * scale)
+                            Spacer(minLength: 24 * scale)
+                        }
+                        .padding(.horizontal, horizontalInset)
+                        .padding(.bottom, 16 * scale)
                     }
-                    .padding(.horizontal, horizontalInset)
-                    .padding(.bottom, 16 * scale)
-                }
 
-                if isMonthPickerPresented {
-                    monthPickerOverlay(scale: scale)
+                    if isMonthPickerPresented {
+                        monthPickerOverlay(scale: scale)
+                    }
                 }
+                .frame(width: proxy.size.width, height: proxy.size.height)
             }
-            .frame(width: proxy.size.width, height: proxy.size.height)
+            .navigationDestination(item: $selectedDetailDate) { detailDate in
+                HistoryDayDetailView(date: detailDate.date) {
+                    selectedDetailDate = nil
+                }
+                .navigationBarBackButtonHidden(true)
+                .toolbar(.hidden, for: .navigationBar)
+            }
         }
         .preferredColorScheme(.dark)
+        .onChange(of: selectedDetailDate) { _, detailDate in
+            onDetailVisibilityChanged(detailDate != nil)
+        }
+        .onDisappear {
+            onDetailVisibilityChanged(false)
+        }
         .task {
             await viewModel.fetchSelectedMonth()
         }
@@ -346,27 +364,34 @@ struct HistoryView: View {
         if day.day == nil {
             Color.clear
         } else if day.hasRecord {
-            VStack(spacing: 0) {
-                Text(String(day.day ?? 0))
-                    .font(.system(size: 10 * scale, weight: .regular))
-                    .foregroundStyle(Color.historyDeepText)
-                    .frame(height: 13 * scale)
+            Button {
+                if let date = day.date {
+                    selectedDetailDate = HistoryDetailDate(date: date)
+                }
+            } label: {
+                VStack(spacing: 0) {
+                    Text(String(day.day ?? 0))
+                        .font(.system(size: 10 * scale, weight: .regular))
+                        .foregroundStyle(Color.historyDeepText)
+                        .frame(height: 13 * scale)
 
-                Text(String(day.roiScore ?? 0))
-                    .font(.system(size: 13 * scale, weight: .bold))
-                    .foregroundStyle(Color.historyDeepText)
-                    .frame(height: 16 * scale)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 36 * scale)
-            .background(HistoryROILevel(score: day.roiScore).color)
-            .clipShape(RoundedRectangle(cornerRadius: 8 * scale, style: .continuous))
-            .overlay {
-                if day.isToday {
-                    RoundedRectangle(cornerRadius: 9 * scale, style: .continuous)
-                        .stroke(Color.historyPrimary, lineWidth: 2 * scale)
+                    Text(String(day.roiScore ?? 0))
+                        .font(.system(size: 13 * scale, weight: .bold))
+                        .foregroundStyle(Color.historyDeepText)
+                        .frame(height: 16 * scale)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 36 * scale)
+                .background(HistoryROILevel(score: day.roiScore).color)
+                .clipShape(RoundedRectangle(cornerRadius: 8 * scale, style: .continuous))
+                .overlay {
+                    if day.isToday {
+                        RoundedRectangle(cornerRadius: 9 * scale, style: .continuous)
+                            .stroke(Color.historyPrimary, lineWidth: 2 * scale)
+                    }
                 }
             }
+            .buttonStyle(.plain)
         } else if day.isToday {
             VStack(spacing: 0) {
                 Text(String(day.day ?? 0))
@@ -527,4 +552,12 @@ private extension Color {
     static let historyDeepText = Color(red: 0.039, green: 0.055, blue: 0.153)
     static let historyLegendText = Color(red: 0.7, green: 0.72, blue: 0.82)
     static let historyNoRecord = Color(red: 0.45, green: 0.47, blue: 0.6)
+}
+
+private struct HistoryDetailDate: Identifiable, Hashable {
+    let date: Date
+
+    var id: Date {
+        Calendar.current.startOfDay(for: date)
+    }
 }

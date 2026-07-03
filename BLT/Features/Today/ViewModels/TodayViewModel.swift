@@ -419,14 +419,6 @@ final class TodayViewModel: ObservableObject {
             changePercent: evaluation.trendVsYesterday,
             measuredAt: evaluation.measuredAt
         )
-
-        if state.pvtStatus == .noMeasurement {
-            state = state.replacingPVT(
-                state.pvt,
-                pvtStatus: .available,
-                measuredAt: evaluation.measuredAt
-            )
-        }
     }
 
     private func scheduleComparisonRecordFetch(referenceDate: Date) {
