@@ -68,9 +68,14 @@ struct HomeView: View {
         }
         .onReceive(timer) { date in
             viewModel.updateCurrentDate(date)
+            Task {
+                await notificationStore.refreshFromServer()
+            }
         }
         .task {
-            await viewModel.loadHealthKitSleepSummary()
+            async let sleepSummary: Void = viewModel.loadHealthKitSleepSummary()
+            async let notificationRefresh = notificationStore.refreshFromServer(force: true)
+            _ = await (sleepSummary, notificationRefresh)
         }
     }
 

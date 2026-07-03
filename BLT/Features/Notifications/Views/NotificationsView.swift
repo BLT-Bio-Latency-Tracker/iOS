@@ -162,6 +162,12 @@ struct NotificationsView: View {
             VStack(spacing: 12 * scale) {
                 ForEach(group.items) { item in
                     notificationCard(item, scale: scale)
+                        .contentShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
+                        .onTapGesture {
+                            Task {
+                                await viewModel.markNotificationAsRead(item)
+                            }
+                        }
                 }
             }
             .padding(.top, 20 * scale)

@@ -27,6 +27,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNU
         PushLog.debug("App became active, refresh remote notification registration")
         registerForRemoteNotifications()
         refreshFCMTokenIfAvailable()
+        refreshNotificationStore()
     }
 
     func application(
@@ -53,7 +54,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNU
     ) {
         let keys = userInfo.keys.map { String(describing: $0) }
         PushLog.debug("Remote notification received: keys=\(keys)")
-        completionHandler(.noData)
+        Task {
+            let result = await AppNotificationStore.shared.refreshFromServer(force: true)
+            completionHandler(backgroundFetchResult(for: result))
+        }
     }
 
     func messaging(
@@ -76,7 +80,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNU
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        [.banner, .list, .sound, .badge]
+        refreshNotificationStore()
+        return UNNotificationPresentationOptions([.banner, .list, .sound, .badge])
     }
 
     func userNotificationCenter(
@@ -89,6 +94,24 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNU
     private func handleNotificationTap(_ userInfo: [AnyHashable: Any]) {
         let keys = userInfo.keys.map { String(describing: $0) }
         PushLog.debug("Notification tapped: keys=\(keys)")
+        refreshNotificationStore()
+    }
+
+    private func refreshNotificationStore() {
+        Task {
+            await AppNotificationStore.shared.refreshFromServer(force: true)
+        }
+    }
+
+    private func backgroundFetchResult(for result: AppNotificationRefreshResult) -> UIBackgroundFetchResult {
+        switch result {
+        case .updated:
+            return .newData
+        case .unchanged:
+            return .noData
+        case .failed:
+            return .failed
+        }
     }
 
     private func refreshFCMTokenIfAvailable() {
