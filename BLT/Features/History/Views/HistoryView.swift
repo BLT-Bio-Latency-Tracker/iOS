@@ -69,6 +69,9 @@ struct HistoryView: View {
         .onChange(of: selectedDetailDate) { _, detailDate in
             onDetailVisibilityChanged(detailDate != nil)
         }
+        .onAppear {
+            onDetailVisibilityChanged(selectedDetailDate != nil)
+        }
         .onDisappear {
             onDetailVisibilityChanged(false)
         }

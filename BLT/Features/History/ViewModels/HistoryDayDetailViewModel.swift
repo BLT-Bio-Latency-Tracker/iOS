@@ -62,27 +62,36 @@ final class HistoryDayDetailViewModel: ObservableObject {
     }
 
     private func load(for date: Date) async {
+        let requestedDate = calendar.startOfDay(for: date)
+        guard calendar.isDate(requestedDate, inSameDayAs: state.selectedDate) else { return }
+
         state.isLoading = true
         state.errorMessage = nil
 
         do {
-            let evaluations = try await fetchEvaluations(for: date)
-            let sleep = await fetchSleep(for: date, evaluations: evaluations)
-            guard !Task.isCancelled else { return }
+            let evaluations = try await fetchEvaluations(for: requestedDate)
+            let sleep = await fetchSleep(for: requestedDate, evaluations: evaluations)
+            guard !Task.isCancelled,
+                  calendar.isDate(requestedDate, inSameDayAs: state.selectedDate) else {
+                return
+            }
 
             state = HistoryDayDetailState(
-                selectedDate: date,
+                selectedDate: requestedDate,
                 isLoading: false,
                 errorMessage: nil,
                 evaluations: evaluations,
                 sleep: sleep
             )
-            loadedDate = date
+            loadedDate = requestedDate
         } catch {
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled,
+                  calendar.isDate(requestedDate, inSameDayAs: state.selectedDate) else {
+                return
+            }
             state.isLoading = false
             state.errorMessage = "상세 기록을 불러오지 못했어요."
-            loadedDate = date
+            loadedDate = requestedDate
         }
     }
 
