@@ -54,8 +54,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNU
     ) {
         let keys = userInfo.keys.map { String(describing: $0) }
         PushLog.debug("Remote notification received: keys=\(keys)")
-        refreshNotificationStore()
-        completionHandler(.noData)
+        Task {
+            let result = await AppNotificationStore.shared.refreshFromServer(force: true)
+            completionHandler(backgroundFetchResult(for: result))
+        }
     }
 
     func messaging(
@@ -78,7 +80,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNU
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        await AppNotificationStore.shared.refreshFromServer(force: true)
+        refreshNotificationStore()
         return UNNotificationPresentationOptions([.banner, .list, .sound, .badge])
     }
 
@@ -98,6 +100,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNU
     private func refreshNotificationStore() {
         Task {
             await AppNotificationStore.shared.refreshFromServer(force: true)
+        }
+    }
+
+    private func backgroundFetchResult(for result: AppNotificationRefreshResult) -> UIBackgroundFetchResult {
+        switch result {
+        case .updated:
+            return .newData
+        case .unchanged:
+            return .noData
+        case .failed:
+            return .failed
         }
     }
 

@@ -73,8 +73,9 @@ struct HomeView: View {
             }
         }
         .task {
-            await viewModel.loadHealthKitSleepSummary()
-            await notificationStore.refreshFromServer(force: true)
+            async let sleepSummary: Void = viewModel.loadHealthKitSleepSummary()
+            async let notificationRefresh = notificationStore.refreshFromServer(force: true)
+            _ = await (sleepSummary, notificationRefresh)
         }
     }
 

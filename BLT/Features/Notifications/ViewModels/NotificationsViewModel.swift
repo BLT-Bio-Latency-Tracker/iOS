@@ -63,13 +63,13 @@ final class NotificationsViewModel: ObservableObject {
         guard !item.isRead else { return }
 
         errorMessage = nil
-        store.updateReadState(id: item.id, isRead: true)
+        store.markAsReadPending(id: item.id)
 
         do {
             try await service.markNotificationAsRead(id: item.id)
             errorMessage = nil
         } catch {
-            store.updateReadState(id: item.id, isRead: false)
+            store.revertPendingRead(id: item.id)
             errorMessage = "알림 읽음 처리에 실패했어요."
         }
     }
