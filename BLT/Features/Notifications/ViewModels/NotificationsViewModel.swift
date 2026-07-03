@@ -59,6 +59,21 @@ final class NotificationsViewModel: ObservableObject {
         }
     }
 
+    func markNotificationAsRead(_ item: AppNotificationItem) async {
+        guard !item.isRead else { return }
+
+        errorMessage = nil
+        store.updateReadState(id: item.id, isRead: true)
+
+        do {
+            try await service.markNotificationAsRead(id: item.id)
+            errorMessage = nil
+        } catch {
+            store.updateReadState(id: item.id, isRead: false)
+            errorMessage = "알림 읽음 처리에 실패했어요."
+        }
+    }
+
     func fetchNotifications() async {
         let requestedCategory = selectedCategory
 

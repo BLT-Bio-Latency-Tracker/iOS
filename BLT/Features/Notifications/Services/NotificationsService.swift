@@ -27,6 +27,13 @@ struct NotificationsService {
             requiresAuth: true
         )
     }
+
+    func markNotificationAsRead(id: AppNotificationItem.ID) async throws {
+        let _: EmptyResponse = try await networkClient.post(
+            "/api/v1/notifications/\(id)/read",
+            requiresAuth: true
+        )
+    }
 }
 
 private struct NotificationPageResponse: Decodable {

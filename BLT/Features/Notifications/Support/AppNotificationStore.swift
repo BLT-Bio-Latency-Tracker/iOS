@@ -27,6 +27,15 @@ final class AppNotificationStore: ObservableObject {
         }
     }
 
+    func updateReadState(id: AppNotificationItem.ID, isRead: Bool) {
+        notifications = notifications.map { item in
+            guard item.id == id else { return item }
+            var updatedItem = item
+            updatedItem.isRead = isRead
+            return updatedItem
+        }
+    }
+
     func removeAll() {
         notifications = []
     }
