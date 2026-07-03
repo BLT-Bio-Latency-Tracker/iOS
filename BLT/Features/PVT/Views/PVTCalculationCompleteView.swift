@@ -9,6 +9,7 @@ struct PVTCalculationCompleteView: View {
     @State private var iconScale: CGFloat = 0.68
     @State private var iconOpacity: Double = 0
     @State private var contentOpacity: Double = 0
+    @State private var didRequestResult = false
 
     private let designWidth: CGFloat = 390
     private let healthKitService = HealthKitService()
@@ -46,7 +47,11 @@ struct PVTCalculationCompleteView: View {
 
                     Spacer(minLength: 0)
 
-                    Button(action: onShowResult) {
+                    Button {
+                        guard !didRequestResult else { return }
+                        didRequestResult = true
+                        onShowResult()
+                    } label: {
                         Text("결과 보기 →")
                             .font(.system(size: 16 * scale, weight: .semibold))
                             .foregroundStyle(.white)
@@ -62,6 +67,7 @@ struct PVTCalculationCompleteView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 16 * scale, style: .continuous))
                     }
                     .buttonStyle(.plain)
+                    .disabled(didRequestResult)
                     .padding(.bottom, max(28 * scale, 34 * scale - proxy.safeAreaInsets.bottom))
                 }
                 .padding(.horizontal, 20 * scale)

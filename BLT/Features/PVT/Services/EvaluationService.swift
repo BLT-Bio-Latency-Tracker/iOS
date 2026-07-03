@@ -74,6 +74,17 @@ struct EvaluationService {
         )
     }
 
+    func deleteEvaluation(id: Int) async throws {
+        let _: EmptyResponse = try await networkClient.delete(
+            "/api/v1/evaluations/\(id)",
+            requiresAuth: true
+        )
+    }
+
+    func fetchLatestPVTMeasurementForMeasurementDay(containing date: Date = Date()) async throws -> EvaluationPVTMeasurement? {
+        try await fetchPVTDetailsForMeasurementDay(containing: date).last
+    }
+
     func fetchPVTDetailsForMeasurementDay(containing date: Date = Date()) async throws -> [EvaluationPVTMeasurement] {
         let interval = Self.measurementDayInterval(containing: date)
         let summaries = try await fetchSummaries(from: interval.start, to: interval.end, size: 100)
