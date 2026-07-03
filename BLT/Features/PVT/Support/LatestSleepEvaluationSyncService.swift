@@ -142,8 +142,14 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
 
         let isSamePVTWindow = abs(evaluation.measuredAt.timeIntervalSince(pvtMeasuredAt)) < 5
         if isSamePVTWindow {
-            guard let detail = try? await evaluationService.fetchDetail(id: evaluation.evaluationId),
-                  let serverSleep = detail.sleep else {
+            let detail: EvaluationDetailResponse
+            do {
+                detail = try await evaluationService.fetchDetail(id: evaluation.evaluationId)
+            } catch {
+                return .none
+            }
+
+            guard let serverSleep = detail.sleep else {
                 return .submit(replacingEvaluationID: evaluation.evaluationId)
             }
 

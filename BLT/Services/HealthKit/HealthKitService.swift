@@ -340,15 +340,15 @@ final class HealthKitService {
             }
         }
 
-        let totalMinutes = minutesAfterMerging(asleepIntervals)
+        let totalMinutes = SleepIntervalCalculator.minutesAfterMerging(asleepIntervals)
         guard totalMinutes > 0 else { return nil }
 
         return HealthKitSleepSummary(
             totalMinutes: totalMinutes,
-            coreMinutes: minutesAfterMerging(coreIntervals),
-            deepMinutes: minutesAfterMerging(deepIntervals),
-            remMinutes: minutesAfterMerging(remIntervals),
-            awakeMinutes: minutesAfterMerging(awakeIntervals),
+            coreMinutes: SleepIntervalCalculator.minutesAfterMerging(coreIntervals),
+            deepMinutes: SleepIntervalCalculator.minutesAfterMerging(deepIntervals),
+            remMinutes: SleepIntervalCalculator.minutesAfterMerging(remIntervals),
+            awakeMinutes: SleepIntervalCalculator.minutesAfterMerging(awakeIntervals),
             inBedMinutes: Int((sleepSession.duration / 60).rounded()),
             bedStartAt: sleepSession.start,
             bedEndAt: sleepSession.end,
@@ -478,41 +478,7 @@ final class HealthKitService {
             return clippedInterval(queryClippedInterval, to: session)
         }
 
-        return minutesAfterMerging(asleepIntervals)
-    }
-
-    private static func minutesAfterMerging(_ intervals: [DateInterval]) -> Int {
-        let totalSeconds = mergedIntervals(intervals).reduce(0) { result, interval in
-            result + interval.duration
-        }
-
-        return Int((totalSeconds / 60).rounded())
-    }
-
-    private static func mergedIntervals(_ intervals: [DateInterval]) -> [DateInterval] {
-        let sortedIntervals = intervals
-            .filter { $0.duration > 0 }
-            .sorted { $0.start < $1.start }
-
-        guard var current = sortedIntervals.first else { return [] }
-
-        var merged: [DateInterval] = []
-
-        for interval in sortedIntervals.dropFirst() {
-            if interval.start <= current.end {
-                current = DateInterval(
-                    start: current.start,
-                    end: max(current.end, interval.end)
-                )
-            } else {
-                merged.append(current)
-                current = interval
-            }
-        }
-
-        merged.append(current)
-
-        return merged
+        return SleepIntervalCalculator.minutesAfterMerging(asleepIntervals)
     }
 
     private static func clippedInterval(

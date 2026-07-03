@@ -260,17 +260,19 @@ struct HistoryDayDetailView: View {
                 .foregroundStyle(.white)
                 .padding(.top, 12 * scale)
 
-            if let bedStartAt = sleep?.bedStartAt,
-               let bedEndAt = sleep?.bedEndAt {
-                Text(sleepTimeSummaryText(sleep: sleep, bedStartAt: bedStartAt, bedEndAt: bedEndAt))
-                    .font(.system(size: 12 * scale, weight: .regular))
-                    .foregroundStyle(Color.historyDayText)
-                    .padding(.top, 6 * scale)
-            } else {
-                Text("서버에 저장된 수면 데이터 기준")
-                    .font(.system(size: 11 * scale, weight: .regular))
-                    .foregroundStyle(Color.historyDayMuted)
-                    .padding(.top, 6 * scale)
+            if let sleep {
+                if let bedStartAt = sleep.bedStartAt,
+                   let bedEndAt = sleep.bedEndAt {
+                    Text(sleepTimeSummaryText(sleep: sleep, bedStartAt: bedStartAt, bedEndAt: bedEndAt))
+                        .font(.system(size: 12 * scale, weight: .regular))
+                        .foregroundStyle(Color.historyDayText)
+                        .padding(.top, 6 * scale)
+                } else {
+                    Text("서버에 저장된 수면 데이터 기준")
+                        .font(.system(size: 11 * scale, weight: .regular))
+                        .foregroundStyle(Color.historyDayMuted)
+                        .padding(.top, 6 * scale)
+                }
             }
 
             if let sleep, !sleep.stageSegments.isEmpty {

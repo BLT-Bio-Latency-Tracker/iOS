@@ -221,10 +221,6 @@ struct HistoryDaySleepStageSegment: Identifiable, Equatable {
         }
     }
 
-    static func serverSegments(from segments: [SleepStageSegmentResponse]) -> [HistoryDaySleepStageSegment] {
-        serverTimeline(from: segments)?.segments ?? []
-    }
-
     static func serverTimeline(from segments: [SleepStageSegmentResponse]) -> HistoryDaySleepStageTimeline? {
         let timelineSegments = segments.compactMap { segment -> (kind: HistoryDaySleepStageKind, startAt: Date, endAt: Date)? in
             guard let kind = HistoryDaySleepStageKind(serverStage: segment.stage),
@@ -276,12 +272,14 @@ struct HistoryDaySleepStageSegment: Identifiable, Equatable {
             )
         }
 
-        let coreMinutes = minutesAfterMerging(coreIntervals)
-        let deepMinutes = minutesAfterMerging(deepIntervals)
-        let remMinutes = minutesAfterMerging(remIntervals)
-        let awakeMinutes = minutesAfterMerging(awakeIntervals)
-        let asleepMinutes = minutesAfterMerging(asleepIntervals)
-        let inBedMinutes = minutesAfterMerging(timelineSegments.map { DateInterval(start: $0.startAt, end: $0.endAt) })
+        let coreMinutes = SleepIntervalCalculator.minutesAfterMerging(coreIntervals)
+        let deepMinutes = SleepIntervalCalculator.minutesAfterMerging(deepIntervals)
+        let remMinutes = SleepIntervalCalculator.minutesAfterMerging(remIntervals)
+        let awakeMinutes = SleepIntervalCalculator.minutesAfterMerging(awakeIntervals)
+        let asleepMinutes = SleepIntervalCalculator.minutesAfterMerging(asleepIntervals)
+        let inBedMinutes = SleepIntervalCalculator.minutesAfterMerging(
+            timelineSegments.map { DateInterval(start: $0.startAt, end: $0.endAt) }
+        )
 
         return HistoryDaySleepStageTimeline(
             segments: displaySegments,
@@ -294,39 +292,6 @@ struct HistoryDaySleepStageSegment: Identifiable, Equatable {
             remMinutes: remMinutes,
             awakeMinutes: awakeMinutes
         )
-    }
-
-    private static func minutesAfterMerging(_ intervals: [DateInterval]) -> Int {
-        let totalSeconds = mergedIntervals(intervals).reduce(0) { result, interval in
-            result + interval.duration
-        }
-
-        return Int((totalSeconds / 60).rounded())
-    }
-
-    private static func mergedIntervals(_ intervals: [DateInterval]) -> [DateInterval] {
-        let sortedIntervals = intervals
-            .filter { $0.duration > 0 }
-            .sorted { $0.start < $1.start }
-
-        guard var current = sortedIntervals.first else { return [] }
-
-        var merged: [DateInterval] = []
-
-        for interval in sortedIntervals.dropFirst() {
-            if interval.start <= current.end {
-                current = DateInterval(
-                    start: current.start,
-                    end: max(current.end, interval.end)
-                )
-            } else {
-                merged.append(current)
-                current = interval
-            }
-        }
-
-        merged.append(current)
-        return merged
     }
 
     static func hasDisplayableServerSegments(_ segments: [SleepStageSegmentResponse]) -> Bool {
