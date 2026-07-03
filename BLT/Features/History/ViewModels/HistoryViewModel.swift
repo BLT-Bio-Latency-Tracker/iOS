@@ -172,12 +172,22 @@ final class HistoryViewModel: ObservableObject {
                 }
                 return lhs.date < rhs.date
             }
+
+        let recordsGroupedByDay = Dictionary(grouping: monthlyRecords) { record in
+            calendar.component(.day, from: record.date)
+        }
+
         var recordsByDay: [Int: HistoryDailyRecord] = [:]
-        for record in monthlyRecords {
-            let day = calendar.component(.day, from: record.date)
-            if recordsByDay[day] == nil {
-                recordsByDay[day] = record
-            }
+        for (day, records) in recordsGroupedByDay {
+            guard let firstRecord = records.first else { continue }
+            let averageScore = Int(
+                (Double(records.map(\.roiScore).reduce(0, +)) / Double(records.count)).rounded()
+            )
+            recordsByDay[day] = HistoryDailyRecord(
+                date: firstRecord.date,
+                roiScore: averageScore,
+                measuredAt: records.compactMap(\.measuredAt).max()
+            )
         }
 
         var days: [HistoryCalendarDay] = []

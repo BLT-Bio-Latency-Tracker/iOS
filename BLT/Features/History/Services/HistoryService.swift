@@ -13,7 +13,7 @@ struct HistoryService {
             queryItems: [
                 URLQueryItem(name: "from", value: Self.dateText(from)),
                 URLQueryItem(name: "to", value: Self.dateText(to)),
-                URLQueryItem(name: "size", value: "31")
+                URLQueryItem(name: "size", value: "1000")
             ],
             requiresAuth: true
         )

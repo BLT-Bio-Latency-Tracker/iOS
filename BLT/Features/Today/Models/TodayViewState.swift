@@ -17,7 +17,7 @@ struct TodayViewState {
     }
 
     var hasTodayPVTData: Bool {
-        pvtStatus == .available
+        pvtStatus == .available && pvt.averageMs > 0
     }
 
     var hasROIResult: Bool {
