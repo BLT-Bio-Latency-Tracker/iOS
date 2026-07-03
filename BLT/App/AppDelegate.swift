@@ -27,6 +27,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNU
         PushLog.debug("App became active, refresh remote notification registration")
         registerForRemoteNotifications()
         refreshFCMTokenIfAvailable()
+        refreshNotificationStore()
     }
 
     func application(
@@ -53,6 +54,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNU
     ) {
         let keys = userInfo.keys.map { String(describing: $0) }
         PushLog.debug("Remote notification received: keys=\(keys)")
+        refreshNotificationStore()
         completionHandler(.noData)
     }
 
@@ -76,7 +78,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNU
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        [.banner, .list, .sound, .badge]
+        await AppNotificationStore.shared.refreshFromServer(force: true)
+        return UNNotificationPresentationOptions([.banner, .list, .sound, .badge])
     }
 
     func userNotificationCenter(
@@ -89,6 +92,13 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNU
     private func handleNotificationTap(_ userInfo: [AnyHashable: Any]) {
         let keys = userInfo.keys.map { String(describing: $0) }
         PushLog.debug("Notification tapped: keys=\(keys)")
+        refreshNotificationStore()
+    }
+
+    private func refreshNotificationStore() {
+        Task {
+            await AppNotificationStore.shared.refreshFromServer(force: true)
+        }
     }
 
     private func refreshFCMTokenIfAvailable() {
