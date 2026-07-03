@@ -262,7 +262,7 @@ struct HistoryDayDetailView: View {
 
             if let bedStartAt = sleep?.bedStartAt,
                let bedEndAt = sleep?.bedEndAt {
-                Text("입면 \(timeText(bedStartAt)) · 기상 \(timeText(bedEndAt))")
+                Text(sleepTimeSummaryText(sleep: sleep, bedStartAt: bedStartAt, bedEndAt: bedEndAt))
                     .font(.system(size: 12 * scale, weight: .regular))
                     .foregroundStyle(Color.historyDayText)
                     .padding(.top, 6 * scale)
@@ -572,6 +572,20 @@ struct HistoryDayDetailView: View {
     private func sleepDurationText(_ minutes: Int?) -> String {
         guard let minutes, minutes > 0 else { return "데이터 없음" }
         return "\(minutes / 60)h \(minutes % 60)m"
+    }
+
+    private func sleepTimeSummaryText(
+        sleep: HistoryDaySleepSummary?,
+        bedStartAt: Date,
+        bedEndAt: Date
+    ) -> String {
+        let timeRangeText = "입면 \(timeText(bedStartAt)) · 기상 \(timeText(bedEndAt))"
+
+        guard let efficiencyPercent = sleep?.efficiencyPercent else {
+            return timeRangeText
+        }
+
+        return "효율 \(efficiencyPercent)% · \(timeRangeText)"
     }
 }
 

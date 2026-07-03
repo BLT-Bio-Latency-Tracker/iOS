@@ -80,6 +80,7 @@ struct HistoryServerSleepSummary: Equatable {
     let coreMinutes: Int
     let awakeMinutes: Int
     let inBedMinutes: Int
+    let efficiencyPercent: Int?
     let stages: [SleepStageSegmentResponse]
 
     init(detail: EvaluationSleepDetail) {
@@ -89,6 +90,7 @@ struct HistoryServerSleepSummary: Equatable {
         coreMinutes = detail.coreMinutes
         awakeMinutes = detail.awakeMinutes
         inBedMinutes = detail.inBedMinutes
+        efficiencyPercent = detail.efficiencyPercent
         stages = detail.stages
     }
 }
@@ -99,6 +101,8 @@ struct HistoryDaySleepSummary: Equatable {
     let deepMinutes: Int
     let remMinutes: Int
     let awakeMinutes: Int
+    let inBedMinutes: Int
+    let efficiencyPercent: Int?
     let bedStartAt: Date?
     let bedEndAt: Date?
     let stageSegments: [HistoryDaySleepStageSegment]
@@ -109,6 +113,11 @@ struct HistoryDaySleepSummary: Equatable {
         deepMinutes = summary.deepMinutes
         remMinutes = summary.remMinutes
         awakeMinutes = summary.awakeMinutes
+        inBedMinutes = summary.inBedMinutes
+        efficiencyPercent = HistoryDaySleepSummary.calculatedEfficiencyPercent(
+            totalMinutes: summary.totalMinutes,
+            inBedMinutes: summary.inBedMinutes
+        )
         bedStartAt = summary.bedStartAt
         bedEndAt = summary.bedEndAt
         stageSegments = summary.stageSegments.map(HistoryDaySleepStageSegment.init)
@@ -121,6 +130,12 @@ struct HistoryDaySleepSummary: Equatable {
             deepMinutes = timeline.deepMinutes
             remMinutes = timeline.remMinutes
             awakeMinutes = timeline.awakeMinutes
+            inBedMinutes = timeline.inBedMinutes
+            efficiencyPercent = serverSleep.efficiencyPercent
+                ?? HistoryDaySleepSummary.calculatedEfficiencyPercent(
+                    totalMinutes: timeline.asleepMinutes,
+                    inBedMinutes: timeline.inBedMinutes
+                )
             bedStartAt = timeline.bedStartAt
             bedEndAt = timeline.bedEndAt
             stageSegments = timeline.segments
@@ -130,6 +145,12 @@ struct HistoryDaySleepSummary: Equatable {
             deepMinutes = serverSleep.deepMinutes
             remMinutes = serverSleep.remMinutes
             awakeMinutes = serverSleep.awakeMinutes
+            inBedMinutes = serverSleep.inBedMinutes
+            efficiencyPercent = serverSleep.efficiencyPercent
+                ?? HistoryDaySleepSummary.calculatedEfficiencyPercent(
+                    totalMinutes: serverSleep.totalMinutes,
+                    inBedMinutes: serverSleep.inBedMinutes
+                )
             bedStartAt = nil
             bedEndAt = nil
             stageSegments = HistoryDaySleepStageSegment.aggregateSegments(
@@ -139,6 +160,11 @@ struct HistoryDaySleepSummary: Equatable {
                 awakeMinutes: serverSleep.awakeMinutes
             )
         }
+    }
+
+    private static func calculatedEfficiencyPercent(totalMinutes: Int, inBedMinutes: Int) -> Int? {
+        guard inBedMinutes > 0 else { return nil }
+        return Int((Double(totalMinutes) / Double(inBedMinutes) * 100).rounded())
     }
 }
 
@@ -255,12 +281,14 @@ struct HistoryDaySleepStageSegment: Identifiable, Equatable {
         let remMinutes = minutesAfterMerging(remIntervals)
         let awakeMinutes = minutesAfterMerging(awakeIntervals)
         let asleepMinutes = minutesAfterMerging(asleepIntervals)
+        let inBedMinutes = minutesAfterMerging(timelineSegments.map { DateInterval(start: $0.startAt, end: $0.endAt) })
 
         return HistoryDaySleepStageTimeline(
             segments: displaySegments,
             bedStartAt: timelineStart,
             bedEndAt: timelineEnd,
             asleepMinutes: asleepMinutes,
+            inBedMinutes: inBedMinutes,
             coreMinutes: coreMinutes,
             deepMinutes: deepMinutes,
             remMinutes: remMinutes,
@@ -313,6 +341,7 @@ struct HistoryDaySleepStageTimeline: Equatable {
     let bedStartAt: Date
     let bedEndAt: Date
     let asleepMinutes: Int
+    let inBedMinutes: Int
     let coreMinutes: Int
     let deepMinutes: Int
     let remMinutes: Int
