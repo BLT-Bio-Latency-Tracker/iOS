@@ -7,6 +7,7 @@ final class HistoryDayDetailViewModel: ObservableObject {
 
     private let evaluationService: EvaluationService
     private let healthKitService: HealthKitService
+    private let storeSyncService: PVTEvaluationStoreSyncService
     private var calendar: Calendar
     private var loadTask: Task<Void, Never>?
     private var loadedDate: Date?
@@ -15,6 +16,7 @@ final class HistoryDayDetailViewModel: ObservableObject {
         date: Date,
         evaluationService: EvaluationService = EvaluationService(),
         healthKitService: HealthKitService = HealthKitService(),
+        storeSyncService: PVTEvaluationStoreSyncService? = nil,
         calendar: Calendar = .current
     ) {
         var normalizedCalendar = calendar
@@ -22,6 +24,7 @@ final class HistoryDayDetailViewModel: ObservableObject {
         self.calendar = normalizedCalendar
         self.evaluationService = evaluationService
         self.healthKitService = healthKitService
+        self.storeSyncService = storeSyncService ?? PVTEvaluationStoreSyncService(evaluationService: evaluationService)
         self.state = .empty(date: normalizedCalendar.startOfDay(for: date))
     }
 
@@ -33,6 +36,13 @@ final class HistoryDayDetailViewModel: ObservableObject {
         guard !state.isLoading else { return }
         guard loadedDate != state.selectedDate else { return }
         await load(for: state.selectedDate)
+    }
+
+    func reloadAfterDeletion() async {
+        let selectedDate = state.selectedDate
+        loadedDate = nil
+        await load(for: selectedDate)
+        await storeSyncService.refreshTodayStoresAfterDeletion(on: selectedDate)
     }
 
     func moveDay(by value: Int) {

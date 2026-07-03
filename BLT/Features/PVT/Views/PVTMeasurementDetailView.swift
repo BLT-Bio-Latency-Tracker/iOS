@@ -3,8 +3,14 @@ import SwiftUI
 struct PVTMeasurementDetailView: View {
     let measurement: PVTDetailMeasurement
     let onBack: () -> Void
+    let onDeleted: @MainActor () async -> Void
+
+    @State private var showsDeleteAlert = false
+    @State private var isDeleting = false
+    @State private var deletionErrorMessage: String?
 
     private let designWidth: CGFloat = 390
+    private let evaluationService = EvaluationService()
 
     var body: some View {
         GeometryReader { proxy in
@@ -43,6 +49,9 @@ struct PVTMeasurementDetailView: View {
 
                             metricRows(scale: scale)
                                 .padding(.top, 28 * scale)
+
+                            deleteButton(scale: scale)
+                                .padding(.top, 50 * scale)
                         }
                         .padding(.horizontal, horizontalInset)
                         .padding(.bottom, 34 * scale)
@@ -52,6 +61,25 @@ struct PVTMeasurementDetailView: View {
         }
         .preferredColorScheme(.dark)
         .enablesInteractivePopGesture()
+        .alert("이 PVT 기록을 삭제할까요?", isPresented: $showsDeleteAlert) {
+            Button("취소", role: .cancel) {}
+            Button("삭제하기", role: .destructive) {
+                deleteMeasurement()
+            }
+        } message: {
+            Text("삭제하면 이 기록은 복구할 수 없어요")
+        }
+        .alert(
+            "기록 삭제 실패",
+            isPresented: Binding(
+                get: { deletionErrorMessage != nil },
+                set: { if !$0 { deletionErrorMessage = nil } }
+            )
+        ) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text(deletionErrorMessage ?? "")
+        }
     }
 
     private func header(scale: CGFloat) -> some View {
@@ -180,6 +208,41 @@ struct PVTMeasurementDetailView: View {
                 valueColor: arousalLevelStatus.color,
                 scale: scale
             )
+        }
+    }
+
+    private func deleteButton(scale: CGFloat) -> some View {
+        Button {
+            showsDeleteAlert = true
+        } label: {
+            Text(isDeleting ? "삭제 중..." : "삭제하기")
+                .font(.system(size: 15 * scale, weight: .medium))
+                .foregroundStyle(Color.pvtRecordDanger)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44 * scale)
+        }
+        .buttonStyle(.plain)
+        .disabled(isDeleting)
+        .opacity(isDeleting ? 0.55 : 1)
+    }
+
+    private func deleteMeasurement() {
+        guard !isDeleting else { return }
+        isDeleting = true
+
+        Task {
+            do {
+                try await evaluationService.deleteEvaluation(id: measurement.id)
+                await onDeleted()
+            } catch {
+                await MainActor.run {
+                    deletionErrorMessage = "PVT 기록을 삭제하지 못했어요. 잠시 후 다시 시도해주세요."
+                }
+            }
+
+            await MainActor.run {
+                isDeleting = false
+            }
         }
     }
 
@@ -383,4 +446,5 @@ private extension Color {
     static let pvtRecordCard = Color(red: 0.078, green: 0.098, blue: 0.216)
     static let pvtRecordPositive = Color(red: 0.063, green: 0.725, blue: 0.506)
     static let pvtRecordCaution = Color(red: 0.961, green: 0.62, blue: 0.043)
+    static let pvtRecordDanger = Color(red: 1, green: 0.267, blue: 0.267)
 }

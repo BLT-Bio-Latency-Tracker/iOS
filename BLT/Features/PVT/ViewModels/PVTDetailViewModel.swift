@@ -6,14 +6,17 @@ final class PVTDetailViewModel: ObservableObject {
     @Published private(set) var state = PVTDetailViewState.empty
 
     private let evaluationService: EvaluationService
+    private let storeSyncService: PVTEvaluationStoreSyncService
     private let date: Date
 
     init(
         date: Date = Date(),
-        evaluationService: EvaluationService = EvaluationService()
+        evaluationService: EvaluationService = EvaluationService(),
+        storeSyncService: PVTEvaluationStoreSyncService? = nil
     ) {
         self.date = date
         self.evaluationService = evaluationService
+        self.storeSyncService = storeSyncService ?? PVTEvaluationStoreSyncService(evaluationService: evaluationService)
     }
 
     func load() async {
@@ -40,6 +43,11 @@ final class PVTDetailViewModel: ObservableObject {
         await load()
     }
 
+    func reloadAfterDeletion() async {
+        await load()
+        await storeSyncService.refreshTodayStoresAfterDeletion(on: date)
+    }
+
     private static func makeMeasurement(from record: EvaluationPVTMeasurement) -> PVTDetailMeasurement {
         PVTDetailMeasurement(
             id: record.evaluationId,
@@ -53,4 +61,5 @@ final class PVTDetailViewModel: ObservableObject {
             rawReactionTimes: record.pvt.rawRtMs
         )
     }
+
 }

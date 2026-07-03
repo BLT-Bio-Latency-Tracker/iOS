@@ -60,6 +60,8 @@ struct HistoryView: View {
             .navigationDestination(item: $selectedDetailDate) { detailDate in
                 HistoryDayDetailView(date: detailDate.date) {
                     selectedDetailDate = nil
+                } onDataChanged: { changedDate in
+                    await viewModel.refreshMonth(containing: changedDate)
                 }
                 .navigationBarBackButtonHidden(true)
                 .toolbar(.hidden, for: .navigationBar)

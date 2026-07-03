@@ -24,6 +24,13 @@ final class PVTResultStore: ObservableObject {
         persist(summary: summary, measuredAt: measuredAt, measurementId: measurementId)
     }
 
+    func clear() {
+        latestSummary = nil
+        measuredAt = nil
+        measurementId = nil
+        userDefaults.removeObject(forKey: storageKey)
+    }
+
     func displayResult(for date: Date = Date()) -> PVTDisplayResult? {
         guard let latestSummary, let measuredAt else {
             return nil

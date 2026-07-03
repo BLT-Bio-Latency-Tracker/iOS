@@ -90,6 +90,11 @@ struct TodayView: View {
             .navigationDestination(isPresented: $isPVTDetailPresented) {
                 PVTDetailView {
                     isPVTDetailPresented = false
+                } onMeasurementDeleted: {
+                    viewModel.refreshPVTResult()
+                    Task {
+                        await viewModel.loadTodayEvaluation()
+                    }
                 }
                 .navigationBarBackButtonHidden(true)
                 .toolbar(.hidden, for: .navigationBar)
