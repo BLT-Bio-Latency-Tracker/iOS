@@ -3,8 +3,14 @@ import Foundation
 
 @MainActor
 final class LatestSleepEvaluationSyncService: ObservableObject {
+    private enum SleepBackfillPlan {
+        case none
+        case submit(replacingEvaluationID: Int?)
+    }
+
     private enum UserDefaultsKey {
         static let lastSyncedSignature = "evaluation.latestSleepSync.lastSignature"
+        static let pendingDeletionEvaluationID = "evaluation.latestSleepSync.pendingDeletionEvaluationID"
     }
 
     private let healthKitService: HealthKitService
@@ -56,8 +62,10 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
 
     private func resubmitLatestPVTIfSleepBecameAvailable() async {
         guard AuthSessionStore.shared.accessToken != nil else { return }
+        guard await retryPendingDeletionIfNeeded() else { return }
         guard let pvtResult = pvtResultStore.displayResult() else { return }
-        guard await needsSleepBackfill(for: pvtResult.measuredAt) else { return }
+        let plan = await sleepBackfillPlan(for: pvtResult.measuredAt)
+        guard case .submit(let replacingEvaluationID) = plan else { return }
         guard let resolvedSleep = try? await healthKitService.fetchDisplaySleepSummary(for: pvtResult.measuredAt),
               resolvedSleep.status == .available,
               resolvedSleep.summary != nil else {
@@ -81,14 +89,36 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
                 resolvedSleep: resolvedSleep
             )
 
-            userDefaults.set(signature, forKey: UserDefaultsKey.lastSyncedSignature)
             evaluationResultStore.apply(evaluation)
+            if let replacingEvaluationID,
+               replacingEvaluationID != evaluation.evaluationId {
+                do {
+                    try await evaluationService.deleteEvaluation(id: replacingEvaluationID)
+                    userDefaults.removeObject(forKey: UserDefaultsKey.pendingDeletionEvaluationID)
+                } catch {
+                    userDefaults.set(replacingEvaluationID, forKey: UserDefaultsKey.pendingDeletionEvaluationID)
+                }
+            }
+            userDefaults.set(signature, forKey: UserDefaultsKey.lastSyncedSignature)
         } catch {
             // 다음 HealthKit 변경 또는 앱 재진입 시 다시 시도한다.
         }
     }
 
-    private func needsSleepBackfill(for pvtMeasuredAt: Date) async -> Bool {
+    private func retryPendingDeletionIfNeeded() async -> Bool {
+        let pendingDeletionID = userDefaults.integer(forKey: UserDefaultsKey.pendingDeletionEvaluationID)
+        guard pendingDeletionID > 0 else { return true }
+
+        do {
+            try await evaluationService.deleteEvaluation(id: pendingDeletionID)
+            userDefaults.removeObject(forKey: UserDefaultsKey.pendingDeletionEvaluationID)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    private func sleepBackfillPlan(for pvtMeasuredAt: Date) async -> SleepBackfillPlan {
         let evaluation: EvaluationResponse?
         if let cachedEvaluation = evaluationResultStore.todayEvaluation {
             evaluation = cachedEvaluation
@@ -100,11 +130,15 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
         }
 
         guard let evaluation else {
-            return true
+            return .submit(replacingEvaluationID: nil)
         }
 
         let isSamePVTWindow = abs(evaluation.measuredAt.timeIntervalSince(pvtMeasuredAt)) < 5
-        return !(isSamePVTWindow && evaluation.sleepScore > 0)
+        if isSamePVTWindow && evaluation.sleepScore > 0 {
+            return .none
+        }
+
+        return .submit(replacingEvaluationID: isSamePVTWindow ? evaluation.evaluationId : nil)
     }
 
     private static func syncSignature(

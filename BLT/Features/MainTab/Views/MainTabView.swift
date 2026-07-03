@@ -8,7 +8,11 @@ struct MainTabView: View {
     @State private var isMyPagePresented = false
     @State private var pvtResultRefreshTrigger = 0
     @State private var pvtSubmissionErrorMessage: String?
+    @State private var pvtDeletionErrorMessage: String?
     @State private var pendingPVTSubmission: PendingPVTSubmission?
+    @State private var pendingDiscardedEvaluationID: Int?
+    @State private var failedDiscardedEvaluationID: Int?
+    @State private var isPVTSubmissionInFlight = false
     @StateObject private var latestSleepEvaluationSyncService = LatestSleepEvaluationSyncService()
 
     private let evaluationService = EvaluationService()
@@ -59,6 +63,7 @@ struct MainTabView: View {
         .fullScreenCover(isPresented: $isPVTMeasurementPresented) {
             PVTReadyView(
                 onClose: {
+                    pendingDiscardedEvaluationID = nil
                     isPVTMeasurementPresented = false
                 },
                 onComplete: { summary in
@@ -67,13 +72,16 @@ struct MainTabView: View {
                     pendingPVTSubmission = PendingPVTSubmission(
                         summary: summary,
                         measuredAt: measuredAt,
-                        measurementId: measurementId
+                        measurementId: measurementId,
+                        discardedEvaluationID: pendingDiscardedEvaluationID
                     )
+                    pendingDiscardedEvaluationID = nil
                     submitPendingEvaluation()
                     selectedTab = .today
                     isPVTMeasurementPresented = false
                 },
                 onAbort: {
+                    pendingDiscardedEvaluationID = nil
                     selectedTab = .home
                     isPVTMeasurementPresented = false
                 }
@@ -94,6 +102,20 @@ struct MainTabView: View {
         } message: {
             Text(pvtSubmissionErrorMessage ?? "")
         }
+        .alert(
+            "기록 삭제 실패",
+            isPresented: Binding(
+                get: { pvtDeletionErrorMessage != nil },
+                set: { if !$0 { pvtDeletionErrorMessage = nil } }
+            )
+        ) {
+            Button("다시 시도") {
+                retryDiscardedEvaluationDeletion()
+            }
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text(pvtDeletionErrorMessage ?? "")
+        }
     }
 
     @ViewBuilder
@@ -105,8 +127,8 @@ struct MainTabView: View {
                 onSleepDetailVisibilityChanged: { isHidden in
                     isTabBarHidden = isHidden
                 },
-                onMeasureAgain: { _ in
-                    isPVTMeasurementPresented = true
+                onMeasureAgain: { action in
+                    handleRemeasureAction(action)
                 }
             )
 
@@ -114,7 +136,7 @@ struct MainTabView: View {
             NavigationStack {
                 HomeView(
                     onPVTStart: {
-                        isPVTMeasurementPresented = true
+                        startPVTMeasurement()
                     },
                     onNotificationTap: {
                         openNotification()
@@ -177,8 +199,96 @@ struct MainTabView: View {
         isTabBarHidden = isNotificationPresented || isMyPagePresented
     }
 
+    private func handleRemeasureAction(_ action: TodayRemeasureAction) {
+        switch action {
+        case .startNewMeasurement, .saveCurrentAndRemeasure:
+            pendingDiscardedEvaluationID = nil
+            startPVTMeasurement()
+        case .discardCurrentAndRemeasure:
+            prepareDiscardAndStartMeasurement()
+        }
+    }
+
+    private func startPVTMeasurement() {
+        guard !isPVTSubmissionInFlight else {
+            pvtSubmissionErrorMessage = "이전 측정 결과를 저장 중이에요. 저장이 끝난 뒤 다시 시도해주세요."
+            return
+        }
+        isPVTMeasurementPresented = true
+    }
+
+    private func prepareDiscardAndStartMeasurement() {
+        guard !isPVTSubmissionInFlight else {
+            pvtSubmissionErrorMessage = "이전 측정 결과를 저장 중이에요. 저장이 끝난 뒤 다시 시도해주세요."
+            return
+        }
+
+        Task {
+            do {
+#if DEBUG
+                print("[PVT] Resolve latest evaluation for delayed discard")
+#endif
+                let latestMeasurement = try await evaluationService.fetchLatestPVTMeasurementForMeasurementDay()
+                await MainActor.run {
+#if DEBUG
+                    print("[PVT] Resolve latest evaluation succeeded")
+#endif
+                    pendingDiscardedEvaluationID = latestMeasurement?.evaluationId
+                    pvtDeletionErrorMessage = nil
+                    startPVTMeasurement()
+                }
+            } catch {
+                await MainActor.run {
+#if DEBUG
+                    print("[PVT] Resolve latest evaluation failed: \(error.localizedDescription)")
+#endif
+                    pvtDeletionErrorMessage = "폐기할 기존 기록을 확인하지 못했어요. 잠시 후 다시 시도해주세요."
+                }
+            }
+        }
+    }
+
+    private func deleteDiscardedEvaluationIfNeeded(_ evaluationId: Int) {
+        Task {
+            do {
+#if DEBUG
+                print("[PVT] Delete discarded evaluation start")
+#endif
+                try await evaluationService.deleteEvaluation(id: evaluationId)
+                await MainActor.run {
+#if DEBUG
+                    print("[PVT] Delete discarded evaluation succeeded")
+#endif
+                    failedDiscardedEvaluationID = nil
+                    pvtDeletionErrorMessage = nil
+                    pvtResultRefreshTrigger += 1
+                }
+            } catch {
+                await MainActor.run {
+#if DEBUG
+                    print("[PVT] Delete discarded evaluation failed: \(error.localizedDescription)")
+#endif
+                    failedDiscardedEvaluationID = evaluationId
+                    pvtDeletionErrorMessage = "새 측정은 저장됐지만 이전 기록 삭제에 실패했어요. 다시 시도해주세요."
+                }
+            }
+        }
+    }
+
+    private func retryDiscardedEvaluationDeletion() {
+        guard let failedDiscardedEvaluationID else {
+            pvtDeletionErrorMessage = nil
+            return
+        }
+        pvtDeletionErrorMessage = nil
+        deleteDiscardedEvaluationIfNeeded(failedDiscardedEvaluationID)
+    }
+
     private func submitPendingEvaluation() {
-        guard let pendingPVTSubmission else { return }
+        guard let pendingPVTSubmission, !isPVTSubmissionInFlight else { return }
+        isPVTSubmissionInFlight = true
+        self.pendingPVTSubmission = nil
+        pvtSubmissionErrorMessage = nil
 
         Task {
             do {
@@ -191,7 +301,6 @@ struct MainTabView: View {
                     measurementId: pendingPVTSubmission.measurementId
                 )
                 await MainActor.run {
-                    guard self.pendingPVTSubmission?.measurementId == pendingPVTSubmission.measurementId else { return }
 #if DEBUG
                     print("[PVT] Submit evaluation succeeded")
 #endif
@@ -201,17 +310,24 @@ struct MainTabView: View {
                         measurementId: pendingPVTSubmission.measurementId
                     )
                     EvaluationResultStore.shared.apply(evaluation)
-                    self.pendingPVTSubmission = nil
+                    if let discardedEvaluationID = pendingPVTSubmission.discardedEvaluationID {
+                        deleteDiscardedEvaluationIfNeeded(discardedEvaluationID)
+                    }
                     pvtSubmissionErrorMessage = nil
+                    isPVTSubmissionInFlight = false
                     pvtResultRefreshTrigger += 1
+                    if self.pendingPVTSubmission != nil {
+                        submitPendingEvaluation()
+                    }
                 }
             } catch {
                 await MainActor.run {
 #if DEBUG
                     print("[PVT] Submit evaluation failed")
 #endif
-                    guard self.pendingPVTSubmission?.measurementId == pendingPVTSubmission.measurementId else { return }
+                    self.pendingPVTSubmission = pendingPVTSubmission
                     pvtSubmissionErrorMessage = error.localizedDescription
+                    isPVTSubmissionInFlight = false
                 }
             }
         }
@@ -222,6 +338,7 @@ private struct PendingPVTSubmission {
     let summary: PVTSummary
     let measuredAt: Date
     let measurementId: UUID
+    let discardedEvaluationID: Int?
 }
 
 private struct MainTabBar: View {

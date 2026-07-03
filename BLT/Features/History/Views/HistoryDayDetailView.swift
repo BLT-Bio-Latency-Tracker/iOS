@@ -5,11 +5,17 @@ struct HistoryDayDetailView: View {
     @State private var pvtSortOption: HistoryDayPVTSortOption = .time
     @State private var selectedPVTMeasurement: PVTDetailMeasurement?
     let onBack: () -> Void
+    let onDataChanged: (Date) async -> Void
 
     private let designWidth: CGFloat = 390
 
-    init(date: Date, onBack: @escaping () -> Void) {
+    init(
+        date: Date,
+        onBack: @escaping () -> Void,
+        onDataChanged: @escaping (Date) async -> Void = { _ in }
+    ) {
         self.onBack = onBack
+        self.onDataChanged = onDataChanged
         _viewModel = StateObject(wrappedValue: HistoryDayDetailViewModel(date: date))
     }
 
@@ -61,6 +67,10 @@ struct HistoryDayDetailView: View {
         .navigationDestination(item: $selectedPVTMeasurement) { measurement in
             PVTMeasurementDetailView(measurement: measurement) {
                 selectedPVTMeasurement = nil
+            } onDeleted: {
+                selectedPVTMeasurement = nil
+                await viewModel.reloadAfterDeletion()
+                await onDataChanged(viewModel.state.selectedDate)
             }
             .navigationBarBackButtonHidden(true)
             .toolbar(.hidden, for: .navigationBar)

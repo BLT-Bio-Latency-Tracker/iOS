@@ -90,6 +90,11 @@ struct TodayView: View {
             .navigationDestination(isPresented: $isPVTDetailPresented) {
                 PVTDetailView {
                     isPVTDetailPresented = false
+                } onMeasurementDeleted: {
+                    viewModel.refreshPVTResult()
+                    Task {
+                        await viewModel.loadTodayEvaluation()
+                    }
                 }
                 .navigationBarBackButtonHidden(true)
                 .toolbar(.hidden, for: .navigationBar)
@@ -635,7 +640,7 @@ struct TodayView: View {
             Button {
                 handleRemeasureAction(.saveCurrentAndRemeasure)
             } label: {
-                Text("기록 저장 후 재측정")
+                Text("기록 유지 후 재측정")
                     .font(.system(size: 15 * scale, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)

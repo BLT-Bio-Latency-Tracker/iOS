@@ -117,6 +117,15 @@ final class HistoryViewModel: ObservableObject {
         await fetchMonth(monthStart)
     }
 
+    func refreshMonth(containing date: Date) async {
+        let monthStart = calendar.startOfMonth(for: date)
+        if !calendar.isDate(selectedMonth, equalTo: monthStart, toGranularity: .month) {
+            selectedMonth = monthStart
+            reload()
+        }
+        await fetchMonth(monthStart)
+    }
+
     private func scheduleFetchSelectedMonth() {
         fetchTask?.cancel()
         let requestedMonth = calendar.startOfMonth(for: selectedMonth)

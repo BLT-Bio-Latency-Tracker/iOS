@@ -5,11 +5,17 @@ struct PVTDetailView: View {
     @State private var selectedMeasurement: PVTDetailMeasurement?
 
     let onBack: () -> Void
+    let onMeasurementDeleted: () -> Void
 
     private let designWidth: CGFloat = 390
 
-    init(date: Date = Date(), onBack: @escaping () -> Void) {
+    init(
+        date: Date = Date(),
+        onBack: @escaping () -> Void,
+        onMeasurementDeleted: @escaping () -> Void = {}
+    ) {
         self.onBack = onBack
+        self.onMeasurementDeleted = onMeasurementDeleted
         _viewModel = StateObject(wrappedValue: PVTDetailViewModel(date: date))
     }
 
@@ -59,6 +65,10 @@ struct PVTDetailView: View {
         .navigationDestination(item: $selectedMeasurement) { measurement in
             PVTMeasurementDetailView(measurement: measurement) {
                 selectedMeasurement = nil
+            } onDeleted: {
+                selectedMeasurement = nil
+                await viewModel.reloadAfterDeletion()
+                onMeasurementDeleted()
             }
             .navigationBarBackButtonHidden(true)
             .toolbar(.hidden, for: .navigationBar)

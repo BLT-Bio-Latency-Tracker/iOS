@@ -29,7 +29,7 @@ struct MyPageProfileEditView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let scale = min(proxy.size.width / designWidth, proxy.size.height / designHeight)
+            let scale = min(proxy.size.width / designWidth, 1)
             let contentWidth = min(proxy.size.width - 24, 351 * scale)
             let horizontalInset = max(12, (proxy.size.width - contentWidth) / 2)
             let topPadding = max(8 * scale, 56 * scale - proxy.safeAreaInsets.top)
