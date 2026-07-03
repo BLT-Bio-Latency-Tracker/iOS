@@ -80,6 +80,7 @@ struct HistoryServerSleepSummary: Equatable {
     let coreMinutes: Int
     let awakeMinutes: Int
     let inBedMinutes: Int
+    let stages: [SleepStageSegmentResponse]
 
     init(detail: EvaluationSleepDetail) {
         totalMinutes = detail.totalMinutes
@@ -88,6 +89,7 @@ struct HistoryServerSleepSummary: Equatable {
         coreMinutes = detail.coreMinutes
         awakeMinutes = detail.awakeMinutes
         inBedMinutes = detail.inBedMinutes
+        stages = detail.stages
     }
 }
 
@@ -113,19 +115,30 @@ struct HistoryDaySleepSummary: Equatable {
     }
 
     init(serverSleep: HistoryServerSleepSummary) {
-        totalMinutes = serverSleep.totalMinutes
-        coreMinutes = serverSleep.coreMinutes
-        deepMinutes = serverSleep.deepMinutes
-        remMinutes = serverSleep.remMinutes
-        awakeMinutes = serverSleep.awakeMinutes
-        bedStartAt = nil
-        bedEndAt = nil
-        stageSegments = HistoryDaySleepStageSegment.aggregateSegments(
-            coreMinutes: serverSleep.coreMinutes,
-            deepMinutes: serverSleep.deepMinutes,
-            remMinutes: serverSleep.remMinutes,
-            awakeMinutes: serverSleep.awakeMinutes
-        )
+        if let timeline = HistoryDaySleepStageSegment.serverTimeline(from: serverSleep.stages) {
+            totalMinutes = timeline.asleepMinutes
+            coreMinutes = timeline.coreMinutes
+            deepMinutes = timeline.deepMinutes
+            remMinutes = timeline.remMinutes
+            awakeMinutes = timeline.awakeMinutes
+            bedStartAt = timeline.bedStartAt
+            bedEndAt = timeline.bedEndAt
+            stageSegments = timeline.segments
+        } else {
+            totalMinutes = serverSleep.totalMinutes
+            coreMinutes = serverSleep.coreMinutes
+            deepMinutes = serverSleep.deepMinutes
+            remMinutes = serverSleep.remMinutes
+            awakeMinutes = serverSleep.awakeMinutes
+            bedStartAt = nil
+            bedEndAt = nil
+            stageSegments = HistoryDaySleepStageSegment.aggregateSegments(
+                coreMinutes: serverSleep.coreMinutes,
+                deepMinutes: serverSleep.deepMinutes,
+                remMinutes: serverSleep.remMinutes,
+                awakeMinutes: serverSleep.awakeMinutes
+            )
+        }
     }
 }
 
@@ -181,6 +194,129 @@ struct HistoryDaySleepStageSegment: Identifiable, Equatable {
             )
         }
     }
+
+    static func serverSegments(from segments: [SleepStageSegmentResponse]) -> [HistoryDaySleepStageSegment] {
+        serverTimeline(from: segments)?.segments ?? []
+    }
+
+    static func serverTimeline(from segments: [SleepStageSegmentResponse]) -> HistoryDaySleepStageTimeline? {
+        let timelineSegments = segments.compactMap { segment -> (kind: HistoryDaySleepStageKind, startAt: Date, endAt: Date)? in
+            guard let kind = HistoryDaySleepStageKind(serverStage: segment.stage),
+                  segment.startAt < segment.endAt else {
+                return nil
+            }
+            return (kind, segment.startAt, segment.endAt)
+        }
+        .sorted { $0.startAt < $1.startAt }
+
+        guard let timelineStart = timelineSegments.first?.startAt,
+              let timelineEnd = timelineSegments.map(\.endAt).max(),
+              timelineStart < timelineEnd else {
+            return nil
+        }
+
+        let timelineDuration = timelineEnd.timeIntervalSince(timelineStart)
+        var coreIntervals: [DateInterval] = []
+        var deepIntervals: [DateInterval] = []
+        var remIntervals: [DateInterval] = []
+        var awakeIntervals: [DateInterval] = []
+        var asleepIntervals: [DateInterval] = []
+
+        let displaySegments = timelineSegments.map { segment in
+            let startRatio = segment.startAt.timeIntervalSince(timelineStart) / timelineDuration
+            let durationRatio = segment.endAt.timeIntervalSince(segment.startAt) / timelineDuration
+            let durationMinutes = Int((segment.endAt.timeIntervalSince(segment.startAt) / 60).rounded())
+            let interval = DateInterval(start: segment.startAt, end: segment.endAt)
+
+            switch segment.kind {
+            case .core:
+                coreIntervals.append(interval)
+                asleepIntervals.append(interval)
+            case .deep:
+                deepIntervals.append(interval)
+                asleepIntervals.append(interval)
+            case .rem:
+                remIntervals.append(interval)
+                asleepIntervals.append(interval)
+            case .awake:
+                awakeIntervals.append(interval)
+            }
+
+            return HistoryDaySleepStageSegment(
+                kind: segment.kind,
+                startRatio: min(max(startRatio, 0), 1),
+                durationRatio: min(max(durationRatio, 0), 1),
+                durationMinutes: durationMinutes
+            )
+        }
+
+        let coreMinutes = minutesAfterMerging(coreIntervals)
+        let deepMinutes = minutesAfterMerging(deepIntervals)
+        let remMinutes = minutesAfterMerging(remIntervals)
+        let awakeMinutes = minutesAfterMerging(awakeIntervals)
+        let asleepMinutes = minutesAfterMerging(asleepIntervals)
+
+        return HistoryDaySleepStageTimeline(
+            segments: displaySegments,
+            bedStartAt: timelineStart,
+            bedEndAt: timelineEnd,
+            asleepMinutes: asleepMinutes,
+            coreMinutes: coreMinutes,
+            deepMinutes: deepMinutes,
+            remMinutes: remMinutes,
+            awakeMinutes: awakeMinutes
+        )
+    }
+
+    private static func minutesAfterMerging(_ intervals: [DateInterval]) -> Int {
+        let totalSeconds = mergedIntervals(intervals).reduce(0) { result, interval in
+            result + interval.duration
+        }
+
+        return Int((totalSeconds / 60).rounded())
+    }
+
+    private static func mergedIntervals(_ intervals: [DateInterval]) -> [DateInterval] {
+        let sortedIntervals = intervals
+            .filter { $0.duration > 0 }
+            .sorted { $0.start < $1.start }
+
+        guard var current = sortedIntervals.first else { return [] }
+
+        var merged: [DateInterval] = []
+
+        for interval in sortedIntervals.dropFirst() {
+            if interval.start <= current.end {
+                current = DateInterval(
+                    start: current.start,
+                    end: max(current.end, interval.end)
+                )
+            } else {
+                merged.append(current)
+                current = interval
+            }
+        }
+
+        merged.append(current)
+        return merged
+    }
+
+    static func hasDisplayableServerSegments(_ segments: [SleepStageSegmentResponse]) -> Bool {
+        segments.contains { segment in
+            HistoryDaySleepStageKind(serverStage: segment.stage) != nil && segment.startAt < segment.endAt
+        }
+    }
+}
+
+struct HistoryDaySleepStageTimeline: Equatable {
+    let segments: [HistoryDaySleepStageSegment]
+    let bedStartAt: Date
+    let bedEndAt: Date
+    let asleepMinutes: Int
+    let coreMinutes: Int
+    let deepMinutes: Int
+    let remMinutes: Int
+    let awakeMinutes: Int
 }
 
 enum HistoryDaySleepStageKind: Equatable {
@@ -199,6 +335,21 @@ enum HistoryDaySleepStageKind: Equatable {
             self = .rem
         case .awake:
             self = .awake
+        }
+    }
+
+    init?(serverStage: String) {
+        switch serverStage.uppercased() {
+        case "CORE", "UNSPECIFIED":
+            self = .core
+        case "DEEP":
+            self = .deep
+        case "REM":
+            self = .rem
+        case "AWAKE":
+            self = .awake
+        default:
+            return nil
         }
     }
 

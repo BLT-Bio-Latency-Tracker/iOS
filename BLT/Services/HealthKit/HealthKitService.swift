@@ -51,6 +51,8 @@ enum HealthKitSleepDataStatus {
 
 struct HealthKitSleepStageSegment {
     let kind: HealthKitSleepStageKind
+    let startAt: Date
+    let endAt: Date
     let startRatio: Double
     let durationRatio: Double
     let durationMinutes: Int
@@ -394,6 +396,8 @@ final class HealthKitService {
 
             return HealthKitSleepStageSegment(
                 kind: segment.kind,
+                startAt: segment.interval.start,
+                endAt: segment.interval.end,
                 startRatio: min(max(startRatio, 0), 1),
                 durationRatio: min(max(durationRatio, 0), 1),
                 durationMinutes: Int((segment.interval.duration / 60).rounded())

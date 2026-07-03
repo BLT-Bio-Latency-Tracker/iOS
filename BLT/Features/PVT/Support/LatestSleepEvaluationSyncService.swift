@@ -64,8 +64,6 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
         guard AuthSessionStore.shared.accessToken != nil else { return }
         guard await retryPendingDeletionIfNeeded() else { return }
         guard let pvtResult = pvtResultStore.displayResult() else { return }
-        let plan = await sleepBackfillPlan(for: pvtResult.measuredAt)
-        guard case .submit(let replacingEvaluationID) = plan else { return }
         guard let resolvedSleep = try? await healthKitService.fetchDisplaySleepSummary(for: pvtResult.measuredAt),
               resolvedSleep.status == .available,
               resolvedSleep.summary != nil else {
@@ -80,6 +78,12 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
         guard userDefaults.string(forKey: UserDefaultsKey.lastSyncedSignature) != signature else {
             return
         }
+
+        let plan = await sleepBackfillPlan(
+            for: pvtResult.measuredAt,
+            localSleepSignature: signature
+        )
+        guard case .submit(let replacingEvaluationID) = plan else { return }
 
         do {
             let evaluation = try await evaluationService.submit(
@@ -118,7 +122,10 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
         }
     }
 
-    private func sleepBackfillPlan(for pvtMeasuredAt: Date) async -> SleepBackfillPlan {
+    private func sleepBackfillPlan(
+        for pvtMeasuredAt: Date,
+        localSleepSignature: String
+    ) async -> SleepBackfillPlan {
         let evaluation: EvaluationResponse?
         if let cachedEvaluation = evaluationResultStore.todayEvaluation {
             evaluation = cachedEvaluation
@@ -134,11 +141,24 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
         }
 
         let isSamePVTWindow = abs(evaluation.measuredAt.timeIntervalSince(pvtMeasuredAt)) < 5
-        if isSamePVTWindow && evaluation.sleepScore > 0 {
-            return .none
+        if isSamePVTWindow {
+            guard let detail = try? await evaluationService.fetchDetail(id: evaluation.evaluationId),
+                  let serverSleep = detail.sleep else {
+                return .submit(replacingEvaluationID: evaluation.evaluationId)
+            }
+
+            if Self.serverSleepSignature(
+                pvtMeasuredAt: pvtMeasuredAt,
+                sleep: serverSleep
+            ) == localSleepSignature {
+                userDefaults.set(localSleepSignature, forKey: UserDefaultsKey.lastSyncedSignature)
+                return .none
+            }
+
+            return .submit(replacingEvaluationID: evaluation.evaluationId)
         }
 
-        return .submit(replacingEvaluationID: isSamePVTWindow ? evaluation.evaluationId : nil)
+        return .submit(replacingEvaluationID: nil)
     }
 
     private static func syncSignature(
@@ -149,7 +169,12 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
             return "empty"
         }
 
-        let sleepDate = Int(resolvedSleep.date.timeIntervalSince1970)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone.current
+        formatter.dateFormat = "yyyy-MM-dd"
+
+        let sleepDate = formatter.string(from: resolvedSleep.date)
         let pvtTime = Int(pvtMeasuredAt.timeIntervalSince1970)
         let bedStart = Int(summary.bedStartAt.timeIntervalSince1970)
         let bedEnd = Int(summary.bedEndAt.timeIntervalSince1970)
@@ -163,6 +188,28 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
             "\(summary.coreMinutes)",
             "\(summary.awakeMinutes)",
             "\(summary.inBedMinutes)",
+            "\(bedStart)",
+            "\(bedEnd)"
+        ].joined(separator: ":")
+    }
+
+    private static func serverSleepSignature(
+        pvtMeasuredAt: Date,
+        sleep: EvaluationSleepDetail
+    ) -> String {
+        let pvtTime = Int(pvtMeasuredAt.timeIntervalSince1970)
+        let bedStart = sleep.stages.map(\.startAt).min().map { Int($0.timeIntervalSince1970) } ?? 0
+        let bedEnd = sleep.stages.map(\.endAt).max().map { Int($0.timeIntervalSince1970) } ?? 0
+
+        return [
+            "\(pvtTime)",
+            "\(sleep.sleepDate)",
+            "\(sleep.totalMinutes)",
+            "\(sleep.deepMinutes)",
+            "\(sleep.remMinutes)",
+            "\(sleep.coreMinutes)",
+            "\(sleep.awakeMinutes)",
+            "\(sleep.inBedMinutes)",
             "\(bedStart)",
             "\(bedEnd)"
         ].joined(separator: ":")
