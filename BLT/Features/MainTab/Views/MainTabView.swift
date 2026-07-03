@@ -134,7 +134,9 @@ struct MainTabView: View {
             )
 
         case .history:
-            HistoryView()
+            HistoryView { isHidden in
+                isTabBarHidden = isHidden
+            }
         }
     }
 

@@ -255,7 +255,23 @@ struct EvaluationSummary: Decodable {
 
 struct EvaluationDetailResponse: Decodable {
     let evaluation: EvaluationResponse
+    let sleep: EvaluationSleepDetail?
     let pvt: PvtDetail
+}
+
+struct EvaluationSleepDetail: Decodable {
+    let sleepDate: String
+    let totalMinutes: Int
+    let deepMinutes: Int
+    let remMinutes: Int
+    let coreMinutes: Int
+    let awakeMinutes: Int
+    let inBedMinutes: Int
+    let efficiencyPercent: Int?
+    let deepRatioPercent: Int?
+    let remRatioPercent: Int?
+    let lightRatioPercent: Int?
+    let dataCompleteness: String?
 }
 
 struct PvtDetail: Decodable {

@@ -168,7 +168,7 @@ final class HistoryViewModel: ObservableObject {
             .filter { calendar.isDate($0.date, equalTo: monthStart, toGranularity: .month) }
             .sorted { lhs, rhs in
                 if calendar.isDate(lhs.date, inSameDayAs: rhs.date) {
-                    return lhs.date > rhs.date
+                    return (lhs.measuredAt ?? lhs.date) > (rhs.measuredAt ?? rhs.date)
                 }
                 return lhs.date < rhs.date
             }

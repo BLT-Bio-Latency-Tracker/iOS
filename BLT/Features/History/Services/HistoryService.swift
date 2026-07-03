@@ -50,6 +50,7 @@ private struct EvaluationPageResponse: Decodable {
 private struct EvaluationSummaryResponse: Decodable {
     let evaluationId: Int
     let date: String
+    let measuredAt: Date?
     let finalScore: Int
 
     var historyRecord: HistoryDailyRecord? {
@@ -59,7 +60,7 @@ private struct EvaluationSummaryResponse: Decodable {
         formatter.dateFormat = "yyyy-MM-dd"
 
         guard let date = formatter.date(from: date) else { return nil }
-        return HistoryDailyRecord(date: date, roiScore: finalScore)
+        return HistoryDailyRecord(date: date, roiScore: finalScore, measuredAt: measuredAt)
     }
 }
 
