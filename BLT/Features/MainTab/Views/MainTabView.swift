@@ -39,7 +39,19 @@ struct MainTabView: View {
         }
         .preferredColorScheme(.dark)
         .onChange(of: selectedTab) { _, _ in
-            isTabBarHidden = false
+            if selectedTab == .home {
+                updateTabBarVisibilityForHomeRoutes()
+            } else {
+                isNotificationPresented = false
+                isMyPagePresented = false
+                isTabBarHidden = false
+            }
+        }
+        .onChange(of: isNotificationPresented) { _, _ in
+            updateTabBarVisibilityForHomeRoutes()
+        }
+        .onChange(of: isMyPagePresented) { _, _ in
+            updateTabBarVisibilityForHomeRoutes()
         }
         .onAppear {
             latestSleepEvaluationSyncService.start()
@@ -82,28 +94,6 @@ struct MainTabView: View {
         } message: {
             Text(pvtSubmissionErrorMessage ?? "")
         }
-        .fullScreenCover(isPresented: $isNotificationPresented) {
-            NotificationsView {
-                isNotificationPresented = false
-            }
-            .ignoresSafeArea()
-        }
-        .fullScreenCover(isPresented: $isMyPagePresented) {
-            MyPageView(
-                onBack: {
-                    isMyPagePresented = false
-                },
-                onWithdraw: {
-                    isMyPagePresented = false
-                    onWithdraw()
-                },
-                onLogout: {
-                    isMyPagePresented = false
-                    onLogout()
-                }
-            )
-            .ignoresSafeArea()
-        }
     }
 
     @ViewBuilder
@@ -121,23 +111,70 @@ struct MainTabView: View {
             )
 
         case .home:
-            HomeView(
-                onPVTStart: {
-                    isPVTMeasurementPresented = true
-                },
-                onNotificationTap: {
-                    isNotificationPresented = true
-                },
-                onProfileTap: {
-                    isMyPagePresented = true
+            NavigationStack {
+                HomeView(
+                    onPVTStart: {
+                        isPVTMeasurementPresented = true
+                    },
+                    onNotificationTap: {
+                        openNotification()
+                    },
+                    onProfileTap: {
+                        openMyPage()
+                    }
+                )
+                .navigationDestination(isPresented: $isNotificationPresented) {
+                    NotificationsView {
+                        closeNotification()
+                    }
+                    .navigationBarBackButtonHidden(true)
+                    .toolbar(.hidden, for: .navigationBar)
                 }
-            )
+                .navigationDestination(isPresented: $isMyPagePresented) {
+                    MyPageView(
+                        onBack: {
+                            closeMyPage()
+                        },
+                        onWithdraw: {
+                            closeMyPage()
+                            onWithdraw()
+                        },
+                        onLogout: {
+                            closeMyPage()
+                            onLogout()
+                        }
+                    )
+                    .navigationBarBackButtonHidden(true)
+                    .toolbar(.hidden, for: .navigationBar)
+                }
+            }
 
         case .history:
             HistoryView { isHidden in
                 isTabBarHidden = isHidden
             }
         }
+    }
+
+    private func openNotification() {
+        isNotificationPresented = true
+    }
+
+    private func closeNotification() {
+        isNotificationPresented = false
+    }
+
+    private func openMyPage() {
+        isMyPagePresented = true
+    }
+
+    private func closeMyPage() {
+        isMyPagePresented = false
+    }
+
+    private func updateTabBarVisibilityForHomeRoutes() {
+        guard selectedTab == .home else { return }
+        isTabBarHidden = isNotificationPresented || isMyPagePresented
     }
 
     private func submitPendingEvaluation() {

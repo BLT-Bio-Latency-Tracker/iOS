@@ -43,6 +43,7 @@ struct SleepDetailView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .enablesInteractivePopGesture()
     }
 
     private func header(scale: CGFloat) -> some View {

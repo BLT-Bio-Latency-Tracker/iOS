@@ -41,6 +41,7 @@ struct NotificationsView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .enablesInteractivePopGesture()
         .task {
             await viewModel.fetchNotifications()
         }
