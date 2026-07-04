@@ -146,18 +146,51 @@ final class HistoryDayDetailViewModel: ObservableObject {
                 let rhsTimeline = HistoryDaySleepStageSegment.serverTimeline(from: rhs.stages)
                 return (lhsTimeline?.asleepMinutes ?? lhs.totalMinutes) < (rhsTimeline?.asleepMinutes ?? rhs.totalMinutes)
             }) {
-            return HistoryDaySleepSummary(serverSleep: serverSleep)
+            return await backfillingHRVIfNeeded(
+                HistoryDaySleepSummary(serverSleep: serverSleep),
+                for: date,
+                serverSleeps: serverSleeps
+            )
         }
 
-        if let localSleep = try? await healthKitService.fetchDisplaySleepSummary(for: date).summary {
+        if let localSleep = try? await healthKitService.fetchDisplaySleepSummary(for: sleepReferenceDate(for: date)).summary {
             return HistoryDaySleepSummary(summary: localSleep)
         }
 
         if let serverSleep = serverSleeps.first {
-            return HistoryDaySleepSummary(serverSleep: serverSleep)
+            return await backfillingHRVIfNeeded(
+                HistoryDaySleepSummary(serverSleep: serverSleep),
+                for: date,
+                serverSleeps: serverSleeps
+            )
         }
 
         return nil
+    }
+
+    private func backfillingHRVIfNeeded(
+        _ summary: HistoryDaySleepSummary,
+        for date: Date,
+        serverSleeps: [HistoryServerSleepSummary]
+    ) async -> HistoryDaySleepSummary {
+        var nightHrvMs = summary.nightHrvMs ?? serverSleeps.compactMap(\.nightHrvMs).first
+        var weeklyHrvBaselineMs = summary.weeklyHrvBaselineMs ?? serverSleeps.compactMap(\.weeklyHrvBaselineMs).first
+
+        if nightHrvMs == nil || weeklyHrvBaselineMs == nil,
+           let localSleep = try? await healthKitService.fetchSleepSummary(for: sleepReferenceDate(for: date)) {
+            nightHrvMs = nightHrvMs ?? localSleep.nightHrvMs
+            weeklyHrvBaselineMs = weeklyHrvBaselineMs ?? localSleep.weeklyHrvBaselineMs
+        }
+
+        guard nightHrvMs != summary.nightHrvMs || weeklyHrvBaselineMs != summary.weeklyHrvBaselineMs else {
+            return summary
+        }
+
+        return summary.replacingHRV(nightHrvMs: nightHrvMs, weeklyHrvBaselineMs: weeklyHrvBaselineMs)
+    }
+
+    private func sleepReferenceDate(for date: Date) -> Date {
+        calendar.date(byAdding: .hour, value: 12, to: calendar.startOfDay(for: date)) ?? date
     }
 
     private static func makePVTMeasurement(from evaluation: HistoryDayEvaluation) -> PVTDetailMeasurement {
