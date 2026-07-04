@@ -65,6 +65,7 @@ enum HealthKitSleepStageKind {
     case deep
     case rem
     case awake
+    case unclassified
 }
 
 final class HealthKitService {
@@ -641,8 +642,10 @@ private extension HKCategoryValueSleepAnalysis {
 
     var timelineKind: HealthKitSleepStageKind? {
         switch self {
-        case .asleepCore, .asleepUnspecified:
+        case .asleepCore:
             return .core
+        case .asleepUnspecified:
+            return .unclassified
         case .asleepDeep:
             return .deep
         case .asleepREM:

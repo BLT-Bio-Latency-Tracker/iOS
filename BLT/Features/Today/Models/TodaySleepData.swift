@@ -37,4 +37,5 @@ enum TodaySleepStageKind: Hashable {
     case deep
     case rem
     case awake
+    case unclassified
 }

@@ -566,6 +566,8 @@ final class TodayViewModel: ObservableObject {
             return .rem
         case .awake:
             return .awake
+        case .unclassified:
+            return .unclassified
         }
     }
 }

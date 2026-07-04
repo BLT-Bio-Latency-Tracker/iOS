@@ -418,6 +418,8 @@ private struct SleepDetailTimelineBar: View {
             return Color.sleepDetailRem
         case .awake:
             return Color.sleepDetailNegative
+        case .unclassified:
+            return Color.sleepDetailCyan.opacity(0.45)
         }
     }
 }

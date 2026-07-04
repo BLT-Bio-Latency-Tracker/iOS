@@ -81,6 +81,8 @@ struct HistoryServerSleepSummary: Equatable {
     let awakeMinutes: Int
     let inBedMinutes: Int
     let efficiencyPercent: Int?
+    let nightHrvMs: Double?
+    let weeklyHrvBaselineMs: Double?
     let stages: [SleepStageSegmentResponse]
 
     init(detail: EvaluationSleepDetail) {
@@ -91,6 +93,8 @@ struct HistoryServerSleepSummary: Equatable {
         awakeMinutes = detail.awakeMinutes
         inBedMinutes = detail.inBedMinutes
         efficiencyPercent = detail.efficiencyPercent
+        nightHrvMs = detail.nightHrvMs
+        weeklyHrvBaselineMs = detail.weeklyHrvBaselineMs
         stages = detail.stages
     }
 }
@@ -105,6 +109,8 @@ struct HistoryDaySleepSummary: Equatable {
     let efficiencyPercent: Int?
     let bedStartAt: Date?
     let bedEndAt: Date?
+    let nightHrvMs: Double?
+    let weeklyHrvBaselineMs: Double?
     let stageSegments: [HistoryDaySleepStageSegment]
 
     init(summary: HealthKitSleepSummary) {
@@ -120,32 +126,39 @@ struct HistoryDaySleepSummary: Equatable {
         )
         bedStartAt = summary.bedStartAt
         bedEndAt = summary.bedEndAt
+        nightHrvMs = summary.nightHrvMs
+        weeklyHrvBaselineMs = summary.weeklyHrvBaselineMs
         stageSegments = summary.stageSegments.map(HistoryDaySleepStageSegment.init)
     }
 
     init(serverSleep: HistoryServerSleepSummary) {
-        if let timeline = HistoryDaySleepStageSegment.serverTimeline(from: serverSleep.stages),
+        let serverTimeline = HistoryDaySleepStageSegment.serverTimeline(from: serverSleep.stages)
+        if let timeline = serverTimeline.map({ Self.normalizedTimeline($0, for: serverSleep) }),
            Self.canUseTimeline(timeline, for: serverSleep) || Self.canUseUnclassifiedTimeline(timeline, for: serverSleep) {
             self = Self.makeTimelineSleepSummary(timeline, serverSleep: serverSleep)
         } else {
+            let shouldDisplayAwakeAsUnclassified = Self.shouldDisplayAwakeAsUnclassified(serverSleep)
             totalMinutes = serverSleep.totalMinutes
             coreMinutes = serverSleep.coreMinutes
             deepMinutes = serverSleep.deepMinutes
             remMinutes = serverSleep.remMinutes
-            awakeMinutes = serverSleep.awakeMinutes
+            awakeMinutes = shouldDisplayAwakeAsUnclassified ? 0 : serverSleep.awakeMinutes
             inBedMinutes = serverSleep.inBedMinutes
             efficiencyPercent = serverSleep.efficiencyPercent
                 ?? HistoryDaySleepSummary.calculatedEfficiencyPercent(
                     totalMinutes: serverSleep.totalMinutes,
                     inBedMinutes: serverSleep.inBedMinutes
-                )
-            bedStartAt = nil
-            bedEndAt = nil
+            )
+            bedStartAt = serverTimeline?.bedStartAt
+            bedEndAt = serverTimeline?.bedEndAt
+            nightHrvMs = serverSleep.nightHrvMs
+            weeklyHrvBaselineMs = serverSleep.weeklyHrvBaselineMs
             stageSegments = HistoryDaySleepStageSegment.aggregateSegments(
                 coreMinutes: serverSleep.coreMinutes,
                 deepMinutes: serverSleep.deepMinutes,
                 remMinutes: serverSleep.remMinutes,
-                awakeMinutes: serverSleep.awakeMinutes
+                awakeMinutes: shouldDisplayAwakeAsUnclassified ? 0 : serverSleep.awakeMinutes,
+                unclassifiedMinutes: shouldDisplayAwakeAsUnclassified ? max(serverSleep.totalMinutes, serverSleep.awakeMinutes) : 0
             )
         }
     }
@@ -168,6 +181,8 @@ struct HistoryDaySleepSummary: Equatable {
                 ),
             bedStartAt: timeline.bedStartAt,
             bedEndAt: timeline.bedEndAt,
+            nightHrvMs: serverSleep.nightHrvMs,
+            weeklyHrvBaselineMs: serverSleep.weeklyHrvBaselineMs,
             stageSegments: timeline.segments
         )
     }
@@ -182,6 +197,8 @@ struct HistoryDaySleepSummary: Equatable {
         efficiencyPercent: Int?,
         bedStartAt: Date?,
         bedEndAt: Date?,
+        nightHrvMs: Double?,
+        weeklyHrvBaselineMs: Double?,
         stageSegments: [HistoryDaySleepStageSegment]
     ) {
         self.totalMinutes = totalMinutes
@@ -193,7 +210,35 @@ struct HistoryDaySleepSummary: Equatable {
         self.efficiencyPercent = efficiencyPercent
         self.bedStartAt = bedStartAt
         self.bedEndAt = bedEndAt
+        self.nightHrvMs = nightHrvMs
+        self.weeklyHrvBaselineMs = weeklyHrvBaselineMs
         self.stageSegments = stageSegments
+    }
+
+    private static func normalizedTimeline(
+        _ timeline: HistoryDaySleepStageTimeline,
+        for serverSleep: HistoryServerSleepSummary
+    ) -> HistoryDaySleepStageTimeline {
+        let tolerance = 2
+        let hasDetailedServerStages = serverSleep.coreMinutes + serverSleep.deepMinutes + serverSleep.remMinutes > 0
+        let timelineHasOnlyAwake = timeline.awakeMinutes > 0 &&
+            timeline.coreMinutes == 0 &&
+            timeline.deepMinutes == 0 &&
+            timeline.remMinutes == 0 &&
+            timeline.unclassifiedMinutes == 0
+        let timelineMatchesSleep =
+            abs(timeline.awakeMinutes - serverSleep.totalMinutes) <= tolerance ||
+            abs(timeline.awakeMinutes - serverSleep.inBedMinutes) <= tolerance ||
+            abs(timeline.awakeMinutes - serverSleep.awakeMinutes) <= tolerance
+
+        guard !hasDetailedServerStages,
+              serverSleep.totalMinutes > 0,
+              timelineHasOnlyAwake,
+              timelineMatchesSleep else {
+            return timeline
+        }
+
+        return timeline.reclassifyingAwakeAsUnclassified()
     }
 
     private static func canUseTimeline(
@@ -228,13 +273,31 @@ struct HistoryDaySleepSummary: Equatable {
     ) -> Bool {
         let tolerance = 2
         let hasDetailedServerStages = serverSleep.coreMinutes + serverSleep.deepMinutes + serverSleep.remMinutes > 0
-        let timelineMatchesTotal = abs(timeline.asleepMinutes - serverSleep.totalMinutes) <= tolerance
+        let timelineMatchesServerSleep =
+            abs(timeline.asleepMinutes - serverSleep.totalMinutes) <= tolerance ||
+            abs(timeline.asleepMinutes - serverSleep.awakeMinutes) <= tolerance ||
+            abs(timeline.asleepMinutes - serverSleep.inBedMinutes) <= tolerance
 
         return !hasDetailedServerStages &&
-            timeline.coreMinutes > 0 &&
+            timeline.unclassifiedMinutes > 0 &&
             timeline.deepMinutes == 0 &&
             timeline.remMinutes == 0 &&
-            timelineMatchesTotal
+            timelineMatchesServerSleep
+    }
+
+    private static func shouldDisplayAwakeAsUnclassified(_ serverSleep: HistoryServerSleepSummary) -> Bool {
+        let hasDetailedServerStages = serverSleep.coreMinutes + serverSleep.deepMinutes + serverSleep.remMinutes > 0
+        guard !hasDetailedServerStages,
+              serverSleep.totalMinutes > 0,
+              serverSleep.awakeMinutes > 0 else {
+            return false
+        }
+
+        return serverSleep.stages.isEmpty ||
+            serverSleep.stages.allSatisfy { stage in
+                let normalizedStage = stage.stage.uppercased()
+                return normalizedStage == "AWAKE" || normalizedStage == "WAKE"
+            }
     }
 
     private static func calculatedEfficiencyPercent(totalMinutes: Int, inBedMinutes: Int) -> Int? {
@@ -269,17 +332,28 @@ struct HistoryDaySleepStageSegment: Identifiable, Equatable {
         self.durationMinutes = durationMinutes
     }
 
+    fileprivate func reclassified(as kind: HistoryDaySleepStageKind) -> HistoryDaySleepStageSegment {
+        HistoryDaySleepStageSegment(
+            kind: kind,
+            startRatio: startRatio,
+            durationRatio: durationRatio,
+            durationMinutes: durationMinutes
+        )
+    }
+
     static func aggregateSegments(
         coreMinutes: Int,
         deepMinutes: Int,
         remMinutes: Int,
-        awakeMinutes: Int
+        awakeMinutes: Int,
+        unclassifiedMinutes: Int = 0
     ) -> [HistoryDaySleepStageSegment] {
         let values: [(HistoryDaySleepStageKind, Int)] = [
             (.core, coreMinutes),
             (.deep, deepMinutes),
             (.rem, remMinutes),
-            (.awake, awakeMinutes)
+            (.awake, awakeMinutes),
+            (.unclassified, unclassifiedMinutes)
         ].filter { $0.1 > 0 }
 
         let total = max(1, values.map(\.1).reduce(0, +))
@@ -317,6 +391,7 @@ struct HistoryDaySleepStageSegment: Identifiable, Equatable {
         var deepIntervals: [DateInterval] = []
         var remIntervals: [DateInterval] = []
         var awakeIntervals: [DateInterval] = []
+        var unclassifiedIntervals: [DateInterval] = []
         var asleepIntervals: [DateInterval] = []
 
         let displaySegments = timelineSegments.map { segment in
@@ -337,6 +412,9 @@ struct HistoryDaySleepStageSegment: Identifiable, Equatable {
                 asleepIntervals.append(interval)
             case .awake:
                 awakeIntervals.append(interval)
+            case .unclassified:
+                unclassifiedIntervals.append(interval)
+                asleepIntervals.append(interval)
             }
 
             return HistoryDaySleepStageSegment(
@@ -351,6 +429,7 @@ struct HistoryDaySleepStageSegment: Identifiable, Equatable {
         let deepMinutes = SleepIntervalCalculator.minutesAfterMerging(deepIntervals)
         let remMinutes = SleepIntervalCalculator.minutesAfterMerging(remIntervals)
         let awakeMinutes = SleepIntervalCalculator.minutesAfterMerging(awakeIntervals)
+        let unclassifiedMinutes = SleepIntervalCalculator.minutesAfterMerging(unclassifiedIntervals)
         let asleepMinutes = SleepIntervalCalculator.minutesAfterMerging(asleepIntervals)
         let inBedMinutes = Int((timelineEnd.timeIntervalSince(timelineStart) / 60).rounded())
 
@@ -363,7 +442,8 @@ struct HistoryDaySleepStageSegment: Identifiable, Equatable {
             coreMinutes: coreMinutes,
             deepMinutes: deepMinutes,
             remMinutes: remMinutes,
-            awakeMinutes: awakeMinutes
+            awakeMinutes: awakeMinutes,
+            unclassifiedMinutes: unclassifiedMinutes
         )
     }
 
@@ -384,6 +464,24 @@ struct HistoryDaySleepStageTimeline: Equatable {
     let deepMinutes: Int
     let remMinutes: Int
     let awakeMinutes: Int
+    let unclassifiedMinutes: Int
+
+    func reclassifyingAwakeAsUnclassified() -> HistoryDaySleepStageTimeline {
+        HistoryDaySleepStageTimeline(
+            segments: segments.map { segment in
+                segment.kind == .awake ? segment.reclassified(as: .unclassified) : segment
+            },
+            bedStartAt: bedStartAt,
+            bedEndAt: bedEndAt,
+            asleepMinutes: max(asleepMinutes, awakeMinutes),
+            inBedMinutes: inBedMinutes,
+            coreMinutes: coreMinutes,
+            deepMinutes: deepMinutes,
+            remMinutes: remMinutes,
+            awakeMinutes: 0,
+            unclassifiedMinutes: unclassifiedMinutes + awakeMinutes
+        )
+    }
 }
 
 enum HistoryDaySleepStageKind: Equatable {
@@ -391,6 +489,7 @@ enum HistoryDaySleepStageKind: Equatable {
     case deep
     case rem
     case awake
+    case unclassified
 
     init(kind: HealthKitSleepStageKind) {
         switch kind {
@@ -402,18 +501,22 @@ enum HistoryDaySleepStageKind: Equatable {
             self = .rem
         case .awake:
             self = .awake
+        case .unclassified:
+            self = .unclassified
         }
     }
 
     init?(serverStage: String) {
         switch serverStage.uppercased() {
-        case "CORE", "UNSPECIFIED", "ASLEEP", "SLEEP", "IN_BED":
+        case "CORE":
             self = .core
+        case "UNSPECIFIED", "ASLEEP", "SLEEP", "IN_BED":
+            self = .unclassified
         case "DEEP":
             self = .deep
         case "REM":
             self = .rem
-        case "AWAKE":
+        case "AWAKE", "WAKE":
             self = .awake
         default:
             return nil
@@ -430,6 +533,8 @@ enum HistoryDaySleepStageKind: Equatable {
             return "REM"
         case .awake:
             return "비수면"
+        case .unclassified:
+            return "수면"
         }
     }
 
@@ -443,6 +548,8 @@ enum HistoryDaySleepStageKind: Equatable {
             return Color(red: 0.961, green: 0.62, blue: 0.043)
         case .awake:
             return Color(red: 0.937, green: 0.267, blue: 0.267)
+        case .unclassified:
+            return Color(red: 0.133, green: 0.827, blue: 0.933).opacity(0.45)
         }
     }
 }
