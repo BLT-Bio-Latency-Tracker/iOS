@@ -151,8 +151,11 @@ final class HomeViewModel: ObservableObject {
         }
 
         do {
-            let evaluation = try await evaluationService.fetchToday()
-            evaluationResultStore.apply(evaluation)
+            if let evaluation = try await evaluationService.fetchLatestEvaluationForMeasurementDay() {
+                evaluationResultStore.apply(evaluation)
+            } else {
+                evaluationResultStore.clear()
+            }
         } catch {
             evaluationResultStore.clear()
         }
