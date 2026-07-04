@@ -302,7 +302,7 @@ struct SleepDetailView: View {
             return "💡 REM 비중이 평소보다 높게 나타났어요"
         }
 
-        if sleep.bedStartText > "23:00" {
+        if isLateBedtime {
             return "💡 23시 이전 입면을 시도해보세요"
         }
 
@@ -312,7 +312,7 @@ struct SleepDetailView: View {
            deepSleepPercent >= 10,
            remSleepPercent >= 15,
            remSleepPercent <= 30 {
-            return "💡 지금의 수면 리듬을 유지해보세요"
+            return "💡 안정적인 수면 리듬을 잘 유지하고 있어요"
         }
 
         return "💡 지금의 수면 리듬을 유지해보세요"
@@ -351,8 +351,8 @@ struct SleepDetailView: View {
             return "REM 비중이 높으면 잠이 얕게 이어졌을 수 있어요. 낮 동안 피로감을 확인해보세요."
         }
 
-        if sleep.bedStartText > "23:00" {
-            return "오늘 REM이 늦게 시작됐어요. 일찍 자면 회복이 좋아집니다."
+        if isLateBedtime {
+            return "입면 시간이 늦게 잡혔어요. 오늘은 평소보다 조금 일찍 잠자리에 들어보세요."
         }
 
         if sleep.totalMinutes >= 420,
@@ -361,7 +361,7 @@ struct SleepDetailView: View {
            deepSleepPercent >= 10,
            remSleepPercent >= 15,
            remSleepPercent <= 30 {
-            return "수면 시간과 단계 균형이 안정적이에요. 같은 시간대에 잠들어보세요."
+            return "수면 시간, 효율, 단계 균형이 모두 안정적이에요. 지금의 루틴을 이어가도 좋습니다."
         }
 
         return "수면 단계 균형이 안정적이에요. 같은 시간대에 잠들어보세요."
@@ -370,6 +370,17 @@ struct SleepDetailView: View {
     private func stagePercent(_ minutes: Int, denominator: Int) -> Int {
         guard denominator > 0 else { return 0 }
         return Int((Double(minutes) / Double(denominator) * 100).rounded())
+    }
+
+    private var isLateBedtime: Bool {
+        guard let bedStartAt = sleep.bedStartAt else {
+            return false
+        }
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+        let hour = calendar.component(.hour, from: bedStartAt)
+        return hour >= 23 || hour < 4
     }
 
     private func durationText(from minutes: Int) -> String {

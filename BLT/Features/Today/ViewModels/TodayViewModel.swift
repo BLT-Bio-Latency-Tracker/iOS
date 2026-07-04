@@ -88,6 +88,7 @@ final class TodayViewModel: ObservableObject {
                     awakeMinutes: summary.awakeMinutes,
                     inBedMinutes: summary.inBedMinutes,
                     bedStartText: timeFormatter.string(from: summary.bedStartAt),
+                    bedStartAt: summary.bedStartAt,
                     bedEndText: timeFormatter.string(from: summary.bedEndAt),
                     awakeCount: summary.stageSegments.filter {
                         $0.kind == .awake && $0.durationMinutes > 2
@@ -516,6 +517,7 @@ final class TodayViewModel: ObservableObject {
             awakeMinutes: 0,
             inBedMinutes: 0,
             bedStartText: "--:--",
+            bedStartAt: nil,
             bedEndText: "--:--",
             awakeCount: 0,
             nightHrvMs: nil,
