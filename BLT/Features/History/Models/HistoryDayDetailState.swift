@@ -496,7 +496,7 @@ struct HistoryDaySleepStageTimeline: Equatable {
             },
             bedStartAt: bedStartAt,
             bedEndAt: bedEndAt,
-            asleepMinutes: max(asleepMinutes, awakeMinutes),
+            asleepMinutes: asleepMinutes + awakeMinutes,
             inBedMinutes: inBedMinutes,
             coreMinutes: coreMinutes,
             deepMinutes: deepMinutes,

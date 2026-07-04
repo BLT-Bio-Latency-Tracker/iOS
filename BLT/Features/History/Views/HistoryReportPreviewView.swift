@@ -484,7 +484,18 @@ struct HistoryReportPreviewView: View {
     }
 
     private var fileNameText: String {
-        "report-\(fileDateText(state.selectedDate))-\(profileSnapshot.name).pdf"
+        "report-\(fileDateText(state.selectedDate))-\(sanitizedFileNameComponent(profileSnapshot.name)).pdf"
+    }
+
+    private func sanitizedFileNameComponent(_ name: String) -> String {
+        let invalidCharacters = CharacterSet(charactersIn: "/\\:?%*|\"<>")
+            .union(.newlines)
+            .union(.controlCharacters)
+        let sanitized = name
+            .components(separatedBy: invalidCharacters)
+            .joined(separator: "-")
+            .trimmingCharacters(in: .whitespaces)
+        return sanitized.isEmpty ? "Bryki" : sanitized
     }
 
     private var createdAtText: String {
@@ -710,9 +721,6 @@ private enum ReportColor {
     static let text = Color(red: 0.7, green: 0.72, blue: 0.82)
     static let muted = Color(red: 0.45, green: 0.47, blue: 0.6)
     static let accent = Color(red: 0.133, green: 0.827, blue: 0.933)
-    static let deep = Color(red: 0.486, green: 0.361, blue: 1)
-    static let rem = Color(red: 0.961, green: 0.62, blue: 0.043)
-    static let awake = Color(red: 1, green: 0.267, blue: 0.267)
 
     static let gradient = LinearGradient(
         colors: [
@@ -722,21 +730,4 @@ private enum ReportColor {
         startPoint: .leading,
         endPoint: .trailing
     )
-}
-
-private extension HistoryDaySleepStageKind {
-    var reportColor: Color {
-        switch self {
-        case .core:
-            return ReportColor.accent
-        case .deep:
-            return ReportColor.deep
-        case .rem:
-            return ReportColor.rem
-        case .awake:
-            return ReportColor.awake
-        case .unclassified:
-            return ReportColor.accent.opacity(0.45)
-        }
-    }
 }
