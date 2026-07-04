@@ -179,6 +179,8 @@ struct HealthKitDataRequest: Encodable {
     let coreMinutes: Int
     let awakeMinutes: Int
     let inBedMinutes: Int
+    let nightHrvMs: Double?
+    let weeklyHrvBaselineMs: Double?
     let dataCompleteness: String
     let stages: [SleepStageSegmentRequest]
 
@@ -197,6 +199,8 @@ struct HealthKitDataRequest: Encodable {
         coreMinutes = summary.coreMinutes
         awakeMinutes = summary.awakeMinutes
         inBedMinutes = summary.inBedMinutes
+        nightHrvMs = summary.nightHrvMs
+        weeklyHrvBaselineMs = summary.weeklyHrvBaselineMs
         dataCompleteness = "FULL"
         stages = summary.stageSegments.map(SleepStageSegmentRequest.init)
     }

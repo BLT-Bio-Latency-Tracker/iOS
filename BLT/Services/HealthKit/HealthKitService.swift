@@ -33,6 +33,8 @@ struct HealthKitSleepSummary {
     let bedStartAt: Date
     let bedEndAt: Date
     let stageSegments: [HealthKitSleepStageSegment]
+    let nightHrvMs: Double?
+    let weeklyHrvBaselineMs: Double?
 }
 
 struct HealthKitResolvedSleepSummary {
@@ -123,12 +125,15 @@ final class HealthKitService {
 
         let queryInterval = Self.sleepQueryInterval(for: date)
         let sleepSamples = try await fetchSleepSamples(in: queryInterval)
-
-        return Self.makeSleepSummary(
+        guard let summary = Self.makeSleepSummary(
             from: sleepSamples,
             for: date,
             queryInterval: queryInterval
-        )
+        ) else {
+            return nil
+        }
+
+        return await summaryWithHRV(from: summary)
     }
 
     func fetchLatestSleepSummary(for date: Date = Date()) async throws -> HealthKitSleepSummary? {
@@ -181,10 +186,11 @@ final class HealthKitService {
             for: date,
             queryInterval: queryInterval
         ) {
+            let hrvSummary = await summaryWithHRV(from: summary)
             return HealthKitResolvedSleepSummary(
                 date: date,
                 status: .available,
-                summary: summary
+                summary: hrvSummary
             )
         }
 
@@ -262,6 +268,111 @@ final class HealthKitService {
 
             healthStore.execute(query)
         }
+    }
+
+    private func fetchHRVSamples(in queryInterval: DateInterval) async throws -> [HKQuantitySample] {
+        guard isHealthDataAvailable else {
+            throw HealthKitServiceError.unavailable
+        }
+
+        guard let hrvType = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN) else {
+            throw HealthKitServiceError.missingHRVType
+        }
+
+        let predicate = HKQuery.predicateForSamples(
+            withStart: queryInterval.start,
+            end: queryInterval.end,
+            options: [.strictStartDate]
+        )
+
+        let sortDescriptor = NSSortDescriptor(
+            key: HKSampleSortIdentifierStartDate,
+            ascending: true
+        )
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: hrvType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [sortDescriptor]
+            ) { _, samples, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+
+                let hrvSamples = (samples as? [HKQuantitySample]) ?? []
+                continuation.resume(returning: hrvSamples)
+            }
+
+            healthStore.execute(query)
+        }
+    }
+
+    private func summaryWithHRV(from summary: HealthKitSleepSummary) async -> HealthKitSleepSummary {
+        let hrvSummary = try? await fetchHRVSummary(for: summary)
+
+        return HealthKitSleepSummary(
+            totalMinutes: summary.totalMinutes,
+            coreMinutes: summary.coreMinutes,
+            deepMinutes: summary.deepMinutes,
+            remMinutes: summary.remMinutes,
+            awakeMinutes: summary.awakeMinutes,
+            inBedMinutes: summary.inBedMinutes,
+            bedStartAt: summary.bedStartAt,
+            bedEndAt: summary.bedEndAt,
+            stageSegments: summary.stageSegments,
+            nightHrvMs: hrvSummary?.nightHrvMs,
+            weeklyHrvBaselineMs: hrvSummary?.weeklyHrvBaselineMs
+        )
+    }
+
+    private func fetchHRVSummary(for summary: HealthKitSleepSummary) async throws -> (
+        nightHrvMs: Double?,
+        weeklyHrvBaselineMs: Double?
+    ) {
+        let session = DateInterval(start: summary.bedStartAt, end: summary.bedEndAt)
+        let nightSamples = try await fetchHRVSamples(in: session)
+        let nightHrvMs = Self.averageHRVMilliseconds(from: nightSamples, in: session)
+        let weeklyHrvBaselineMs = try await fetchWeeklyHRVBaseline(before: session)
+
+        return (nightHrvMs, weeklyHrvBaselineMs)
+    }
+
+    private func fetchWeeklyHRVBaseline(before currentSession: DateInterval) async throws -> Double? {
+        let lookbackStart = Self.koreaCalendar.date(
+            byAdding: .day,
+            value: -30,
+            to: currentSession.start
+        ) ?? currentSession.start.addingTimeInterval(-30 * 24 * 60 * 60)
+
+        let queryInterval = DateInterval(start: lookbackStart, end: currentSession.start)
+        let sleepSamples = try await fetchSleepSamples(in: queryInterval)
+        let hrvSamples = try await fetchHRVSamples(in: queryInterval)
+
+        let sessionIntervals = sleepSamples.compactMap { sample -> DateInterval? in
+            guard let sleepValue = HKCategoryValueSleepAnalysis(rawValue: sample.value),
+                  sleepValue.isSleepSessionValue else {
+                return nil
+            }
+
+            return Self.clippedInterval(
+                DateInterval(start: sample.startDate, end: sample.endDate),
+                to: queryInterval
+            )
+        }
+
+        let recentSessions = Self.groupedSleepSessions(from: sessionIntervals)
+            .filter { $0.end <= currentSession.start }
+            .suffix(7)
+
+        let sessionAverages = recentSessions.compactMap { session in
+            Self.averageHRVMilliseconds(from: hrvSamples, in: session)
+        }
+
+        guard !sessionAverages.isEmpty else { return nil }
+        return sessionAverages.reduce(0, +) / Double(sessionAverages.count)
     }
 
     private static func sleepQueryInterval(for date: Date) -> DateInterval {
@@ -356,8 +467,24 @@ final class HealthKitService {
                 from: samples,
                 in: sleepSession,
                 queryInterval: queryInterval
-            )
+            ),
+            nightHrvMs: nil,
+            weeklyHrvBaselineMs: nil
         )
+    }
+
+    private static func averageHRVMilliseconds(
+        from samples: [HKQuantitySample],
+        in interval: DateInterval
+    ) -> Double? {
+        let unit = HKUnit.secondUnit(with: .milli)
+        let values = samples.compactMap { sample -> Double? in
+            guard interval.contains(sample.startDate) else { return nil }
+            return sample.quantity.doubleValue(for: unit)
+        }
+
+        guard !values.isEmpty else { return nil }
+        return values.reduce(0, +) / Double(values.count)
     }
 
     private static func sleepStageSegments(

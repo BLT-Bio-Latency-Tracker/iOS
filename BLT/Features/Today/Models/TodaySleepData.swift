@@ -12,8 +12,11 @@ struct TodaySleepData {
     let awakeMinutes: Int
     let inBedMinutes: Int
     let bedStartText: String
+    let bedStartAt: Date?
     let bedEndText: String
     let awakeCount: Int
+    let nightHrvMs: Double?
+    let weeklyHrvBaselineMs: Double?
 }
 
 enum TodaySleepDifferenceDirection {
