@@ -125,21 +125,8 @@ struct HistoryDaySleepSummary: Equatable {
 
     init(serverSleep: HistoryServerSleepSummary) {
         if let timeline = HistoryDaySleepStageSegment.serverTimeline(from: serverSleep.stages),
-           Self.canUseTimeline(timeline, for: serverSleep) {
-            totalMinutes = timeline.asleepMinutes
-            coreMinutes = timeline.coreMinutes
-            deepMinutes = timeline.deepMinutes
-            remMinutes = timeline.remMinutes
-            awakeMinutes = timeline.awakeMinutes
-            inBedMinutes = timeline.inBedMinutes
-            efficiencyPercent = serverSleep.efficiencyPercent
-                ?? HistoryDaySleepSummary.calculatedEfficiencyPercent(
-                    totalMinutes: timeline.asleepMinutes,
-                    inBedMinutes: timeline.inBedMinutes
-                )
-            bedStartAt = timeline.bedStartAt
-            bedEndAt = timeline.bedEndAt
-            stageSegments = timeline.segments
+           Self.canUseTimeline(timeline, for: serverSleep) || Self.canUseUnclassifiedTimeline(timeline, for: serverSleep) {
+            self = Self.makeTimelineSleepSummary(timeline, serverSleep: serverSleep)
         } else {
             totalMinutes = serverSleep.totalMinutes
             coreMinutes = serverSleep.coreMinutes
@@ -161,6 +148,52 @@ struct HistoryDaySleepSummary: Equatable {
                 awakeMinutes: serverSleep.awakeMinutes
             )
         }
+    }
+
+    private static func makeTimelineSleepSummary(
+        _ timeline: HistoryDaySleepStageTimeline,
+        serverSleep: HistoryServerSleepSummary
+    ) -> HistoryDaySleepSummary {
+        HistoryDaySleepSummary(
+            totalMinutes: timeline.asleepMinutes,
+            coreMinutes: timeline.coreMinutes,
+            deepMinutes: timeline.deepMinutes,
+            remMinutes: timeline.remMinutes,
+            awakeMinutes: timeline.awakeMinutes,
+            inBedMinutes: timeline.inBedMinutes,
+            efficiencyPercent: serverSleep.efficiencyPercent
+                ?? HistoryDaySleepSummary.calculatedEfficiencyPercent(
+                    totalMinutes: timeline.asleepMinutes,
+                    inBedMinutes: timeline.inBedMinutes
+                ),
+            bedStartAt: timeline.bedStartAt,
+            bedEndAt: timeline.bedEndAt,
+            stageSegments: timeline.segments
+        )
+    }
+
+    private init(
+        totalMinutes: Int,
+        coreMinutes: Int,
+        deepMinutes: Int,
+        remMinutes: Int,
+        awakeMinutes: Int,
+        inBedMinutes: Int,
+        efficiencyPercent: Int?,
+        bedStartAt: Date?,
+        bedEndAt: Date?,
+        stageSegments: [HistoryDaySleepStageSegment]
+    ) {
+        self.totalMinutes = totalMinutes
+        self.coreMinutes = coreMinutes
+        self.deepMinutes = deepMinutes
+        self.remMinutes = remMinutes
+        self.awakeMinutes = awakeMinutes
+        self.inBedMinutes = inBedMinutes
+        self.efficiencyPercent = efficiencyPercent
+        self.bedStartAt = bedStartAt
+        self.bedEndAt = bedEndAt
+        self.stageSegments = stageSegments
     }
 
     private static func canUseTimeline(
@@ -187,6 +220,21 @@ struct HistoryDaySleepSummary: Equatable {
         }
 
         return true
+    }
+
+    private static func canUseUnclassifiedTimeline(
+        _ timeline: HistoryDaySleepStageTimeline,
+        for serverSleep: HistoryServerSleepSummary
+    ) -> Bool {
+        let tolerance = 2
+        let hasDetailedServerStages = serverSleep.coreMinutes + serverSleep.deepMinutes + serverSleep.remMinutes > 0
+        let timelineMatchesTotal = abs(timeline.asleepMinutes - serverSleep.totalMinutes) <= tolerance
+
+        return !hasDetailedServerStages &&
+            timeline.coreMinutes > 0 &&
+            timeline.deepMinutes == 0 &&
+            timeline.remMinutes == 0 &&
+            timelineMatchesTotal
     }
 
     private static func calculatedEfficiencyPercent(totalMinutes: Int, inBedMinutes: Int) -> Int? {
@@ -359,7 +407,7 @@ enum HistoryDaySleepStageKind: Equatable {
 
     init?(serverStage: String) {
         switch serverStage.uppercased() {
-        case "CORE", "UNSPECIFIED":
+        case "CORE", "UNSPECIFIED", "ASLEEP", "SLEEP", "IN_BED":
             self = .core
         case "DEEP":
             self = .deep

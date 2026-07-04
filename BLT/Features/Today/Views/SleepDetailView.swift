@@ -17,28 +17,33 @@ struct SleepDetailView: View {
                 Color.sleepDetailBackground
                     .ignoresSafeArea()
 
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        header(scale: scale)
-                            .padding(.top, topPadding)
+                VStack(spacing: 0) {
+                    header(scale: scale)
+                        .padding(.top, topPadding)
+                        .padding(.horizontal, horizontalInset)
+                        .padding(.bottom, 25 * scale)
+                        .background(Color.sleepDetailBackground)
+                        .zIndex(1)
 
-                        summarySection(scale: scale)
-                            .padding(.top, 25 * scale)
+                    ScrollView(showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            summarySection(scale: scale)
 
-                        stageDistributionSection(scale: scale)
-                            .padding(.top, 27 * scale)
+                            stageDistributionSection(scale: scale)
+                                .padding(.top, 27 * scale)
 
-                        detailMetricsSection(scale: scale)
-                            .padding(.top, 31 * scale)
+                            detailMetricsSection(scale: scale)
+                                .padding(.top, 31 * scale)
 
-                        Spacer(minLength: 0)
+                            Spacer(minLength: 0)
 
-                        insightCard(scale: scale)
-                            .padding(.top, 90 * scale)
-                            .padding(.bottom, 34 * scale)
+                            insightCard(scale: scale)
+                                .padding(.top, 22 * scale)
+                                .padding(.bottom, 34 * scale)
+                        }
+                        .padding(.horizontal, horizontalInset)
+                        .frame(minHeight: proxy.size.height, alignment: .top)
                     }
-                    .padding(.horizontal, horizontalInset)
-                    .frame(minHeight: proxy.size.height)
                 }
             }
         }
@@ -142,11 +147,12 @@ struct SleepDetailView: View {
 
             VStack(spacing: 8 * scale) {
                 metricRow(title: "수면 효율", value: String(format: "%d%%", sleepEfficiencyPercent), scale: scale)
-                metricRow(title: "REM 비율", value: String(format: "%d%%", stagePercent(sleep.remMinutes, denominator: max(sleep.totalMinutes, 1))), scale: scale)
-                metricRow(title: "깊은 수면 비율", value: String(format: "%d%%", stagePercent(sleep.deepMinutes, denominator: max(sleep.totalMinutes, 1))), scale: scale)
+                metricRow(title: "REM 비율", value: String(format: "%d%%", stagePercent(sleep.remMinutes, denominator: stageDenominator)), scale: scale)
+                metricRow(title: "깊은 수면 비율", value: String(format: "%d%%", stagePercent(sleep.deepMinutes, denominator: stageDenominator)), scale: scale)
                 metricRow(title: "깬 횟수", value: String(format: "%d회", sleep.awakeCount), scale: scale)
                 metricRow(title: "총 침대 시간", value: durationText(from: sleep.inBedMinutes), scale: scale)
                 metricRow(title: "심박변이도", value: hrvMetricText, scale: scale)
+                metricRow(title: "HRV 기준선", value: hrvBaselineText, scale: scale)
             }
             .padding(.top, 17 * scale)
         }
@@ -164,6 +170,15 @@ struct SleepDetailView: View {
 
         let ratio = Int(((nightHrvMs / baseline) * 100).rounded())
         return String(format: "%.0fms · 기준 %d%%", nightHrvMs, ratio)
+    }
+
+    private var hrvBaselineText: String {
+        guard let baseline = sleep.weeklyHrvBaselineMs,
+              baseline > 0 else {
+            return "데이터 없음"
+        }
+
+        return String(format: "%.0fms", baseline)
     }
 
     private func metricRow(title: String, value: String, scale: CGFloat) -> some View {
@@ -246,25 +261,107 @@ struct SleepDetailView: View {
         return Int((Double(sleep.totalMinutes) / Double(sleep.inBedMinutes) * 100).rounded())
     }
 
+    private var deepSleepPercent: Int {
+        stagePercent(sleep.deepMinutes, denominator: stageDenominator)
+    }
+
+    private var remSleepPercent: Int {
+        stagePercent(sleep.remMinutes, denominator: stageDenominator)
+    }
+
     private var insightTitle: String {
-        if sleep.bedStartText > "23:00" {
-            return "💡 23시 이전 입면을 시도해보세요"
+        if sleep.totalMinutes <= 0 {
+            return "💡 아직 분석할 수면 데이터가 부족해요"
+        }
+
+        if sleep.totalMinutes < 240 {
+            return "💡 오늘은 회복 시간이 많이 부족해요"
+        }
+
+        if sleep.totalMinutes < 360 {
+            return "💡 수면 시간을 조금 더 확보해보세요"
+        }
+
+        if sleepEfficiencyPercent < 75 {
+            return "💡 침대에 있는 시간 대비 수면이 부족해요"
         }
 
         if sleep.awakeCount >= 3 {
             return "💡 중간 각성을 줄이는 루틴이 필요해요"
         }
 
+        if deepSleepPercent < 10 {
+            return "💡 깊은 수면 비중을 조금 더 늘려보세요"
+        }
+
+        if remSleepPercent < 15 {
+            return "💡 REM 수면 회복이 부족할 수 있어요"
+        }
+
+        if remSleepPercent > 30 {
+            return "💡 REM 비중이 평소보다 높게 나타났어요"
+        }
+
+        if sleep.bedStartText > "23:00" {
+            return "💡 23시 이전 입면을 시도해보세요"
+        }
+
+        if sleep.totalMinutes >= 420,
+           sleepEfficiencyPercent >= 85,
+           sleep.awakeCount <= 1,
+           deepSleepPercent >= 10,
+           remSleepPercent >= 15,
+           remSleepPercent <= 30 {
+            return "💡 지금의 수면 리듬을 유지해보세요"
+        }
+
         return "💡 지금의 수면 리듬을 유지해보세요"
     }
 
     private var insightMessage: String {
-        if sleep.bedStartText > "23:00" {
-            return "오늘 REM이 늦게 시작됐어요. 일찍 자면 회복이 좋아집니다."
+        if sleep.totalMinutes <= 0 {
+            return "수면 기록이 충분히 쌓이면 수면 리듬과 회복 상태를 함께 안내해드릴게요."
+        }
+
+        if sleep.totalMinutes < 240 {
+            return "수면 시간이 짧아 회복이 충분하지 않을 수 있어요. 오늘은 무리한 일정은 줄여보세요."
+        }
+
+        if sleep.totalMinutes < 360 {
+            return "회복 시간이 다소 부족해요. 가능하면 낮은 강도의 업무부터 시작해보세요."
+        }
+
+        if sleepEfficiencyPercent < 75 {
+            return "누워 있던 시간에 비해 실제 수면이 적었어요. 취침 전 루틴을 점검해보세요."
         }
 
         if sleep.awakeCount >= 3 {
             return "수면 중 깬 시간이 많았어요. 취침 전 자극을 줄여보세요."
+        }
+
+        if deepSleepPercent < 10 {
+            return "깊은 수면은 신체 회복과 관련이 커요. 오늘은 카페인과 늦은 운동을 줄여보세요."
+        }
+
+        if remSleepPercent < 15 {
+            return "REM 수면 비중이 낮게 나타났어요. 수면 시간이 짧거나 리듬이 흔들렸을 수 있어요."
+        }
+
+        if remSleepPercent > 30 {
+            return "REM 비중이 높으면 잠이 얕게 이어졌을 수 있어요. 낮 동안 피로감을 확인해보세요."
+        }
+
+        if sleep.bedStartText > "23:00" {
+            return "오늘 REM이 늦게 시작됐어요. 일찍 자면 회복이 좋아집니다."
+        }
+
+        if sleep.totalMinutes >= 420,
+           sleepEfficiencyPercent >= 85,
+           sleep.awakeCount <= 1,
+           deepSleepPercent >= 10,
+           remSleepPercent >= 15,
+           remSleepPercent <= 30 {
+            return "수면 시간과 단계 균형이 안정적이에요. 같은 시간대에 잠들어보세요."
         }
 
         return "수면 단계 균형이 안정적이에요. 같은 시간대에 잠들어보세요."
