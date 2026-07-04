@@ -6,6 +6,7 @@ final class TodayViewModel: ObservableObject {
     @Published private(set) var state: TodayViewState
     @Published private(set) var latestPVTSummary: PVTSummary?
     @Published private(set) var isRequestingHealthKitAuthorization = false
+    @Published private(set) var isRemeasureSuggested = false
     @Published private var comparisonRecords: [EvaluationSummary] = []
     @Published var selectedComparison: TodayComparisonType
 
@@ -13,10 +14,12 @@ final class TodayViewModel: ObservableObject {
     private let pvtResultStore: PVTResultStore
     private let evaluationResultStore: EvaluationResultStore
     private let evaluationService: EvaluationService
+    private let storeSyncService: PVTEvaluationStoreSyncService
     private let calendar: Calendar
     private let timeFormatter: DateFormatter
     private var cancellables = Set<AnyCancellable>()
     private var comparisonFetchTask: Task<Void, Never>?
+    private var latestDisplaySleepEndAt: Date?
 
     init(
         state: TodayViewState? = nil,
@@ -37,6 +40,9 @@ final class TodayViewModel: ObservableObject {
         self.timeFormatter = formatter
         self.healthKitService = healthKitService ?? HealthKitService()
         self.pvtResultStore = pvtResultStore ?? PVTResultStore.shared
+        self.storeSyncService = PVTEvaluationStoreSyncService(
+            evaluationService: evaluationService ?? EvaluationService()
+        )
         self.evaluationResultStore = evaluationResultStore ?? EvaluationResultStore.shared
         self.evaluationService = evaluationService ?? EvaluationService()
 
@@ -61,6 +67,8 @@ final class TodayViewModel: ObservableObject {
             let previousSummary = try? await healthKitService.fetchSleepSummary(for: previousDate)
 
             guard let summary = sleep.summary else {
+                latestDisplaySleepEndAt = nil
+                updateRemeasureSuggestion()
                 state = state.replacingSleep(
                     placeholderSleepData(for: sleep.status, previousSummary: previousSummary),
                     sleepStatus: todaySleepDataStatus(from: sleep.status),
@@ -69,6 +77,9 @@ final class TodayViewModel: ObservableObject {
                 )
                 return
             }
+
+            latestDisplaySleepEndAt = summary.bedEndAt
+            updateRemeasureSuggestion()
 
             let sleepDifference = sleepDifferenceText(
                 todayMinutes: summary.totalMinutes,
@@ -101,6 +112,8 @@ final class TodayViewModel: ObservableObject {
                 roiStatusText: state.roiStatusText == "PVT만 반영" ? "안정적인 방전 상태" : state.roiStatusText
             )
         } catch {
+            latestDisplaySleepEndAt = nil
+            updateRemeasureSuggestion()
             state = state.replacingSleep(
                 nil,
                 sleepStatus: .notConnected,
@@ -117,11 +130,17 @@ final class TodayViewModel: ObservableObject {
         }
 
         do {
-            let evaluation = try await evaluationService.fetchToday()
-            evaluationResultStore.apply(evaluation)
+            if let evaluation = try await evaluationService.fetchLatestEvaluationForMeasurementDay() {
+                evaluationResultStore.apply(evaluation)
+            } else {
+                evaluationResultStore.clear()
+            }
         } catch {
             evaluationResultStore.clear()
         }
+
+        await storeSyncService.restoreTodayPVTResultIfNeeded()
+        applyLatestPVTResultIfNeeded()
     }
 
     func refreshPVTResult() {
@@ -402,6 +421,8 @@ final class TodayViewModel: ObservableObject {
     }
 
     private func applyEvaluation(_ evaluation: EvaluationResponse?) {
+        defer { updateRemeasureSuggestion() }
+
         guard let evaluation else {
             comparisonFetchTask?.cancel()
             comparisonRecords = []
@@ -422,6 +443,18 @@ final class TodayViewModel: ObservableObject {
             changePercent: evaluation.trendVsYesterday,
             measuredAt: evaluation.measuredAt
         )
+    }
+
+    /// 최신 평가가 반영한 수면보다 늦게 끝난 수면이 있으면 재측정을 제안한다.
+    /// 측정 이후에 잔 수면을 기존 평가에 소급 반영하지 않는 정책의 보완 흐름.
+    private func updateRemeasureSuggestion() {
+        guard let measuredAt = evaluationResultStore.todayEvaluation?.measuredAt,
+              let sleepEndAt = latestDisplaySleepEndAt else {
+            isRemeasureSuggested = false
+            return
+        }
+
+        isRemeasureSuggested = measuredAt < sleepEndAt
     }
 
     private func scheduleComparisonRecordFetch(referenceDate: Date) {

@@ -8,15 +8,30 @@ struct PVTEvaluationStoreSyncService {
         self.evaluationService = evaluationService
     }
 
+    /// 로컬 PVT 저장소가 비어 있으면(재설치 등) 서버에서 현재 측정일의 최신 PVT를 복원한다.
+    func restoreTodayPVTResultIfNeeded(for date: Date = Date()) async {
+        guard AuthSessionStore.shared.accessToken != nil else { return }
+        guard PVTResultStore.shared.displayResult(for: date) == nil else { return }
+
+        guard let latestMeasurement = try? await evaluationService.fetchLatestPVTMeasurementForMeasurementDay(containing: date) else {
+            return
+        }
+
+        savePVTResult(from: latestMeasurement)
+    }
+
     func refreshTodayStoresAfterDeletion(
         on date: Date,
         remainingMeasurements: [PVTDetailMeasurement]? = nil
     ) async {
-        guard Self.koreaCalendar.isDateInToday(date) else { return }
+        guard Self.isCurrentMeasurementDay(date) else { return }
 
         do {
-            let evaluation = try await evaluationService.fetchToday()
-            EvaluationResultStore.shared.apply(evaluation)
+            if let evaluation = try await evaluationService.fetchLatestEvaluationForMeasurementDay() {
+                EvaluationResultStore.shared.apply(evaluation)
+            } else {
+                EvaluationResultStore.shared.clear()
+            }
         } catch {
             EvaluationResultStore.shared.clear()
         }
@@ -89,6 +104,16 @@ struct PVTEvaluationStoreSyncService {
             excludesLapsesFromAverage: true,
             falseStartCount: measurement.falseStartCount
         )
+    }
+
+    private static func isCurrentMeasurementDay(_ date: Date) -> Bool {
+        let interval = EvaluationService.measurementDayInterval(containing: Date())
+        if date >= interval.start && date < interval.end {
+            return true
+        }
+
+        let currentDayLabel = koreaCalendar.startOfDay(for: interval.start)
+        return koreaCalendar.isDate(date, inSameDayAs: currentDayLabel)
     }
 
     private static var koreaCalendar: Calendar {

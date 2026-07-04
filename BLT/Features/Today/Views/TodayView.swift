@@ -46,6 +46,11 @@ struct TodayView: View {
                                     .padding(.top, 16 * scale)
                             }
 
+                            if viewModel.isRemeasureSuggested {
+                                remeasureNotice(scale: scale)
+                                    .padding(.top, 12 * scale)
+                            }
+
                             comparisonPicker(scale: scale)
                                 .padding(.top, 18 * scale)
                                 .padding(.horizontal, 11 * scale)
@@ -202,6 +207,37 @@ struct TodayView: View {
                 Capsule()
                     .stroke(changeColor.opacity(0.4), lineWidth: 1)
             }
+    }
+
+    private func remeasureNotice(scale: CGFloat) -> some View {
+        HStack(spacing: 10 * scale) {
+            Text("💤")
+                .font(.system(size: 15 * scale))
+
+            VStack(alignment: .leading, spacing: 4 * scale) {
+                Text("수면 데이터가 업데이트됐어요")
+                    .font(.system(size: 12 * scale, weight: .semibold))
+                    .foregroundStyle(Color.todayCyan)
+                    .lineLimit(1)
+
+                Text("지금 다시 측정하면 최신 수면이 반영된 점수를 받을 수 있어요")
+                    .font(.system(size: 11 * scale, weight: .regular))
+                    .foregroundStyle(.white.opacity(0.65))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14 * scale)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 56 * scale)
+        .background(Color.todayCyan.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14 * scale, style: .continuous)
+                .stroke(Color.todayCyan.opacity(0.3), lineWidth: 1)
+        }
     }
 
     private func comparisonNotice(scale: CGFloat) -> some View {

@@ -216,6 +216,23 @@ struct HistoryDaySleepSummary: Equatable {
         self.stageSegments = stageSegments
     }
 
+    func replacingHRV(nightHrvMs: Double?, weeklyHrvBaselineMs: Double?) -> HistoryDaySleepSummary {
+        HistoryDaySleepSummary(
+            totalMinutes: totalMinutes,
+            coreMinutes: coreMinutes,
+            deepMinutes: deepMinutes,
+            remMinutes: remMinutes,
+            awakeMinutes: awakeMinutes,
+            inBedMinutes: inBedMinutes,
+            efficiencyPercent: efficiencyPercent,
+            bedStartAt: bedStartAt,
+            bedEndAt: bedEndAt,
+            nightHrvMs: nightHrvMs,
+            weeklyHrvBaselineMs: weeklyHrvBaselineMs,
+            stageSegments: stageSegments
+        )
+    }
+
     private static func normalizedTimeline(
         _ timeline: HistoryDaySleepStageTimeline,
         for serverSleep: HistoryServerSleepSummary

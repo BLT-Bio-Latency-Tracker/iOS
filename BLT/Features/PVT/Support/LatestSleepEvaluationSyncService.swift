@@ -64,7 +64,7 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
         guard AuthSessionStore.shared.accessToken != nil else { return }
         guard await retryPendingDeletionIfNeeded() else { return }
         guard let pvtResult = pvtResultStore.displayResult() else { return }
-        guard let resolvedSleep = try? await healthKitService.fetchDisplaySleepSummary(for: pvtResult.measuredAt),
+        guard let resolvedSleep = try? await healthKitService.fetchEvaluationSleepSummary(for: pvtResult.measuredAt),
               resolvedSleep.status == .available,
               resolvedSleep.summary != nil else {
             return
@@ -96,11 +96,12 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
             evaluationResultStore.apply(evaluation)
             if let replacingEvaluationID,
                replacingEvaluationID != evaluation.evaluationId {
+                userDefaults.set(replacingEvaluationID, forKey: UserDefaultsKey.pendingDeletionEvaluationID)
                 do {
                     try await evaluationService.deleteEvaluation(id: replacingEvaluationID)
                     userDefaults.removeObject(forKey: UserDefaultsKey.pendingDeletionEvaluationID)
                 } catch {
-                    userDefaults.set(replacingEvaluationID, forKey: UserDefaultsKey.pendingDeletionEvaluationID)
+                    // 삭제 실패 시 pendingDeletionEvaluationID가 남아 다음 동기화에서 재시도된다.
                 }
             }
             userDefaults.set(signature, forKey: UserDefaultsKey.lastSyncedSignature)
@@ -126,45 +127,55 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
         for pvtMeasuredAt: Date,
         localSleepSignature: String
     ) async -> SleepBackfillPlan {
-        let evaluation: EvaluationResponse?
-        if let cachedEvaluation = evaluationResultStore.todayEvaluation {
-            evaluation = cachedEvaluation
+        let matchedEvaluationID: Int?
+        if let cachedEvaluation = evaluationResultStore.todayEvaluation,
+           Self.isSamePVTWindow(cachedEvaluation.measuredAt, pvtMeasuredAt) {
+            matchedEvaluationID = cachedEvaluation.evaluationId
         } else {
-            evaluation = try? await evaluationService.fetchToday()
-            if let evaluation {
-                evaluationResultStore.apply(evaluation)
+            do {
+                let measurementDayInterval = EvaluationService.measurementDayInterval(containing: pvtMeasuredAt)
+                let summaries = try await evaluationService.fetchSummaries(
+                    from: measurementDayInterval.start,
+                    to: measurementDayInterval.end,
+                    size: 50
+                )
+                matchedEvaluationID = summaries
+                    .first { Self.isSamePVTWindow($0.measuredAt, pvtMeasuredAt) }?
+                    .evaluationId
+            } catch {
+                // 서버 상태를 확인하지 못했으면 중복 제출을 피하고 다음 기회에 재시도한다.
+                return .none
             }
         }
 
-        guard let evaluation else {
+        guard let matchedEvaluationID else {
             return .submit(replacingEvaluationID: nil)
         }
 
-        let isSamePVTWindow = abs(evaluation.measuredAt.timeIntervalSince(pvtMeasuredAt)) < 5
-        if isSamePVTWindow {
-            let detail: EvaluationDetailResponse
-            do {
-                detail = try await evaluationService.fetchDetail(id: evaluation.evaluationId)
-            } catch {
-                return .none
-            }
-
-            guard let serverSleep = detail.sleep else {
-                return .submit(replacingEvaluationID: evaluation.evaluationId)
-            }
-
-            if Self.serverSleepSignature(
-                pvtMeasuredAt: pvtMeasuredAt,
-                sleep: serverSleep
-            ) == localSleepSignature {
-                userDefaults.set(localSleepSignature, forKey: UserDefaultsKey.lastSyncedSignature)
-                return .none
-            }
-
-            return .submit(replacingEvaluationID: evaluation.evaluationId)
+        let detail: EvaluationDetailResponse
+        do {
+            detail = try await evaluationService.fetchDetail(id: matchedEvaluationID)
+        } catch {
+            return .none
         }
 
-        return .submit(replacingEvaluationID: nil)
+        guard let serverSleep = detail.sleep else {
+            return .submit(replacingEvaluationID: matchedEvaluationID)
+        }
+
+        if Self.serverSleepSignature(
+            pvtMeasuredAt: pvtMeasuredAt,
+            sleep: serverSleep
+        ) == localSleepSignature {
+            userDefaults.set(localSleepSignature, forKey: UserDefaultsKey.lastSyncedSignature)
+            return .none
+        }
+
+        return .submit(replacingEvaluationID: matchedEvaluationID)
+    }
+
+    private static func isSamePVTWindow(_ lhs: Date, _ rhs: Date) -> Bool {
+        abs(lhs.timeIntervalSince(rhs)) < 5
     }
 
     private static func syncSignature(

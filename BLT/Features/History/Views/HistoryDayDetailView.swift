@@ -5,6 +5,7 @@ struct HistoryDayDetailView: View {
     @State private var pvtSortOption: HistoryDayPVTSortOption = .time
     @State private var selectedPVTMeasurement: PVTDetailMeasurement?
     @State private var isReportPreviewPresented = false
+    @State private var isCompareTodayPresented = false
     let onBack: () -> Void
     let onDataChanged: (Date) async -> Void
 
@@ -79,6 +80,13 @@ struct HistoryDayDetailView: View {
         .navigationDestination(isPresented: $isReportPreviewPresented) {
             HistoryReportPreviewView(state: viewModel.state) {
                 isReportPreviewPresented = false
+            }
+            .navigationBarBackButtonHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
+        }
+        .navigationDestination(isPresented: $isCompareTodayPresented) {
+            HistoryCompareTodayView(state: viewModel.state) {
+                isCompareTodayPresented = false
             }
             .navigationBarBackButtonHidden(true)
             .toolbar(.hidden, for: .navigationBar)
@@ -484,16 +492,20 @@ struct HistoryDayDetailView: View {
             }
             .buttonStyle(.plain)
 
-            Button {} label: {
-                Text("오늘과 비교")
-                    .font(.system(size: 13 * scale, weight: .bold))
-                    .foregroundStyle(Color.historyDayBackground)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 48 * scale)
-                    .background(Color.historyDayAccent)
-                    .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
+            if !isSelectedDateToday {
+                Button {
+                    isCompareTodayPresented = true
+                } label: {
+                    Text("오늘과 비교")
+                        .font(.system(size: 13 * scale, weight: .bold))
+                        .foregroundStyle(Color.historyDayBackground)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48 * scale)
+                        .background(Color.historyDayAccent)
+                        .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
         .padding(.horizontal, 4 * scale)
     }
@@ -515,6 +527,10 @@ struct HistoryDayDetailView: View {
                 .foregroundStyle(Color.historyDayMuted)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var isSelectedDateToday: Bool {
+        Calendar.korea.isDate(viewModel.state.selectedDate, inSameDayAs: Date())
     }
 
     private func dateTitle(_ date: Date) -> String {
@@ -762,7 +778,7 @@ private extension Calendar {
     }
 }
 
-private extension Color {
+extension Color {
     static let historyDayBackground = Color(red: 0.039, green: 0.055, blue: 0.153)
     static let historyDayCard = Color(red: 0.078, green: 0.098, blue: 0.216)
     static let historyDayPrimary = Color(red: 0.486, green: 0.361, blue: 1)
