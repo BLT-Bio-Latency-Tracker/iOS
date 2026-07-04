@@ -4,6 +4,7 @@ struct HistoryDayDetailView: View {
     @StateObject private var viewModel: HistoryDayDetailViewModel
     @State private var pvtSortOption: HistoryDayPVTSortOption = .time
     @State private var selectedPVTMeasurement: PVTDetailMeasurement?
+    @State private var isReportPreviewPresented = false
     let onBack: () -> Void
     let onDataChanged: (Date) async -> Void
 
@@ -71,6 +72,13 @@ struct HistoryDayDetailView: View {
                 selectedPVTMeasurement = nil
                 await viewModel.reloadAfterDeletion()
                 await onDataChanged(viewModel.state.selectedDate)
+            }
+            .navigationBarBackButtonHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
+        }
+        .navigationDestination(isPresented: $isReportPreviewPresented) {
+            HistoryReportPreviewView(state: viewModel.state) {
+                isReportPreviewPresented = false
             }
             .navigationBarBackButtonHidden(true)
             .toolbar(.hidden, for: .navigationBar)
@@ -298,26 +306,11 @@ struct HistoryDayDetailView: View {
         )
 
         return VStack(alignment: .leading, spacing: 8 * scale) {
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    ForEach(sleep.stageSegments) { segment in
-                        segment.kind.color
-                            .frame(
-                                width: max(1, proxy.size.width * segment.durationRatio),
-                                height: 12 * scale
-                            )
-                            .offset(x: proxy.size.width * segment.startRatio)
-                    }
-                }
-                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .leading)
-                .background(.white.opacity(0.08))
-                .clipShape(Capsule())
-            }
-            .frame(height: 12 * scale)
+            HistorySleepStageTimelineBar(segments: sleep.stageSegments, height: 12 * scale)
 
             HStack(spacing: 16 * scale) {
-                stageRatioText(title: "얕은", minutes: sleep.coreMinutes, total: stageDenominator, color: .core, scale: scale)
-                stageRatioText(title: "깊은", minutes: sleep.deepMinutes, total: stageDenominator, color: .deep, scale: scale)
+                stageRatioText(title: "얕은 수면", minutes: sleep.coreMinutes, total: stageDenominator, color: .core, scale: scale)
+                stageRatioText(title: "깊은 수면", minutes: sleep.deepMinutes, total: stageDenominator, color: .deep, scale: scale)
                 stageRatioText(title: "REM", minutes: sleep.remMinutes, total: stageDenominator, color: .rem, scale: scale)
                 stageRatioText(title: "비수면", minutes: sleep.awakeMinutes, total: stageDenominator, color: .awake, scale: scale)
             }
@@ -476,7 +469,9 @@ struct HistoryDayDetailView: View {
 
     private func actionButtons(scale: CGFloat) -> some View {
         HStack(spacing: 8 * scale) {
-            Button {} label: {
+            Button {
+                isReportPreviewPresented = true
+            } label: {
                 Text("공유 / 내보내기")
                     .font(.system(size: 13 * scale, weight: .semibold))
                     .foregroundStyle(Color.historyDayText)
@@ -680,6 +675,27 @@ private enum HistoryDayPVTSortOption: String, CaseIterable, Identifiable {
         case .roiLow:
             return "ROI 낮은순"
         }
+    }
+}
+
+struct HistorySleepStageTimelineBar: View {
+    let segments: [HistoryDaySleepStageSegment]
+    let height: CGFloat
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                ForEach(segments) { segment in
+                    segment.kind.color
+                        .frame(width: max(proxy.size.width * segment.durationRatio, 1))
+                        .offset(x: proxy.size.width * segment.startRatio)
+                }
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .leading)
+            .background(.white.opacity(0.08))
+            .clipShape(Capsule())
+        }
+        .frame(height: height)
     }
 }
 

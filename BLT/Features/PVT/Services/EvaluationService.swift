@@ -227,6 +227,8 @@ struct SleepStageSegmentRequest: Encodable {
             return "REM"
         case .awake:
             return "AWAKE"
+        case .unclassified:
+            return "UNSPECIFIED"
         }
     }
 }
@@ -330,6 +332,8 @@ struct EvaluationSleepDetail: Decodable {
     let deepRatioPercent: Int?
     let remRatioPercent: Int?
     let lightRatioPercent: Int?
+    let nightHrvMs: Double?
+    let weeklyHrvBaselineMs: Double?
     let dataCompleteness: String?
     let stages: [SleepStageSegmentResponse]
 
@@ -345,6 +349,8 @@ struct EvaluationSleepDetail: Decodable {
         case deepRatioPercent
         case remRatioPercent
         case lightRatioPercent
+        case nightHrvMs
+        case weeklyHrvBaselineMs
         case dataCompleteness
         case stages
     }
@@ -362,6 +368,8 @@ struct EvaluationSleepDetail: Decodable {
         deepRatioPercent = try container.decodeIfPresent(Int.self, forKey: .deepRatioPercent)
         remRatioPercent = try container.decodeIfPresent(Int.self, forKey: .remRatioPercent)
         lightRatioPercent = try container.decodeIfPresent(Int.self, forKey: .lightRatioPercent)
+        nightHrvMs = try container.decodeIfPresent(Double.self, forKey: .nightHrvMs)
+        weeklyHrvBaselineMs = try container.decodeIfPresent(Double.self, forKey: .weeklyHrvBaselineMs)
         dataCompleteness = try container.decodeIfPresent(String.self, forKey: .dataCompleteness)
         stages = try container.decodeIfPresent([SleepStageSegmentResponse].self, forKey: .stages) ?? []
     }

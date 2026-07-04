@@ -821,6 +821,8 @@ private struct SleepStageBar: View {
             return Color.todaySleepRem
         case .awake:
             return Color.todayNegative
+        case .unclassified:
+            return Color.todayCyan.opacity(0.45)
         }
     }
 
