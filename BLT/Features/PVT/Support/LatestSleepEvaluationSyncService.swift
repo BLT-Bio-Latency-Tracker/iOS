@@ -64,7 +64,7 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
         guard AuthSessionStore.shared.accessToken != nil else { return }
         guard await retryPendingDeletionIfNeeded() else { return }
         guard let pvtResult = pvtResultStore.displayResult() else { return }
-        guard let resolvedSleep = try? await healthKitService.fetchDisplaySleepSummary(for: pvtResult.measuredAt),
+        guard let resolvedSleep = try? await healthKitService.fetchEvaluationSleepSummary(for: pvtResult.measuredAt),
               resolvedSleep.status == .available,
               resolvedSleep.summary != nil else {
             return

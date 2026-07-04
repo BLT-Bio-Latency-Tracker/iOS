@@ -43,7 +43,7 @@ struct HealthKitResolvedSleepSummary {
     let summary: HealthKitSleepSummary?
 }
 
-enum HealthKitSleepDataStatus {
+enum HealthKitSleepDataStatus: Equatable {
     case available
     case notConnected
     case syncing
@@ -66,6 +66,78 @@ enum HealthKitSleepStageKind {
     case rem
     case awake
     case unclassified
+}
+
+struct HealthKitEvaluationSleepPolicy {
+    static let noRecentSleepThresholdHours: TimeInterval = 28
+
+    static func resolve(
+        measuredAt: Date,
+        completedSleepSummaries: [HealthKitSleepSummary],
+        calendar: Calendar = koreaCalendar
+    ) -> HealthKitResolvedSleepSummary {
+        let latestSleep = completedSleepSummaries
+            .filter { summary in
+                summary.totalMinutes > 0 &&
+                    summary.bedStartAt < summary.bedEndAt &&
+                    summary.bedEndAt <= measuredAt
+            }
+            .max { $0.bedEndAt < $1.bedEndAt }
+
+        guard let latestSleep else {
+            return HealthKitResolvedSleepSummary(
+                date: calendar.startOfDay(for: measuredAt),
+                status: .noWearableData,
+                summary: nil
+            )
+        }
+
+        let hoursSinceLastWake = measuredAt.timeIntervalSince(latestSleep.bedEndAt) / 3_600
+        guard hoursSinceLastWake < noRecentSleepThresholdHours else {
+            return HealthKitResolvedSleepSummary(
+                date: calendar.startOfDay(for: measuredAt),
+                status: .noSleep,
+                summary: zeroSleepSummary(at: measuredAt)
+            )
+        }
+
+        return HealthKitResolvedSleepSummary(
+            date: sleepDay(for: latestSleep.bedEndAt, calendar: calendar),
+            status: .available,
+            summary: latestSleep
+        )
+    }
+
+    private static func zeroSleepSummary(at date: Date) -> HealthKitSleepSummary {
+        HealthKitSleepSummary(
+            totalMinutes: 0,
+            coreMinutes: 0,
+            deepMinutes: 0,
+            remMinutes: 0,
+            awakeMinutes: 0,
+            inBedMinutes: 0,
+            bedStartAt: date,
+            bedEndAt: date,
+            stageSegments: [],
+            nightHrvMs: nil,
+            weeklyHrvBaselineMs: nil
+        )
+    }
+
+    private static func sleepDay(for date: Date, calendar: Calendar) -> Date {
+        let hour = calendar.component(.hour, from: date)
+        let baseDate = hour < 6
+            ? (calendar.date(byAdding: .day, value: -1, to: date) ?? date)
+            : date
+
+        return calendar.startOfDay(for: baseDate)
+    }
+
+    private static var koreaCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+        return calendar
+    }
 }
 
 final class HealthKitService {
@@ -135,6 +207,36 @@ final class HealthKitService {
         }
 
         return await summaryWithHRV(from: summary)
+    }
+
+    func fetchEvaluationSleepSummary(for measuredAt: Date = Date()) async throws -> HealthKitResolvedSleepSummary {
+        if sleepDataConnectionPreference == false {
+            return HealthKitResolvedSleepSummary(
+                date: measuredAt,
+                status: .notConnected,
+                summary: nil
+            )
+        }
+
+        let queryInterval = Self.evaluationSleepLookbackInterval(endingAt: measuredAt)
+        let sleepSamples = try await fetchSleepSamples(in: queryInterval)
+        let sleepSummaries = Self.completedSleepSummaries(
+            from: sleepSamples,
+            before: measuredAt,
+            queryInterval: queryInterval
+        )
+        let resolved = HealthKitEvaluationSleepPolicy.resolve(
+            measuredAt: measuredAt,
+            completedSleepSummaries: sleepSummaries,
+            calendar: Self.koreaCalendar
+        )
+
+        guard let summary = resolved.summary else { return resolved }
+        return HealthKitResolvedSleepSummary(
+            date: resolved.date,
+            status: resolved.status,
+            summary: await summaryWithHRV(from: summary)
+        )
     }
 
     func fetchLatestSleepSummary(for date: Date = Date()) async throws -> HealthKitSleepSummary? {
@@ -312,6 +414,10 @@ final class HealthKitService {
     }
 
     private func summaryWithHRV(from summary: HealthKitSleepSummary) async -> HealthKitSleepSummary {
+        guard summary.totalMinutes > 0, summary.bedStartAt < summary.bedEndAt else {
+            return summary
+        }
+
         let hrvSummary = try? await fetchHRVSummary(for: summary)
 
         return HealthKitSleepSummary(
@@ -385,6 +491,11 @@ final class HealthKitService {
         return DateInterval(start: queryStart, end: queryEnd)
     }
 
+    private static func evaluationSleepLookbackInterval(endingAt date: Date) -> DateInterval {
+        let start = koreaCalendar.date(byAdding: .hour, value: -72, to: date) ?? date.addingTimeInterval(-72 * 60 * 60)
+        return DateInterval(start: start, end: date)
+    }
+
     private static func allowsSleepDataSyncWait(for date: Date) -> Bool {
         koreaCalendar.component(.hour, from: date) < 6
     }
@@ -415,6 +526,18 @@ final class HealthKitService {
             return nil
         }
 
+        return makeSleepSummary(
+            from: samples,
+            in: sleepSession,
+            queryInterval: queryInterval
+        )
+    }
+
+    private static func makeSleepSummary(
+        from samples: [HKCategorySample],
+        in sleepSession: DateInterval,
+        queryInterval: DateInterval
+    ) -> HealthKitSleepSummary? {
         var asleepIntervals: [DateInterval] = []
         var coreIntervals: [DateInterval] = []
         var deepIntervals: [DateInterval] = []
@@ -472,6 +595,33 @@ final class HealthKitService {
             nightHrvMs: nil,
             weeklyHrvBaselineMs: nil
         )
+    }
+
+    private static func completedSleepSummaries(
+        from samples: [HKCategorySample],
+        before referenceDate: Date,
+        queryInterval: DateInterval
+    ) -> [HealthKitSleepSummary] {
+        let sessionIntervals = samples.compactMap { sample -> DateInterval? in
+            guard let sleepValue = HKCategoryValueSleepAnalysis(rawValue: sample.value),
+                  sleepValue.isSleepSessionValue else {
+                return nil
+            }
+
+            let interval = DateInterval(start: sample.startDate, end: sample.endDate)
+            return clippedInterval(interval, to: queryInterval)
+        }
+
+        return groupedSleepSessions(from: sessionIntervals)
+            .filter { $0.end <= referenceDate }
+            .compactMap { session in
+                makeSleepSummary(
+                    from: samples,
+                    in: session,
+                    queryInterval: queryInterval
+                )
+            }
+            .filter { $0.totalMinutes > 0 }
     }
 
     private static func averageHRVMilliseconds(

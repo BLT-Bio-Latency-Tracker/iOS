@@ -1,5 +1,16 @@
 import Foundation
 
+enum EvaluationServiceError: LocalizedError {
+    case sleepDataFetchFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .sleepDataFetchFailed:
+            return "수면 데이터를 확인하지 못해 측정 결과를 저장하지 못했어요. 잠시 후 다시 시도해주세요."
+        }
+    }
+}
+
 struct EvaluationService {
     private let networkClient: NetworkClient
     private let healthKitService: HealthKitService
@@ -17,13 +28,25 @@ struct EvaluationService {
         measuredAt: Date = Date(),
         measurementId: UUID = UUID()
     ) async throws -> EvaluationResponse {
-        let sleep = try? await healthKitService.fetchDisplaySleepSummary(for: measuredAt)
+        let sleep = try await fetchEvaluationSleepSummaryIfAvailable(for: measuredAt)
         return try await submit(
             summary: summary,
             measuredAt: measuredAt,
             measurementId: measurementId,
             resolvedSleep: sleep
         )
+    }
+
+    private func fetchEvaluationSleepSummaryIfAvailable(for measuredAt: Date) async throws -> HealthKitResolvedSleepSummary? {
+        do {
+            return try await healthKitService.fetchEvaluationSleepSummary(for: measuredAt)
+        } catch HealthKitServiceError.unavailable {
+            return nil
+        } catch HealthKitServiceError.missingSleepType {
+            return nil
+        } catch {
+            throw EvaluationServiceError.sleepDataFetchFailed
+        }
     }
 
     func submit(
@@ -47,11 +70,18 @@ struct EvaluationService {
         )
     }
 
-    func fetchToday() async throws -> EvaluationResponse {
-        try await networkClient.get(
-            "/api/v1/evaluations/today",
-            requiresAuth: true
-        )
+    /// 현재 측정일(06시~다음날 06시)의 최신 평가를 반환한다.
+    /// 서버의 자정 기준 "오늘"과 달리 새벽 00~06시에는 전날 저녁 평가가 유지된다.
+    func fetchLatestEvaluationForMeasurementDay(containing date: Date = Date()) async throws -> EvaluationResponse? {
+        let interval = Self.measurementDayInterval(containing: date)
+        let summaries = try await fetchSummaries(from: interval.start, to: interval.end, size: 100)
+        guard let latest = summaries
+            .filter({ $0.measuredAt >= interval.start && $0.measuredAt < interval.end })
+            .max(by: { $0.measuredAt < $1.measuredAt }) else {
+            return nil
+        }
+
+        return try await fetchDetail(id: latest.evaluationId).evaluation
     }
 
     func fetchSummaries(from: Date, to: Date, size: Int = 1000) async throws -> [EvaluationSummary] {
@@ -132,7 +162,7 @@ struct EvaluationService {
         EvaluationDateFormatter.dateText(date)
     }
 
-    private static func measurementDayInterval(containing date: Date) -> DateInterval {
+    static func measurementDayInterval(containing date: Date) -> DateInterval {
         let startOfDay = koreaCalendar.startOfDay(for: date)
         let hour = koreaCalendar.component(.hour, from: date)
         let baseDay = hour < 6
@@ -179,6 +209,8 @@ struct HealthKitDataRequest: Encodable {
     let coreMinutes: Int
     let awakeMinutes: Int
     let inBedMinutes: Int
+    let unspecifiedMinutes: Int
+    let sampleCount: Int
     let nightHrvMs: Double?
     let weeklyHrvBaselineMs: Double?
     let dataCompleteness: String
@@ -199,9 +231,14 @@ struct HealthKitDataRequest: Encodable {
         coreMinutes = summary.coreMinutes
         awakeMinutes = summary.awakeMinutes
         inBedMinutes = summary.inBedMinutes
+        unspecifiedMinutes = summary.stageSegments
+            .filter { $0.kind == .unclassified }
+            .map(\.durationMinutes)
+            .reduce(0, +)
+        sampleCount = summary.stageSegments.count
         nightHrvMs = summary.nightHrvMs
         weeklyHrvBaselineMs = summary.weeklyHrvBaselineMs
-        dataCompleteness = "FULL"
+        dataCompleteness = summary.stageSegments.isEmpty ? "TOTAL_ONLY" : "FULL"
         stages = summary.stageSegments.map(SleepStageSegmentRequest.init)
     }
 }
