@@ -91,7 +91,9 @@ final class TodayViewModel: ObservableObject {
                     bedEndText: timeFormatter.string(from: summary.bedEndAt),
                     awakeCount: summary.stageSegments.filter {
                         $0.kind == .awake && $0.durationMinutes > 2
-                    }.count
+                    }.count,
+                    nightHrvMs: summary.nightHrvMs,
+                    weeklyHrvBaselineMs: summary.weeklyHrvBaselineMs
                 ),
                 sleepStatus: .available,
                 scoreMode: .full,
@@ -515,7 +517,9 @@ final class TodayViewModel: ObservableObject {
             inBedMinutes: 0,
             bedStartText: "--:--",
             bedEndText: "--:--",
-            awakeCount: 0
+            awakeCount: 0,
+            nightHrvMs: nil,
+            weeklyHrvBaselineMs: nil
         )
     }
 

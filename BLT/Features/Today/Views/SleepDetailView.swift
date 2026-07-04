@@ -146,9 +146,24 @@ struct SleepDetailView: View {
                 metricRow(title: "깊은 수면 비율", value: String(format: "%d%%", stagePercent(sleep.deepMinutes, denominator: max(sleep.totalMinutes, 1))), scale: scale)
                 metricRow(title: "깬 횟수", value: String(format: "%d회", sleep.awakeCount), scale: scale)
                 metricRow(title: "총 침대 시간", value: durationText(from: sleep.inBedMinutes), scale: scale)
+                metricRow(title: "심박변이도", value: hrvMetricText, scale: scale)
             }
             .padding(.top, 17 * scale)
         }
+    }
+
+    private var hrvMetricText: String {
+        guard let nightHrvMs = sleep.nightHrvMs else {
+            return "데이터 없음"
+        }
+
+        guard let baseline = sleep.weeklyHrvBaselineMs,
+              baseline > 0 else {
+            return String(format: "%.0fms", nightHrvMs)
+        }
+
+        let ratio = Int(((nightHrvMs / baseline) * 100).rounded())
+        return String(format: "%.0fms · 기준 %d%%", nightHrvMs, ratio)
     }
 
     private func metricRow(title: String, value: String, scale: CGFloat) -> some View {
