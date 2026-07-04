@@ -530,9 +530,7 @@ struct HistoryDayDetailView: View {
     }
 
     private var isSelectedDateToday: Bool {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? calendar.timeZone
-        return calendar.isDate(viewModel.state.selectedDate, inSameDayAs: Date())
+        Calendar.korea.isDate(viewModel.state.selectedDate, inSameDayAs: Date())
     }
 
     private func dateTitle(_ date: Date) -> String {
@@ -780,7 +778,7 @@ private extension Calendar {
     }
 }
 
-private extension Color {
+extension Color {
     static let historyDayBackground = Color(red: 0.039, green: 0.055, blue: 0.153)
     static let historyDayCard = Color(red: 0.078, green: 0.098, blue: 0.216)
     static let historyDayPrimary = Color(red: 0.486, green: 0.361, blue: 1)

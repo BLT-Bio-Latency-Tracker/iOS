@@ -146,11 +146,7 @@ final class HistoryDayDetailViewModel: ObservableObject {
                 let rhsTimeline = HistoryDaySleepStageSegment.serverTimeline(from: rhs.stages)
                 return (lhsTimeline?.asleepMinutes ?? lhs.totalMinutes) < (rhsTimeline?.asleepMinutes ?? rhs.totalMinutes)
             }) {
-            return await backfillingHRVIfNeeded(
-                HistoryDaySleepSummary(serverSleep: serverSleep),
-                for: date,
-                serverSleeps: serverSleeps
-            )
+            return await makeServerSleepSummary(serverSleep, for: date, serverSleeps: serverSleeps)
         }
 
         if let localSleep = try? await healthKitService.fetchDisplaySleepSummary(for: sleepReferenceDate(for: date)).summary {
@@ -158,14 +154,22 @@ final class HistoryDayDetailViewModel: ObservableObject {
         }
 
         if let serverSleep = serverSleeps.first {
-            return await backfillingHRVIfNeeded(
-                HistoryDaySleepSummary(serverSleep: serverSleep),
-                for: date,
-                serverSleeps: serverSleeps
-            )
+            return await makeServerSleepSummary(serverSleep, for: date, serverSleeps: serverSleeps)
         }
 
         return nil
+    }
+
+    private func makeServerSleepSummary(
+        _ serverSleep: HistoryServerSleepSummary,
+        for date: Date,
+        serverSleeps: [HistoryServerSleepSummary]
+    ) async -> HistoryDaySleepSummary {
+        await backfillingHRVIfNeeded(
+            HistoryDaySleepSummary(serverSleep: serverSleep),
+            for: date,
+            serverSleeps: serverSleeps
+        )
     }
 
     private func backfillingHRVIfNeeded(

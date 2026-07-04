@@ -133,9 +133,10 @@ final class LatestSleepEvaluationSyncService: ObservableObject {
             matchedEvaluationID = cachedEvaluation.evaluationId
         } else {
             do {
+                let measurementDayInterval = EvaluationService.measurementDayInterval(containing: pvtMeasuredAt)
                 let summaries = try await evaluationService.fetchSummaries(
-                    from: pvtMeasuredAt,
-                    to: pvtMeasuredAt,
+                    from: measurementDayInterval.start,
+                    to: measurementDayInterval.end,
                     size: 50
                 )
                 matchedEvaluationID = summaries

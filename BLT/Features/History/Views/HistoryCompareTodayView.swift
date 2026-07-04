@@ -22,7 +22,7 @@ struct HistoryCompareTodayView: View {
             let topPadding = max(0, 38 * scale - proxy.safeAreaInsets.top)
 
             ZStack {
-                Color.compareBackground
+                Color.historyDayBackground
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
@@ -30,7 +30,7 @@ struct HistoryCompareTodayView: View {
                         .padding(.top, topPadding)
                         .padding(.horizontal, horizontalInset)
                         .padding(.bottom, 18 * scale)
-                        .background(Color.compareBackground)
+                        .background(Color.historyDayBackground)
                         .zIndex(1)
 
                     ScrollView(showsIndicators: false) {
@@ -73,7 +73,7 @@ struct HistoryCompareTodayView: View {
 
                 Text("\(headerDateText(state.selectedDate)) ↔ 오늘")
                     .font(.system(size: 11 * scale, weight: .regular))
-                    .foregroundStyle(Color.compareMuted)
+                    .foregroundStyle(Color.historyDayMuted)
             }
             .frame(maxWidth: .infinity)
 
@@ -132,15 +132,15 @@ struct HistoryCompareTodayView: View {
         VStack(spacing: 3 * scale) {
             Text(title)
                 .font(.system(size: 11 * scale, weight: isToday ? .semibold : .regular))
-                .foregroundStyle(isToday ? Color.compareAccent : Color.compareMuted)
+                .foregroundStyle(isToday ? Color.historyDayAccent : Color.historyDayMuted)
 
             Text(score.map(String.init) ?? "--")
                 .font(.system(size: 34 * scale, weight: .heavy))
-                .foregroundStyle(isToday ? .white : Color.compareText)
+                .foregroundStyle(isToday ? .white : Color.historyDayText)
 
             Text(score.map(roiStatusTitle) ?? "측정 전")
                 .font(.system(size: 11 * scale, weight: .regular))
-                .foregroundStyle(Color.compareMuted)
+                .foregroundStyle(Color.historyDayMuted)
         }
         .frame(maxWidth: .infinity)
     }
@@ -153,7 +153,7 @@ struct HistoryCompareTodayView: View {
                 if selectedMetrics.sleep == nil, todayMetrics.sleep == nil {
                     Text("표시할 수면 데이터가 없어요")
                         .font(.system(size: 12 * scale, weight: .regular))
-                        .foregroundStyle(Color.compareMuted)
+                        .foregroundStyle(Color.historyDayMuted)
                         .padding(.top, 12 * scale)
                 } else {
                     sleepTimelineRow(
@@ -241,7 +241,7 @@ struct HistoryCompareTodayView: View {
         HStack(spacing: 8 * scale) {
             Text(title)
                 .font(.system(size: 11 * scale, weight: isToday ? .semibold : .regular))
-                .foregroundStyle(isToday ? Color.compareAccent : Color.compareMuted)
+                .foregroundStyle(isToday ? Color.historyDayAccent : Color.historyDayMuted)
                 .frame(width: 34 * scale, alignment: .leading)
 
             if let sleep, !sleep.stageSegments.isEmpty {
@@ -253,7 +253,7 @@ struct HistoryCompareTodayView: View {
                     .overlay {
                         Text("데이터 없음")
                             .font(.system(size: 9 * scale, weight: .regular))
-                            .foregroundStyle(Color.compareMuted)
+                            .foregroundStyle(Color.historyDayMuted)
                     }
             }
         }
@@ -277,7 +277,7 @@ struct HistoryCompareTodayView: View {
 
             Text(title)
                 .font(.system(size: 10 * scale, weight: .regular))
-                .foregroundStyle(Color.compareMuted)
+                .foregroundStyle(Color.historyDayMuted)
         }
     }
 
@@ -342,7 +342,7 @@ struct HistoryCompareTodayView: View {
         return VStack(alignment: .leading, spacing: 10 * scale) {
             Text(insight.title)
                 .font(.system(size: 13 * scale, weight: .semibold))
-                .foregroundStyle(Color.compareAccent)
+                .foregroundStyle(Color.historyDayAccent)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
 
@@ -354,17 +354,17 @@ struct HistoryCompareTodayView: View {
         }
         .padding(16 * scale)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.compareAccent.opacity(0.1))
+        .background(Color.historyDayAccent.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 14 * scale, style: .continuous)
-                .stroke(Color.compareAccent.opacity(0.3), lineWidth: 1)
+                .stroke(Color.historyDayAccent.opacity(0.3), lineWidth: 1)
         }
     }
 
     private func loadingState(scale: CGFloat) -> some View {
         ProgressView()
-            .tint(Color.compareAccent)
+            .tint(Color.historyDayAccent)
             .frame(maxWidth: .infinity)
     }
 
@@ -372,7 +372,7 @@ struct HistoryCompareTodayView: View {
         content()
             .padding(16 * scale)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.compareCard)
+            .background(Color.historyDayCard)
             .clipShape(RoundedRectangle(cornerRadius: 18 * scale, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 18 * scale, style: .continuous)
@@ -384,7 +384,7 @@ struct HistoryCompareTodayView: View {
         Text(text)
             .font(.system(size: 11 * scale, weight: .semibold))
             .tracking(1 * scale)
-            .foregroundStyle(Color.compareText)
+            .foregroundStyle(Color.historyDayText)
     }
 
     private func columnHeaderRow(scale: CGFloat) -> some View {
@@ -401,7 +401,7 @@ struct HistoryCompareTodayView: View {
                 .frame(width: 64 * scale, alignment: .trailing)
         }
         .font(.system(size: 10 * scale, weight: .regular))
-        .foregroundStyle(Color.compareMuted)
+        .foregroundStyle(Color.historyDayMuted)
     }
 
     private func metricRow(
@@ -414,12 +414,12 @@ struct HistoryCompareTodayView: View {
         HStack(spacing: 6 * scale) {
             Text(title)
                 .font(.system(size: 12 * scale, weight: .regular))
-                .foregroundStyle(Color.compareMuted)
+                .foregroundStyle(Color.historyDayMuted)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(left ?? "-")
                 .font(.system(size: 12 * scale, weight: .regular))
-                .foregroundStyle(Color.compareText)
+                .foregroundStyle(Color.historyDayText)
                 .frame(width: 64 * scale, alignment: .trailing)
 
             deltaChipView(delta, scale: scale)
@@ -649,14 +649,6 @@ struct HistoryCompareTodayView: View {
     }
 }
 
-private extension Color {
-    static let compareBackground = Color(red: 0.039, green: 0.055, blue: 0.153)
-    static let compareCard = Color(red: 0.078, green: 0.098, blue: 0.216)
-    static let compareAccent = Color(red: 0.133, green: 0.827, blue: 0.933)
-    static let compareText = Color(red: 0.7, green: 0.72, blue: 0.82)
-    static let compareMuted = Color(red: 0.45, green: 0.47, blue: 0.6)
-}
-
 private struct HistoryCompareDayMetrics {
     let roi: Int?
     let pvtCount: Int
@@ -700,7 +692,7 @@ private struct HistoryCompareDelta {
             case .negative:
                 return Color(red: 0.969, green: 0.443, blue: 0.443)
             case .neutral:
-                return Color.compareText
+                return Color.historyDayText
             }
         }
 
