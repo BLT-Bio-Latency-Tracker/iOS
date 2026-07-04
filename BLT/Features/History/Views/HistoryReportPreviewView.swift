@@ -5,6 +5,8 @@ struct HistoryReportPreviewView: View {
     let state: HistoryDayDetailState
     let onClose: () -> Void
 
+    @State private var sharePDFItem: ReportPDFItem?
+
     private let designWidth: CGFloat = 390
     private let profileSnapshot = LocalProfileStore().snapshot(
         fallback: LocalProfileSnapshot(
@@ -69,6 +71,9 @@ struct HistoryReportPreviewView: View {
         }
         .preferredColorScheme(.dark)
         .enablesInteractivePopGesture()
+        .sheet(item: $sharePDFItem) { item in
+            ReportActivityShareSheet(items: [item.url])
+        }
     }
 
     private func header(scale: CGFloat) -> some View {
@@ -98,7 +103,9 @@ struct HistoryReportPreviewView: View {
 
                 Spacer()
 
-                Button {} label: {
+                Button {
+                    sharePDFItem = makeReportPDF().map(ReportPDFItem.init)
+                } label: {
                     Text("공유")
                         .font(.system(size: 14 * scale, weight: .bold))
                         .foregroundStyle(.white)
@@ -111,6 +118,65 @@ struct HistoryReportPreviewView: View {
             }
         }
         .frame(height: 48 * scale)
+    }
+
+    private var reportDocument: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            reportHero(scale: 1)
+                .padding(.top, 20)
+
+            sectionTitle("01. 종합 점수", scale: 1)
+                .padding(.top, 24)
+
+            totalScoreCard(scale: 1)
+                .padding(.top, 12)
+
+            sectionTitle("02. 수면 데이터", scale: 1)
+                .padding(.top, 26)
+
+            sleepCard(scale: 1)
+                .padding(.top, 12)
+
+            sectionTitle("03. PVT 검사 · \(state.pvtCount)회 측정", scale: 1)
+                .padding(.top, 26)
+
+            pvtCard(scale: 1)
+                .padding(.top, 12)
+
+            footer(scale: 1)
+                .padding(.top, 28)
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 20)
+        .frame(width: designWidth)
+        .background(ReportColor.background)
+        .environment(\.colorScheme, .dark)
+    }
+
+    @MainActor
+    private func makeReportPDF() -> URL? {
+        let renderer = ImageRenderer(content: reportDocument)
+        renderer.proposedSize = ProposedViewSize(width: designWidth, height: nil)
+
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileNameText)
+        try? FileManager.default.removeItem(at: url)
+
+        var isRendered = false
+        renderer.render { size, renderContext in
+            var mediaBox = CGRect(origin: .zero, size: size)
+            guard let consumer = CGDataConsumer(url: url as CFURL),
+                  let pdfContext = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else {
+                return
+            }
+
+            pdfContext.beginPDFPage(nil)
+            renderContext(pdfContext)
+            pdfContext.endPDFPage()
+            pdfContext.closePDF()
+            isRendered = true
+        }
+
+        return isRendered ? url : nil
     }
 
     private func reportHero(scale: CGFloat) -> some View {
@@ -491,6 +557,22 @@ struct HistoryReportPreviewView: View {
             return "취침전"
         }
     }
+}
+
+private struct ReportPDFItem: Identifiable {
+    let url: URL
+
+    var id: String { url.absoluteString }
+}
+
+private struct ReportActivityShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 private struct ReportPVTTrendChart: View {
