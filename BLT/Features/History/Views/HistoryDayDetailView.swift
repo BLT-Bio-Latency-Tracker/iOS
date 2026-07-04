@@ -260,17 +260,19 @@ struct HistoryDayDetailView: View {
                 .foregroundStyle(.white)
                 .padding(.top, 12 * scale)
 
-            if let bedStartAt = sleep?.bedStartAt,
-               let bedEndAt = sleep?.bedEndAt {
-                Text("입면 \(timeText(bedStartAt)) · 기상 \(timeText(bedEndAt))")
-                    .font(.system(size: 12 * scale, weight: .regular))
-                    .foregroundStyle(Color.historyDayText)
-                    .padding(.top, 6 * scale)
-            } else {
-                Text("수면 단계 구간은 HealthKit 로컬 데이터 기준으로 표시됩니다")
-                    .font(.system(size: 11 * scale, weight: .regular))
-                    .foregroundStyle(Color.historyDayMuted)
-                    .padding(.top, 6 * scale)
+            if let sleep {
+                if let bedStartAt = sleep.bedStartAt,
+                   let bedEndAt = sleep.bedEndAt {
+                    Text(sleepTimeSummaryText(sleep: sleep, bedStartAt: bedStartAt, bedEndAt: bedEndAt))
+                        .font(.system(size: 12 * scale, weight: .regular))
+                        .foregroundStyle(Color.historyDayText)
+                        .padding(.top, 6 * scale)
+                } else {
+                    Text("서버에 저장된 수면 데이터 기준")
+                        .font(.system(size: 11 * scale, weight: .regular))
+                        .foregroundStyle(Color.historyDayMuted)
+                        .padding(.top, 6 * scale)
+                }
             }
 
             if let sleep, !sleep.stageSegments.isEmpty {
@@ -290,7 +292,12 @@ struct HistoryDayDetailView: View {
     }
 
     private func sleepStageBar(sleep: HistoryDaySleepSummary, scale: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 8 * scale) {
+        let stageDenominator = max(
+            sleep.coreMinutes + sleep.deepMinutes + sleep.remMinutes + sleep.awakeMinutes,
+            1
+        )
+
+        return VStack(alignment: .leading, spacing: 8 * scale) {
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
                     ForEach(sleep.stageSegments) { segment in
@@ -309,10 +316,10 @@ struct HistoryDayDetailView: View {
             .frame(height: 12 * scale)
 
             HStack(spacing: 16 * scale) {
-                stageRatioText(title: "얕은", minutes: sleep.coreMinutes, total: sleep.totalMinutes, color: .core, scale: scale)
-                stageRatioText(title: "깊은", minutes: sleep.deepMinutes, total: sleep.totalMinutes, color: .deep, scale: scale)
-                stageRatioText(title: "REM", minutes: sleep.remMinutes, total: sleep.totalMinutes, color: .rem, scale: scale)
-                stageRatioText(title: "비수면", minutes: sleep.awakeMinutes, total: sleep.totalMinutes, color: .awake, scale: scale)
+                stageRatioText(title: "얕은", minutes: sleep.coreMinutes, total: stageDenominator, color: .core, scale: scale)
+                stageRatioText(title: "깊은", minutes: sleep.deepMinutes, total: stageDenominator, color: .deep, scale: scale)
+                stageRatioText(title: "REM", minutes: sleep.remMinutes, total: stageDenominator, color: .rem, scale: scale)
+                stageRatioText(title: "비수면", minutes: sleep.awakeMinutes, total: stageDenominator, color: .awake, scale: scale)
             }
         }
     }
@@ -567,6 +574,20 @@ struct HistoryDayDetailView: View {
     private func sleepDurationText(_ minutes: Int?) -> String {
         guard let minutes, minutes > 0 else { return "데이터 없음" }
         return "\(minutes / 60)h \(minutes % 60)m"
+    }
+
+    private func sleepTimeSummaryText(
+        sleep: HistoryDaySleepSummary?,
+        bedStartAt: Date,
+        bedEndAt: Date
+    ) -> String {
+        let timeRangeText = "입면 \(timeText(bedStartAt)) · 기상 \(timeText(bedEndAt))"
+
+        guard let efficiencyPercent = sleep?.efficiencyPercent else {
+            return timeRangeText
+        }
+
+        return "효율 \(efficiencyPercent)% · \(timeRangeText)"
     }
 }
 

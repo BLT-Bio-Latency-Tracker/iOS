@@ -138,11 +138,22 @@ final class HistoryDayDetailViewModel: ObservableObject {
         for date: Date,
         evaluations: [HistoryDayEvaluation]
     ) async -> HistoryDaySleepSummary? {
+        let serverSleeps = evaluations.compactMap(\.serverSleep)
+        if let serverSleep = serverSleeps
+            .filter({ HistoryDaySleepStageSegment.hasDisplayableServerSegments($0.stages) })
+            .max(by: { lhs, rhs in
+                let lhsTimeline = HistoryDaySleepStageSegment.serverTimeline(from: lhs.stages)
+                let rhsTimeline = HistoryDaySleepStageSegment.serverTimeline(from: rhs.stages)
+                return (lhsTimeline?.asleepMinutes ?? lhs.totalMinutes) < (rhsTimeline?.asleepMinutes ?? rhs.totalMinutes)
+            }) {
+            return HistoryDaySleepSummary(serverSleep: serverSleep)
+        }
+
         if let localSleep = try? await healthKitService.fetchDisplaySleepSummary(for: date).summary {
             return HistoryDaySleepSummary(summary: localSleep)
         }
 
-        if let serverSleep = evaluations.compactMap(\.serverSleep).first {
+        if let serverSleep = serverSleeps.first {
             return HistoryDaySleepSummary(serverSleep: serverSleep)
         }
 

@@ -180,6 +180,7 @@ struct HealthKitDataRequest: Encodable {
     let awakeMinutes: Int
     let inBedMinutes: Int
     let dataCompleteness: String
+    let stages: [SleepStageSegmentRequest]
 
     init?(resolvedSleep: HealthKitResolvedSleepSummary, timezone: TimeZone) {
         guard let summary = resolvedSleep.summary else { return nil }
@@ -197,6 +198,32 @@ struct HealthKitDataRequest: Encodable {
         awakeMinutes = summary.awakeMinutes
         inBedMinutes = summary.inBedMinutes
         dataCompleteness = "FULL"
+        stages = summary.stageSegments.map(SleepStageSegmentRequest.init)
+    }
+}
+
+struct SleepStageSegmentRequest: Encodable {
+    let stage: String
+    let startAt: Date
+    let endAt: Date
+
+    init(segment: HealthKitSleepStageSegment) {
+        stage = Self.stageName(for: segment.kind)
+        startAt = segment.startAt
+        endAt = segment.endAt
+    }
+
+    private static func stageName(for kind: HealthKitSleepStageKind) -> String {
+        switch kind {
+        case .core:
+            return "CORE"
+        case .deep:
+            return "DEEP"
+        case .rem:
+            return "REM"
+        case .awake:
+            return "AWAKE"
+        }
     }
 }
 
@@ -300,6 +327,46 @@ struct EvaluationSleepDetail: Decodable {
     let remRatioPercent: Int?
     let lightRatioPercent: Int?
     let dataCompleteness: String?
+    let stages: [SleepStageSegmentResponse]
+
+    private enum CodingKeys: String, CodingKey {
+        case sleepDate
+        case totalMinutes
+        case deepMinutes
+        case remMinutes
+        case coreMinutes
+        case awakeMinutes
+        case inBedMinutes
+        case efficiencyPercent
+        case deepRatioPercent
+        case remRatioPercent
+        case lightRatioPercent
+        case dataCompleteness
+        case stages
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sleepDate = try container.decode(String.self, forKey: .sleepDate)
+        totalMinutes = try container.decode(Int.self, forKey: .totalMinutes)
+        deepMinutes = try container.decodeIfPresent(Int.self, forKey: .deepMinutes) ?? 0
+        remMinutes = try container.decodeIfPresent(Int.self, forKey: .remMinutes) ?? 0
+        coreMinutes = try container.decodeIfPresent(Int.self, forKey: .coreMinutes) ?? 0
+        awakeMinutes = try container.decodeIfPresent(Int.self, forKey: .awakeMinutes) ?? 0
+        inBedMinutes = try container.decodeIfPresent(Int.self, forKey: .inBedMinutes) ?? 0
+        efficiencyPercent = try container.decodeIfPresent(Int.self, forKey: .efficiencyPercent)
+        deepRatioPercent = try container.decodeIfPresent(Int.self, forKey: .deepRatioPercent)
+        remRatioPercent = try container.decodeIfPresent(Int.self, forKey: .remRatioPercent)
+        lightRatioPercent = try container.decodeIfPresent(Int.self, forKey: .lightRatioPercent)
+        dataCompleteness = try container.decodeIfPresent(String.self, forKey: .dataCompleteness)
+        stages = try container.decodeIfPresent([SleepStageSegmentResponse].self, forKey: .stages) ?? []
+    }
+}
+
+struct SleepStageSegmentResponse: Decodable, Equatable {
+    let stage: String
+    let startAt: Date
+    let endAt: Date
 }
 
 struct PvtDetail: Decodable {
