@@ -124,7 +124,8 @@ struct HistoryDaySleepSummary: Equatable {
     }
 
     init(serverSleep: HistoryServerSleepSummary) {
-        if let timeline = HistoryDaySleepStageSegment.serverTimeline(from: serverSleep.stages) {
+        if let timeline = HistoryDaySleepStageSegment.serverTimeline(from: serverSleep.stages),
+           Self.canUseTimeline(timeline, for: serverSleep) {
             totalMinutes = timeline.asleepMinutes
             coreMinutes = timeline.coreMinutes
             deepMinutes = timeline.deepMinutes
@@ -160,6 +161,32 @@ struct HistoryDaySleepSummary: Equatable {
                 awakeMinutes: serverSleep.awakeMinutes
             )
         }
+    }
+
+    private static func canUseTimeline(
+        _ timeline: HistoryDaySleepStageTimeline,
+        for serverSleep: HistoryServerSleepSummary
+    ) -> Bool {
+        let tolerance = 2
+        let comparisons = [
+            (timeline.asleepMinutes, serverSleep.totalMinutes),
+            (timeline.coreMinutes, serverSleep.coreMinutes),
+            (timeline.deepMinutes, serverSleep.deepMinutes),
+            (timeline.remMinutes, serverSleep.remMinutes),
+            (timeline.awakeMinutes, serverSleep.awakeMinutes)
+        ]
+
+        let stageValuesMatch = comparisons.allSatisfy { local, server in
+            abs(local - server) <= tolerance
+        }
+
+        guard stageValuesMatch else { return false }
+
+        if serverSleep.inBedMinutes > 0 {
+            return abs(timeline.inBedMinutes - serverSleep.inBedMinutes) <= tolerance
+        }
+
+        return true
     }
 
     private static func calculatedEfficiencyPercent(totalMinutes: Int, inBedMinutes: Int) -> Int? {
@@ -277,9 +304,7 @@ struct HistoryDaySleepStageSegment: Identifiable, Equatable {
         let remMinutes = SleepIntervalCalculator.minutesAfterMerging(remIntervals)
         let awakeMinutes = SleepIntervalCalculator.minutesAfterMerging(awakeIntervals)
         let asleepMinutes = SleepIntervalCalculator.minutesAfterMerging(asleepIntervals)
-        let inBedMinutes = SleepIntervalCalculator.minutesAfterMerging(
-            timelineSegments.map { DateInterval(start: $0.startAt, end: $0.endAt) }
-        )
+        let inBedMinutes = Int((timelineEnd.timeIntervalSince(timelineStart) / 60).rounded())
 
         return HistoryDaySleepStageTimeline(
             segments: displaySegments,
