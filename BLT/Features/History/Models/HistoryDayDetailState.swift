@@ -138,11 +138,12 @@ struct HistoryDaySleepSummary: Equatable {
             self = Self.makeTimelineSleepSummary(timeline, serverSleep: serverSleep)
         } else {
             let shouldDisplayAwakeAsUnclassified = Self.shouldDisplayAwakeAsUnclassified(serverSleep)
+            let displayAwakeMinutes = shouldDisplayAwakeAsUnclassified ? 0 : serverSleep.awakeMinutes
             totalMinutes = serverSleep.totalMinutes
             coreMinutes = serverSleep.coreMinutes
             deepMinutes = serverSleep.deepMinutes
             remMinutes = serverSleep.remMinutes
-            awakeMinutes = shouldDisplayAwakeAsUnclassified ? 0 : serverSleep.awakeMinutes
+            awakeMinutes = displayAwakeMinutes
             inBedMinutes = serverSleep.inBedMinutes
             efficiencyPercent = serverSleep.efficiencyPercent
                 ?? HistoryDaySleepSummary.calculatedEfficiencyPercent(
@@ -157,8 +158,8 @@ struct HistoryDaySleepSummary: Equatable {
                 coreMinutes: serverSleep.coreMinutes,
                 deepMinutes: serverSleep.deepMinutes,
                 remMinutes: serverSleep.remMinutes,
-                awakeMinutes: shouldDisplayAwakeAsUnclassified ? 0 : serverSleep.awakeMinutes,
-                unclassifiedMinutes: shouldDisplayAwakeAsUnclassified ? max(serverSleep.totalMinutes, serverSleep.awakeMinutes) : 0
+                awakeMinutes: displayAwakeMinutes,
+                unclassifiedMinutes: Self.fallbackUnclassifiedMinutes(for: serverSleep)
             )
         }
     }
@@ -221,6 +222,15 @@ struct HistoryDaySleepSummary: Equatable {
     ) -> HistoryDaySleepStageTimeline {
         let tolerance = 2
         let hasDetailedServerStages = serverSleep.coreMinutes + serverSleep.deepMinutes + serverSleep.remMinutes > 0
+
+        if !hasDetailedServerStages,
+           serverSleep.totalMinutes > 0,
+           timeline.coreMinutes > 0,
+           timeline.deepMinutes == 0,
+           timeline.remMinutes == 0 {
+            return timeline.reclassifyingCoreAsUnclassified()
+        }
+
         let timelineHasOnlyAwake = timeline.awakeMinutes > 0 &&
             timeline.coreMinutes == 0 &&
             timeline.deepMinutes == 0 &&
@@ -298,6 +308,19 @@ struct HistoryDaySleepSummary: Equatable {
                 let normalizedStage = stage.stage.uppercased()
                 return normalizedStage == "AWAKE" || normalizedStage == "WAKE"
             }
+    }
+
+    private static func fallbackUnclassifiedMinutes(for serverSleep: HistoryServerSleepSummary) -> Int {
+        let hasDetailedServerStages = serverSleep.coreMinutes + serverSleep.deepMinutes + serverSleep.remMinutes > 0
+        guard !hasDetailedServerStages, serverSleep.totalMinutes > 0 else {
+            return 0
+        }
+
+        if shouldDisplayAwakeAsUnclassified(serverSleep) {
+            return max(serverSleep.totalMinutes, serverSleep.awakeMinutes)
+        }
+
+        return serverSleep.totalMinutes
     }
 
     private static func calculatedEfficiencyPercent(totalMinutes: Int, inBedMinutes: Int) -> Int? {
@@ -480,6 +503,23 @@ struct HistoryDaySleepStageTimeline: Equatable {
             remMinutes: remMinutes,
             awakeMinutes: 0,
             unclassifiedMinutes: unclassifiedMinutes + awakeMinutes
+        )
+    }
+
+    func reclassifyingCoreAsUnclassified() -> HistoryDaySleepStageTimeline {
+        HistoryDaySleepStageTimeline(
+            segments: segments.map { segment in
+                segment.kind == .core ? segment.reclassified(as: .unclassified) : segment
+            },
+            bedStartAt: bedStartAt,
+            bedEndAt: bedEndAt,
+            asleepMinutes: asleepMinutes,
+            inBedMinutes: inBedMinutes,
+            coreMinutes: 0,
+            deepMinutes: deepMinutes,
+            remMinutes: remMinutes,
+            awakeMinutes: awakeMinutes,
+            unclassifiedMinutes: unclassifiedMinutes + coreMinutes
         )
     }
 }
