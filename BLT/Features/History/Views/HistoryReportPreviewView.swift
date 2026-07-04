@@ -550,11 +550,11 @@ struct HistoryReportPreviewView: View {
 
         switch hour {
         case 5..<12:
-            return "아침"
+            return "오전"
         case 12..<18:
-            return "점심"
+            return "오후"
         default:
-            return "취침전"
+            return "야간"
         }
     }
 }
