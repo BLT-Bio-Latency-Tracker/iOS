@@ -50,7 +50,6 @@ struct MyPageNotificationEditView: View {
                         VStack(alignment: .leading, spacing: 20 * scale) {
                             notificationToggleSection(scale: scale)
                             timeSection(scale: scale)
-                            channelSection(scale: scale)
                         }
                         .padding(.top, 36 * scale)
                         .padding(.horizontal, horizontalInset)
@@ -224,72 +223,8 @@ struct MyPageNotificationEditView: View {
         .disabled(!isEnabled)
     }
 
-    private func channelSection(scale: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 10 * scale) {
-            sectionTitle("수신 채널", scale: scale)
-
-            HStack(spacing: 10 * scale) {
-                ForEach(MyPageNotificationChannel.allCases) { channel in
-                    notificationChannelButton(channel, scale: scale)
-                }
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .opacity(draft.isEnabled ? 1 : 0.45)
-    }
-
-    private func notificationChannelButton(_ channel: MyPageNotificationChannel, scale: CGFloat) -> some View {
-        let isSelected = draft.channels.contains(channel)
-
-        return Button {
-            guard draft.isEnabled else { return }
-
-            if isSelected {
-                draft.channels.remove(channel)
-            } else {
-                draft.channels.insert(channel)
-            }
-        } label: {
-            HStack(spacing: 10 * scale) {
-                ZStack {
-                    Circle()
-                        .fill(isSelected ? Color.myPageNotificationCyan : .clear)
-                        .overlay {
-                            Circle()
-                                .stroke(.white.opacity(0.3), lineWidth: 1.2)
-                        }
-
-                    if isSelected {
-                        Text("✓")
-                            .font(.system(size: 9 * scale, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
-                }
-                .frame(width: 16 * scale, height: 16 * scale)
-
-                Text("\(channel.icon)  \(channel.title)")
-                    .font(.system(size: 12 * scale, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.7))
-
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 12 * scale)
-            .frame(width: 152 * scale)
-            .frame(height: 36 * scale)
-            .background(Color.myPageNotificationCard)
-            .clipShape(RoundedRectangle(cornerRadius: 8 * scale, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 8 * scale, style: .continuous)
-                    .stroke(.white.opacity(0.06), lineWidth: 1)
-            }
-        }
-        .buttonStyle(.plain)
-        .disabled(!draft.isEnabled)
-    }
-
     private func saveButton(scale: CGFloat) -> some View {
         Button {
-            guard canSave else { return }
             Task {
                 let isSaved = await onSave(draft)
 
@@ -305,14 +240,9 @@ struct MyPageNotificationEditView: View {
                 .frame(height: 52 * scale)
                 .background(
                     LinearGradient(
-                        colors: canSave
-                        ? [
+                        colors: [
                             Color(red: 0.49, green: 0.36, blue: 1),
                             Color(red: 0.13, green: 0.83, blue: 0.93)
-                        ]
-                        : [
-                            Color.white.opacity(0.18),
-                            Color.white.opacity(0.12)
                         ],
                         startPoint: .leading,
                         endPoint: .trailing
@@ -321,13 +251,6 @@ struct MyPageNotificationEditView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
         }
         .buttonStyle(.plain)
-        .disabled(!canSave)
-    }
-
-    private var canSave: Bool {
-        guard draft.isEnabled else { return true }
-
-        return !draft.channels.isEmpty
     }
 
     private var notificationToggleDescription: String {
@@ -335,7 +258,7 @@ struct MyPageNotificationEditView: View {
             return "알림 권한을 확인하고 있어요"
         }
 
-        return draft.isEnabled ? "측정과 수면 알림을 받을 수 있어요" : "알림 시간과 수신 채널 설정이 비활성화돼요"
+        return draft.isEnabled ? "측정과 수면 알림을 받을 수 있어요" : "알림 시간 설정이 비활성화돼요"
     }
 
     private func setNotificationEnabled(_ isEnabled: Bool) {
@@ -493,7 +416,15 @@ struct MyPageNotificationEditView: View {
 }
 
 struct MyPageNotificationEditDraft {
-    var isEnabled: Bool
+    // 수신 채널 UI는 제거됐지만 서버 계약은 유지된다.
+    // 알림을 켜면 푸시 채널을 자동 포함해 가입 시 동의하지 않았던 사용자도 푸시를 받게 한다.
+    var isEnabled: Bool {
+        didSet {
+            if isEnabled {
+                channels.insert(.appPush)
+            }
+        }
+    }
     var measurementTime: Date?
     var bedtime: Date?
     var channels: Set<MyPageNotificationChannel>
@@ -503,6 +434,9 @@ struct MyPageNotificationEditDraft {
         measurementTime = Self.date(from: settings.measurementTimeText)
         bedtime = Self.date(from: settings.bedtimeText)
         channels = settings.channels
+        if isEnabled {
+            channels.insert(.appPush)
+        }
     }
 
     var settingsValue: MyPageNotificationSettings {

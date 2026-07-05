@@ -276,8 +276,7 @@ struct ContentView: View {
     }
 
     private func requestNotificationAuthorizationIfNeeded(_ settings: MyPageNotificationSettings) async {
-        guard settings.isEnabled,
-              settings.channels.contains(.appPush) else {
+        guard settings.isEnabled else {
             return
         }
 
