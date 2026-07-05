@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 struct ContentView: View {
@@ -157,6 +158,26 @@ struct ContentView: View {
                     .transition(.opacity)
             }
         }
+        .onReceive(
+            NotificationCenter.default.publisher(for: AuthSessionStore.sessionDidExpireNotification)
+                .receive(on: DispatchQueue.main)
+        ) { _ in
+            handleSessionExpiration()
+        }
+    }
+
+    private func handleSessionExpiration() {
+        switch route {
+        case .splash, .onboarding, .login:
+            return
+        default:
+            break
+        }
+
+        authFlowViewModel.errorMessage = "세션이 만료되었어요. 다시 로그인해주세요."
+        withAnimation(.easeInOut(duration: 0.35)) {
+            route = .login
+        }
     }
 
     private func completeOnboarding() {
@@ -255,8 +276,7 @@ struct ContentView: View {
     }
 
     private func requestNotificationAuthorizationIfNeeded(_ settings: MyPageNotificationSettings) async {
-        guard settings.isEnabled,
-              settings.channels.contains(.appPush) else {
+        guard settings.isEnabled else {
             return
         }
 

@@ -39,7 +39,7 @@ struct HistoryView: View {
                                 .padding(.top, 24 * scale)
 
                             legendSection(scale: scale)
-                                .padding(.top, 22 * scale)
+                                .padding(.top, 10 * scale)
                                 .padding(.horizontal, 4 * scale)
 
                             summarySection(scale: scale)

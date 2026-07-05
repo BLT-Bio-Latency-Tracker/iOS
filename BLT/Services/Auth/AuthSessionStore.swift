@@ -13,6 +13,10 @@ struct AuthSession: Codable, Equatable {
 final class AuthSessionStore {
     static let shared = AuthSessionStore()
 
+    /// 리프레시 토큰 만료 등으로 세션이 강제 종료됐을 때 발행된다.
+    /// 명시적 로그아웃/탈퇴는 화면 콜백으로 라우팅되므로 이 알림을 발행하지 않는다.
+    static let sessionDidExpireNotification = Notification.Name("AuthSessionStore.sessionDidExpire")
+
     private let key = "auth.session"
 
     private init() {}
@@ -28,23 +32,28 @@ final class AuthSessionStore {
 
     func refreshAccessToken(using service: AuthAPIService = AuthAPIService()) async -> String? {
         guard let refreshToken = currentSession?.refreshToken else {
-            clearForSignOut()
+            expireSession()
             return nil
         }
 
         do {
             let response = try await service.refreshToken(RefreshTokenRequest(refreshToken: refreshToken))
             guard save(response.session) else {
-                clearForSignOut()
+                expireSession()
                 return nil
             }
             return response.accessToken
         } catch {
             if Self.shouldClearSession(after: error) {
-                clearForSignOut()
+                expireSession()
             }
             return nil
         }
+    }
+
+    private func expireSession() {
+        clearForSignOut()
+        NotificationCenter.default.post(name: Self.sessionDidExpireNotification, object: nil)
     }
 
     @discardableResult

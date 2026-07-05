@@ -41,7 +41,7 @@ final class PVTTestViewModel: ObservableObject {
         excludesLapsesFromAverage: Bool = true,
         autoLapseMilliseconds: Int = 5000,
         environmentCalibration: PVTEnvironmentCalibrationResult? = nil,
-        delayRange: ClosedRange<Double> = 2...10
+        delayRange: ClosedRange<Double> = 2...5
     ) {
         self.totalTrials = totalTrials
         self.lapseThresholdMilliseconds = lapseThresholdMilliseconds
