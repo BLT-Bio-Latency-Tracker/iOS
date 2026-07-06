@@ -109,16 +109,27 @@ final class HistoryDayDetailViewModel: ObservableObject {
     }
 
     private func fetchEvaluations(for date: Date) async throws -> [HistoryDayEvaluation] {
-        let summaries = try await evaluationService.fetchSummaries(from: date, to: date, size: 50)
         let dayStart = calendar.startOfDay(for: date)
-        let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
+        let queryEnd = calendar.date(byAdding: .day, value: 3, to: dayStart) ?? dayStart
+        let summaries = try await evaluationService.fetchSummaries(
+            from: dayStart,
+            to: queryEnd,
+            size: 100
+        )
         let daySummaries = summaries
-            .filter { $0.measuredAt >= dayStart && $0.measuredAt < dayEnd }
             .sorted { $0.measuredAt < $1.measuredAt }
 
         var details: [HistoryDayEvaluation] = []
         for summary in daySummaries {
             let detail = try await evaluationService.fetchDetail(id: summary.evaluationId)
+            guard HistoryEvaluationDateResolver.isRecord(
+                measuredAt: detail.evaluation.measuredAt,
+                sleepDateText: detail.sleep?.sleepDate,
+                in: dayStart,
+                calendar: calendar
+            ) else {
+                continue
+            }
             details.append(
                 HistoryDayEvaluation(
                     id: summary.evaluationId,

@@ -55,3 +55,61 @@ enum HistoryROILevel: Equatable {
         }
     }
 }
+
+enum HistoryEvaluationDateResolver {
+    static func recordDate(
+        measuredAt: Date,
+        sleepDateText: String?,
+        calendar: Calendar = koreaCalendar
+    ) -> Date {
+        if let sleepDateText,
+           let sleepDate = sleepDateFormatter.date(from: sleepDateText) {
+            return calendar.startOfDay(for: sleepDate)
+        }
+
+        return calendarRecordDate(for: measuredAt, calendar: calendar)
+    }
+
+    static func calendarRecordDate(
+        for measuredAt: Date,
+        calendar: Calendar = koreaCalendar
+    ) -> Date {
+        calendar.startOfDay(for: measuredAt)
+    }
+
+    static func measurementServiceDate(
+        for measuredAt: Date,
+        calendar: Calendar = koreaCalendar
+    ) -> Date {
+        let interval = EvaluationService.measurementDayInterval(containing: measuredAt)
+        return calendar.startOfDay(for: interval.start)
+    }
+
+    static func isRecord(
+        measuredAt: Date,
+        sleepDateText: String?,
+        in selectedDate: Date,
+        calendar: Calendar = koreaCalendar
+    ) -> Bool {
+        let date = recordDate(
+            measuredAt: measuredAt,
+            sleepDateText: sleepDateText,
+            calendar: calendar
+        )
+        return calendar.isDate(date, inSameDayAs: selectedDate)
+    }
+
+    private static let sleepDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    private static var koreaCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+        return calendar
+    }
+}
