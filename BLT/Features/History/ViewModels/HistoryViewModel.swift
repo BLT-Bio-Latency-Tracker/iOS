@@ -155,7 +155,7 @@ final class HistoryViewModel: ObservableObject {
                 records: serverMonth.records,
                 currentDate: Date(),
                 calendar: calendar
-            ).replacingSummary(serverMonth.summary)
+            )
         } catch {
             // 서버 연동 실패 시 기존 로컬/빈 캘린더 상태를 유지합니다.
         }

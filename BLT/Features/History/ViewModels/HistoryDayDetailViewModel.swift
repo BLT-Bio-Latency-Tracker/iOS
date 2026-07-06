@@ -3,6 +3,8 @@ import Foundation
 
 @MainActor
 final class HistoryDayDetailViewModel: ObservableObject {
+    private static let detailBatchSize = 8
+
     @Published private(set) var state: HistoryDayDetailState
 
     private let evaluationService: EvaluationService
@@ -109,26 +111,58 @@ final class HistoryDayDetailViewModel: ObservableObject {
     }
 
     private func fetchEvaluations(for date: Date) async throws -> [HistoryDayEvaluation] {
-        let summaries = try await evaluationService.fetchSummaries(from: date, to: date, size: 50)
         let dayStart = calendar.startOfDay(for: date)
-        let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
+        let queryEnd = calendar.date(byAdding: .day, value: 3, to: dayStart) ?? dayStart
+        let summaries = try await evaluationService.fetchSummaries(
+            from: dayStart,
+            to: queryEnd,
+            size: 100
+        )
         let daySummaries = summaries
-            .filter { $0.measuredAt >= dayStart && $0.measuredAt < dayEnd }
             .sorted { $0.measuredAt < $1.measuredAt }
 
         var details: [HistoryDayEvaluation] = []
-        for summary in daySummaries {
-            let detail = try await evaluationService.fetchDetail(id: summary.evaluationId)
-            details.append(
-                HistoryDayEvaluation(
-                    id: summary.evaluationId,
-                    measuredAt: detail.evaluation.measuredAt,
-                    finalScore: detail.evaluation.finalScore,
-                    statusLabel: detail.evaluation.statusLabel,
-                    pvt: HistoryDayPVT(detail: detail.pvt),
-                    serverSleep: detail.sleep.map(HistoryServerSleepSummary.init)
-                )
-            )
+        for batchStart in stride(from: 0, to: daySummaries.count, by: Self.detailBatchSize) {
+            try Task.checkCancellation()
+
+            let batchEnd = min(batchStart + Self.detailBatchSize, daySummaries.count)
+            let batch = Array(daySummaries[batchStart..<batchEnd])
+            let calendar = calendar
+            let evaluationService = evaluationService
+
+            let batchDetails = try await withThrowingTaskGroup(of: HistoryDayEvaluation?.self) { group in
+                for summary in batch {
+                    group.addTask {
+                        let detail = try await evaluationService.fetchDetail(id: summary.evaluationId)
+                        guard HistoryEvaluationDateResolver.isRecord(
+                            measuredAt: detail.evaluation.measuredAt,
+                            sleepDateText: detail.sleep?.sleepDate,
+                            in: dayStart,
+                            calendar: calendar
+                        ) else {
+                            return nil
+                        }
+                        return HistoryDayEvaluation(
+                            id: summary.evaluationId,
+                            measuredAt: detail.evaluation.measuredAt,
+                            finalScore: detail.evaluation.finalScore,
+                            statusLabel: detail.evaluation.statusLabel,
+                            pvt: HistoryDayPVT(detail: detail.pvt),
+                            serverSleep: detail.sleep.map(HistoryServerSleepSummary.init)
+                        )
+                    }
+                }
+
+                var batchDetails: [HistoryDayEvaluation] = []
+                for try await detail in group {
+                    if let detail {
+                        batchDetails.append(detail)
+                    }
+                }
+                return batchDetails
+            }
+
+            details.append(contentsOf: batchDetails)
         }
 
         return details.sorted { $0.measuredAt < $1.measuredAt }

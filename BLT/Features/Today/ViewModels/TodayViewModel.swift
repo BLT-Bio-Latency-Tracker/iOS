@@ -1,13 +1,20 @@
 import Foundation
 import Combine
 
+private struct TodayComparisonRecord {
+    let recordDate: Date
+    let score: Int
+}
+
 @MainActor
 final class TodayViewModel: ObservableObject {
+    private static let comparisonDetailBatchSize = 8
+
     @Published private(set) var state: TodayViewState
     @Published private(set) var latestPVTSummary: PVTSummary?
     @Published private(set) var isRequestingHealthKitAuthorization = false
     @Published private(set) var isRemeasureSuggested = false
-    @Published private var comparisonRecords: [EvaluationSummary] = []
+    @Published private var comparisonRecords: [TodayComparisonRecord] = []
     @Published var selectedComparison: TodayComparisonType
 
     private let healthKitService: HealthKitService
@@ -20,6 +27,7 @@ final class TodayViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var comparisonFetchTask: Task<Void, Never>?
     private var latestDisplaySleepEndAt: Date?
+    private var currentEvaluationRecordDate: Date?
 
     init(
         state: TodayViewState? = nil,
@@ -130,12 +138,16 @@ final class TodayViewModel: ObservableObject {
         }
 
         do {
-            if let evaluation = try await evaluationService.fetchLatestEvaluationForMeasurementDay() {
-                evaluationResultStore.apply(evaluation)
+            let recordDate = await currentRecordDate()
+            if let detail = try await fetchLatestEvaluationDetail(forRecordDate: recordDate) {
+                currentEvaluationRecordDate = recordDate
+                evaluationResultStore.apply(detail.evaluation)
             } else {
+                currentEvaluationRecordDate = nil
                 evaluationResultStore.clear()
             }
         } catch {
+            currentEvaluationRecordDate = nil
             evaluationResultStore.clear()
         }
 
@@ -312,24 +324,24 @@ final class TodayViewModel: ObservableObject {
     private var selectedComparisonBaselineScore: Int? {
         guard state.hasROIResult else { return nil }
 
-        let referenceDate = calendar.startOfDay(for: state.measuredAt)
+        let referenceDate = currentEvaluationRecordDate
+            ?? HistoryEvaluationDateResolver.calendarRecordDate(for: state.measuredAt, calendar: calendar)
 
         switch selectedComparison {
         case .yesterday:
             guard let yesterday = calendar.date(byAdding: .day, value: -1, to: referenceDate) else {
                 return nil
             }
-            return averageScore(for: Set([dateText(yesterday)]))
+            return averageScore(for: [yesterday])
         case .lastSevenDays:
-            let dateTexts = (1...7).compactMap { offset in
-                calendar.date(byAdding: .day, value: -offset, to: referenceDate).map(dateText)
+            let dates = (1...7).compactMap { offset in
+                calendar.date(byAdding: .day, value: -offset, to: referenceDate)
             }
-            return averageScore(for: Set(dateTexts))
+            return averageScore(for: dates)
         case .myAverage:
-            let todayText = dateText(referenceDate)
             let scores = comparisonRecords
-                .filter { $0.date < todayText }
-                .map(\.finalScore)
+                .filter { $0.recordDate < referenceDate }
+                .map(\.score)
             return averageScore(from: scores)
         }
     }
@@ -426,6 +438,7 @@ final class TodayViewModel: ObservableObject {
         guard let evaluation else {
             comparisonFetchTask?.cancel()
             comparisonRecords = []
+            currentEvaluationRecordDate = nil
             state = state.replacingROI(
                 score: nil,
                 statusText: "PVT 미측정",
@@ -435,7 +448,10 @@ final class TodayViewModel: ObservableObject {
             return
         }
 
-        scheduleComparisonRecordFetch(referenceDate: evaluation.measuredAt)
+        let recordDate = currentEvaluationRecordDate
+            ?? HistoryEvaluationDateResolver.calendarRecordDate(for: evaluation.measuredAt, calendar: calendar)
+        currentEvaluationRecordDate = recordDate
+        scheduleComparisonRecordFetch(referenceRecordDate: recordDate)
 
         state = state.replacingROI(
             score: evaluation.finalScore,
@@ -457,51 +473,141 @@ final class TodayViewModel: ObservableObject {
         isRemeasureSuggested = measuredAt < sleepEndAt
     }
 
-    private func scheduleComparisonRecordFetch(referenceDate: Date) {
+    private func scheduleComparisonRecordFetch(referenceRecordDate: Date) {
         comparisonFetchTask?.cancel()
         comparisonFetchTask = Task { [weak self] in
-            await self?.loadComparisonRecords(referenceDate: referenceDate)
+            await self?.loadComparisonRecords(referenceRecordDate: referenceRecordDate)
         }
     }
 
-    private func loadComparisonRecords(referenceDate: Date) async {
+    private func loadComparisonRecords(referenceRecordDate: Date) async {
         guard AuthSessionStore.shared.accessToken != nil else {
             comparisonRecords = []
             return
         }
 
-        let todayStart = calendar.startOfDay(for: referenceDate)
-        guard let endDate = calendar.date(byAdding: .day, value: -1, to: todayStart),
-              let startDate = calendar.date(byAdding: .year, value: -10, to: todayStart) else {
+        let recordDate = calendar.startOfDay(for: referenceRecordDate)
+        guard let queryEnd = calendar.date(byAdding: .day, value: 3, to: recordDate),
+              let startDate = calendar.date(byAdding: .year, value: -10, to: recordDate) else {
             comparisonRecords = []
             return
         }
 
         do {
-            comparisonRecords = try await evaluationService.fetchSummaries(
+            let summaries = try await evaluationService.fetchSummaries(
                 from: startDate,
-                to: endDate,
+                to: queryEnd,
                 size: 1000
             )
+            guard !Task.isCancelled else { return }
+
+            let records = await comparisonRecords(from: summaries)
+            guard !Task.isCancelled else { return }
+
+            comparisonRecords = records
         } catch {
+            guard !Task.isCancelled else { return }
             comparisonRecords = []
         }
     }
 
-    private func averageScore(for dateTexts: Set<String>) -> Int? {
+    private func currentRecordDate() async -> Date {
+        do {
+            let resolvedSleep = try await healthKitService.fetchEvaluationSleepSummary(for: Date())
+            switch resolvedSleep.status {
+            case .available, .noSleep:
+                return calendar.startOfDay(for: resolvedSleep.date)
+            case .notConnected, .syncing, .noWearableData:
+                return HistoryEvaluationDateResolver.calendarRecordDate(for: Date(), calendar: calendar)
+            }
+        } catch {
+            return HistoryEvaluationDateResolver.calendarRecordDate(for: Date(), calendar: calendar)
+        }
+    }
+
+    private func fetchLatestEvaluationDetail(forRecordDate recordDate: Date) async throws -> EvaluationDetailResponse? {
+        let startDate = calendar.startOfDay(for: recordDate)
+        let queryEnd = calendar.date(byAdding: .day, value: 3, to: startDate) ?? startDate
+        let summaries = try await evaluationService.fetchSummaries(from: startDate, to: queryEnd, size: 100)
+            .sorted { $0.measuredAt > $1.measuredAt }
+
+        for summary in summaries {
+            let detail = try await evaluationService.fetchDetail(id: summary.evaluationId)
+            guard HistoryEvaluationDateResolver.isRecord(
+                measuredAt: detail.evaluation.measuredAt,
+                sleepDateText: detail.sleep?.sleepDate,
+                in: startDate,
+                calendar: calendar
+            ) else {
+                continue
+            }
+            return detail
+        }
+
+        return nil
+    }
+
+    private func comparisonRecords(from summaries: [EvaluationSummary]) async -> [TodayComparisonRecord] {
+        var records: [TodayComparisonRecord] = []
+
+        for batchStart in stride(from: 0, to: summaries.count, by: Self.comparisonDetailBatchSize) {
+            if Task.isCancelled { break }
+
+            let batchEnd = min(batchStart + Self.comparisonDetailBatchSize, summaries.count)
+            let batch = Array(summaries[batchStart..<batchEnd])
+            let batchRecords = await withTaskGroup(of: TodayComparisonRecord?.self) { group in
+                for summary in batch {
+                    group.addTask { [self] in
+                        await comparisonRecord(from: summary)
+                    }
+                }
+
+                var batchRecords: [TodayComparisonRecord] = []
+                for await record in group {
+                    if let record {
+                        batchRecords.append(record)
+                    }
+                }
+                return batchRecords
+            }
+
+            records.append(contentsOf: batchRecords)
+        }
+        return records
+    }
+
+    private func comparisonRecord(from summary: EvaluationSummary) async -> TodayComparisonRecord? {
+        do {
+            let detail = try await evaluationService.fetchDetail(id: summary.evaluationId)
+            let recordDate = HistoryEvaluationDateResolver.recordDate(
+                measuredAt: detail.evaluation.measuredAt,
+                sleepDateText: detail.sleep?.sleepDate,
+                calendar: calendar
+            )
+            return TodayComparisonRecord(recordDate: recordDate, score: detail.evaluation.finalScore)
+        } catch {
+            let recordDate = HistoryEvaluationDateResolver.calendarRecordDate(
+                for: summary.measuredAt,
+                calendar: calendar
+            )
+            return TodayComparisonRecord(recordDate: recordDate, score: summary.finalScore)
+        }
+    }
+
+    private func averageScore(for dates: [Date]) -> Int? {
         let scores = comparisonRecords
-            .filter { dateTexts.contains($0.date) }
-            .map(\.finalScore)
+            .filter { record in
+                dates.contains { date in
+                    calendar.isDate(record.recordDate, inSameDayAs: date)
+                }
+            }
+            .map(\.score)
         return averageScore(from: scores)
     }
 
     private func averageScore(from scores: [Int]) -> Int? {
         guard !scores.isEmpty else { return nil }
         return Int(round(Double(scores.reduce(0, +)) / Double(scores.count)))
-    }
-
-    private func dateText(_ date: Date) -> String {
-        EvaluationDateFormatter.dateText(date, timeZone: calendar.timeZone)
     }
 
     private func sleepDifferenceText(

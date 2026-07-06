@@ -102,7 +102,7 @@ struct HealthKitEvaluationSleepPolicy {
         }
 
         return HealthKitResolvedSleepSummary(
-            date: sleepDay(for: latestSleep.bedEndAt, calendar: calendar),
+            date: calendar.startOfDay(for: latestSleep.bedEndAt),
             status: .available,
             summary: latestSleep
         )
@@ -122,15 +122,6 @@ struct HealthKitEvaluationSleepPolicy {
             nightHrvMs: nil,
             weeklyHrvBaselineMs: nil
         )
-    }
-
-    private static func sleepDay(for date: Date, calendar: Calendar) -> Date {
-        let hour = calendar.component(.hour, from: date)
-        let baseDate = hour < 6
-            ? (calendar.date(byAdding: .day, value: -1, to: date) ?? date)
-            : date
-
-        return calendar.startOfDay(for: baseDate)
     }
 
     private static var koreaCalendar: Calendar {
