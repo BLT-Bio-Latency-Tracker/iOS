@@ -125,12 +125,7 @@ struct HealthKitEvaluationSleepPolicy {
     }
 
     private static func sleepDay(for date: Date, calendar: Calendar) -> Date {
-        let hour = calendar.component(.hour, from: date)
-        let baseDate = hour < 6
-            ? (calendar.date(byAdding: .day, value: -1, to: date) ?? date)
-            : date
-
-        return calendar.startOfDay(for: baseDate)
+        calendar.startOfDay(for: date)
     }
 
     private static var koreaCalendar: Calendar {
