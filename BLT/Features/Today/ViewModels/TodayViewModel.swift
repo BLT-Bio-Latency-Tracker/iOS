@@ -8,6 +8,8 @@ private struct TodayComparisonRecord {
 
 @MainActor
 final class TodayViewModel: ObservableObject {
+    private static let comparisonDetailBatchSize = 8
+
     @Published private(set) var state: TodayViewState
     @Published private(set) var latestPVTSummary: PVTSummary?
     @Published private(set) var isRequestingHealthKitAuthorization = false
@@ -497,8 +499,14 @@ final class TodayViewModel: ObservableObject {
                 to: queryEnd,
                 size: 1000
             )
-            comparisonRecords = await comparisonRecords(from: summaries)
+            guard !Task.isCancelled else { return }
+
+            let records = await comparisonRecords(from: summaries)
+            guard !Task.isCancelled else { return }
+
+            comparisonRecords = records
         } catch {
+            guard !Task.isCancelled else { return }
             comparisonRecords = []
         }
     }
@@ -541,10 +549,29 @@ final class TodayViewModel: ObservableObject {
 
     private func comparisonRecords(from summaries: [EvaluationSummary]) async -> [TodayComparisonRecord] {
         var records: [TodayComparisonRecord] = []
-        for summary in summaries {
-            if let record = await comparisonRecord(from: summary) {
-                records.append(record)
+
+        for batchStart in stride(from: 0, to: summaries.count, by: Self.comparisonDetailBatchSize) {
+            if Task.isCancelled { break }
+
+            let batchEnd = min(batchStart + Self.comparisonDetailBatchSize, summaries.count)
+            let batch = Array(summaries[batchStart..<batchEnd])
+            let batchRecords = await withTaskGroup(of: TodayComparisonRecord?.self) { group in
+                for summary in batch {
+                    group.addTask { [self] in
+                        await comparisonRecord(from: summary)
+                    }
+                }
+
+                var batchRecords: [TodayComparisonRecord] = []
+                for await record in group {
+                    if let record {
+                        batchRecords.append(record)
+                    }
+                }
+                return batchRecords
             }
+
+            records.append(contentsOf: batchRecords)
         }
         return records
     }
