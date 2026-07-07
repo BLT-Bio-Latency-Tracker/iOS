@@ -17,6 +17,7 @@ final class HomeViewModel: ObservableObject {
     private let localProfileStore: LocalProfileStore
     private let todoStore: HomeTodoStore
     private var cancellables = Set<AnyCancellable>()
+    private var latestDisplaySleepEndAt: Date?
 
     init(
         state: HomeViewState? = nil,
@@ -126,21 +127,31 @@ final class HomeViewModel: ObservableObject {
             switch resolvedSleep.status {
             case .available:
                 sleepSummaryText = "Sleep \(durationText(from: resolvedSleep.summary?.totalMinutes ?? 0))"
+                latestDisplaySleepEndAt = resolvedSleep.summary?.bedEndAt
             case .noSleep:
                 sleepSummaryText = "Sleep 0h"
+                latestDisplaySleepEndAt = nil
             case .syncing:
                 sleepSummaryText = "Sleep 동기화 중"
+                latestDisplaySleepEndAt = nil
             case .noWearableData:
                 sleepSummaryText = "Sleep 기록 없음"
+                latestDisplaySleepEndAt = nil
             case .notConnected:
                 sleepSummaryText = "Sleep --"
+                latestDisplaySleepEndAt = nil
             }
 
             state = state.replacingMeasurementSummary(
                 sleepSummary: sleepSummaryText
             )
+            applyLatestPVTResultIfNeeded()
+            applyEvaluation(evaluationResultStore.todayEvaluation)
         } catch {
+            latestDisplaySleepEndAt = nil
             state = state.replacingMeasurementSummary(sleepSummary: "Sleep --")
+            applyLatestPVTResultIfNeeded()
+            applyEvaluation(evaluationResultStore.todayEvaluation)
         }
     }
 
@@ -278,7 +289,8 @@ final class HomeViewModel: ObservableObject {
 
     private func applyPVTSummary(_ summary: PVTSummary?, measuredAt: Date?) {
         guard let result = pvtResultStore.displayResult(for: Date()),
-              let averageMilliseconds = result.summary.averageMilliseconds else {
+              let averageMilliseconds = result.summary.averageMilliseconds,
+              !isOutdatedByNewSleep(measuredAt: result.measuredAt) else {
             state = state.replacingMeasurementSummary(
                 pvtSummary: "PVT 미측정",
                 pvtStatus: .noMeasurement
@@ -299,11 +311,27 @@ final class HomeViewModel: ObservableObject {
             return
         }
 
+        guard !isOutdatedByNewSleep(evaluation) else {
+            state = state
+                .replacingMeasurementSummary(pvtSummary: "PVT 미측정", pvtStatus: .noMeasurement)
+                .replacingROI(score: nil, changePercent: nil, measuredAt: nil)
+            return
+        }
+
         state = state.replacingROI(
             score: evaluation.finalScore,
             changePercent: evaluation.trendVsYesterday,
             measuredAt: evaluation.measuredAt
         )
+    }
+
+    private func isOutdatedByNewSleep(_ evaluation: EvaluationResponse) -> Bool {
+        isOutdatedByNewSleep(measuredAt: evaluation.measuredAt)
+    }
+
+    private func isOutdatedByNewSleep(measuredAt: Date) -> Bool {
+        guard let sleepEndAt = latestDisplaySleepEndAt else { return false }
+        return measuredAt < sleepEndAt
     }
 
     private func durationText(from minutes: Int) -> String {
