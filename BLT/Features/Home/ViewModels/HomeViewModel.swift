@@ -133,13 +133,10 @@ final class HomeViewModel: ObservableObject {
                 latestDisplaySleepEndAt = nil
             case .syncing:
                 sleepSummaryText = "Sleep 동기화 중"
-                latestDisplaySleepEndAt = nil
             case .noWearableData:
                 sleepSummaryText = "Sleep 기록 없음"
-                latestDisplaySleepEndAt = nil
             case .notConnected:
                 sleepSummaryText = "Sleep --"
-                latestDisplaySleepEndAt = nil
             }
 
             state = state.replacingMeasurementSummary(
@@ -148,7 +145,6 @@ final class HomeViewModel: ObservableObject {
             applyLatestPVTResultIfNeeded()
             applyEvaluation(evaluationResultStore.todayEvaluation)
         } catch {
-            latestDisplaySleepEndAt = nil
             state = state.replacingMeasurementSummary(sleepSummary: "Sleep --")
             applyLatestPVTResultIfNeeded()
             applyEvaluation(evaluationResultStore.todayEvaluation)
@@ -312,9 +308,7 @@ final class HomeViewModel: ObservableObject {
         }
 
         guard !isOutdatedByNewSleep(evaluation) else {
-            state = state
-                .replacingMeasurementSummary(pvtSummary: "PVT 미측정", pvtStatus: .noMeasurement)
-                .replacingROI(score: nil, changePercent: nil, measuredAt: nil)
+            state = state.replacingROI(score: nil, changePercent: nil, measuredAt: nil)
             return
         }
 

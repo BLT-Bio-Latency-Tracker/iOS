@@ -5,7 +5,7 @@ struct TodayViewState {
     let scoreMode: TodayScoreMode
     let roiStatusText: String
     let roiChangePercent: Int?
-    let measuredAt: Date
+    let measuredAt: Date?
     let comparisonSummary: String
     let sleep: TodaySleepData?
     let sleepStatus: TodaySleepDataStatus
@@ -47,14 +47,14 @@ struct TodayViewState {
     func replacingPVT(
         _ pvt: TodayPVTData,
         pvtStatus: TodayPVTDataStatus,
-        measuredAt: Date? = nil
+        measuredAt: Date?
     ) -> TodayViewState {
         TodayViewState(
             score: score,
             scoreMode: scoreMode,
             roiStatusText: roiStatusText,
             roiChangePercent: roiChangePercent,
-            measuredAt: measuredAt ?? self.measuredAt,
+            measuredAt: measuredAt,
             comparisonSummary: comparisonSummary,
             sleep: sleep,
             sleepStatus: sleepStatus,
@@ -69,7 +69,7 @@ struct TodayViewState {
             scoreMode: scoreMode,
             roiStatusText: statusText,
             roiChangePercent: changePercent,
-            measuredAt: measuredAt ?? self.measuredAt,
+            measuredAt: measuredAt,
             comparisonSummary: comparisonSummary,
             sleep: sleep,
             sleepStatus: sleepStatus,

@@ -189,11 +189,11 @@ final class TodayViewModel: ObservableObject {
     }
 
     var measuredTimeText: String {
-        timeFormatter.string(from: state.measuredAt)
+        state.measuredAt.map { timeFormatter.string(from: $0) } ?? "--:--"
     }
 
     var measuredTimeLabel: String {
-        measurementTimeLabel(for: state.measuredAt, referenceDate: Date())
+        state.measuredAt.map { measurementTimeLabel(for: $0, referenceDate: Date()) } ?? "미측정"
     }
 
     var roiScoreText: String {
@@ -331,7 +331,8 @@ final class TodayViewModel: ObservableObject {
         guard state.hasROIResult else { return nil }
 
         let referenceDate = currentEvaluationRecordDate
-            ?? HistoryEvaluationDateResolver.calendarRecordDate(for: state.measuredAt, calendar: calendar)
+            ?? state.measuredAt.map { HistoryEvaluationDateResolver.calendarRecordDate(for: $0, calendar: calendar) }
+        guard let referenceDate else { return nil }
 
         switch selectedComparison {
         case .yesterday:
@@ -421,7 +422,8 @@ final class TodayViewModel: ObservableObject {
                     highlightText: nil,
                     trials: []
                 ),
-                pvtStatus: .noMeasurement
+                pvtStatus: .noMeasurement,
+                measuredAt: nil
             )
             return
         }
