@@ -77,6 +77,8 @@ final class TodayViewModel: ObservableObject {
             guard let summary = sleep.summary else {
                 latestDisplaySleepEndAt = nil
                 updateRemeasureSuggestion()
+                applyLatestPVTResultIfNeeded()
+                applyEvaluation(evaluationResultStore.todayEvaluation)
                 state = state.replacingSleep(
                     placeholderSleepData(for: sleep.status, previousSummary: previousSummary),
                     sleepStatus: todaySleepDataStatus(from: sleep.status),
@@ -88,6 +90,8 @@ final class TodayViewModel: ObservableObject {
 
             latestDisplaySleepEndAt = summary.bedEndAt
             updateRemeasureSuggestion()
+            applyLatestPVTResultIfNeeded()
+            applyEvaluation(evaluationResultStore.todayEvaluation)
 
             let sleepDifference = sleepDifferenceText(
                 todayMinutes: summary.totalMinutes,
@@ -122,6 +126,8 @@ final class TodayViewModel: ObservableObject {
         } catch {
             latestDisplaySleepEndAt = nil
             updateRemeasureSuggestion()
+            applyLatestPVTResultIfNeeded()
+            applyEvaluation(evaluationResultStore.todayEvaluation)
             state = state.replacingSleep(
                 nil,
                 sleepStatus: .notConnected,
@@ -183,11 +189,11 @@ final class TodayViewModel: ObservableObject {
     }
 
     var measuredTimeText: String {
-        timeFormatter.string(from: state.measuredAt)
+        state.measuredAt.map { timeFormatter.string(from: $0) } ?? "--:--"
     }
 
     var measuredTimeLabel: String {
-        measurementTimeLabel(for: state.measuredAt, referenceDate: Date())
+        state.measuredAt.map { measurementTimeLabel(for: $0, referenceDate: Date()) } ?? "미측정"
     }
 
     var roiScoreText: String {
@@ -325,7 +331,8 @@ final class TodayViewModel: ObservableObject {
         guard state.hasROIResult else { return nil }
 
         let referenceDate = currentEvaluationRecordDate
-            ?? HistoryEvaluationDateResolver.calendarRecordDate(for: state.measuredAt, calendar: calendar)
+            ?? state.measuredAt.map { HistoryEvaluationDateResolver.calendarRecordDate(for: $0, calendar: calendar) }
+        guard let referenceDate else { return nil }
 
         switch selectedComparison {
         case .yesterday:
@@ -405,7 +412,8 @@ final class TodayViewModel: ObservableObject {
 
     private func applyPVTSummary(_ summary: PVTSummary?, measuredAt: Date?) {
         guard let result = pvtResultStore.displayResult(for: Date()),
-              let averageMs = result.summary.averageMilliseconds else {
+              let averageMs = result.summary.averageMilliseconds,
+              !isOutdatedByNewSleep(measuredAt: result.measuredAt) else {
             latestPVTSummary = nil
             state = state.replacingPVT(
                 TodayPVTData(
@@ -414,7 +422,8 @@ final class TodayViewModel: ObservableObject {
                     highlightText: nil,
                     trials: []
                 ),
-                pvtStatus: .noMeasurement
+                pvtStatus: .noMeasurement,
+                measuredAt: nil
             )
             return
         }
@@ -451,6 +460,19 @@ final class TodayViewModel: ObservableObject {
         let recordDate = currentEvaluationRecordDate
             ?? HistoryEvaluationDateResolver.calendarRecordDate(for: evaluation.measuredAt, calendar: calendar)
         currentEvaluationRecordDate = recordDate
+
+        guard !isOutdatedByNewSleep(evaluation) else {
+            comparisonFetchTask?.cancel()
+            comparisonRecords = []
+            state = state.replacingROI(
+                score: nil,
+                statusText: "PVT 미측정",
+                changePercent: nil,
+                measuredAt: nil
+            )
+            return
+        }
+
         scheduleComparisonRecordFetch(referenceRecordDate: recordDate)
 
         state = state.replacingROI(
@@ -471,6 +493,15 @@ final class TodayViewModel: ObservableObject {
         }
 
         isRemeasureSuggested = measuredAt < sleepEndAt
+    }
+
+    private func isOutdatedByNewSleep(_ evaluation: EvaluationResponse) -> Bool {
+        isOutdatedByNewSleep(measuredAt: evaluation.measuredAt)
+    }
+
+    private func isOutdatedByNewSleep(measuredAt: Date) -> Bool {
+        guard let sleepEndAt = latestDisplaySleepEndAt else { return false }
+        return measuredAt < sleepEndAt
     }
 
     private func scheduleComparisonRecordFetch(referenceRecordDate: Date) {
