@@ -4,6 +4,8 @@ struct MyPageView: View {
     @StateObject private var viewModel = MyPageViewModel()
     @State private var editRoute: MyPageEditRoute?
     @State private var showsWithdrawalAlert = false
+    @State private var pendingProfileDraft: MyPageProfileEditDraft?
+    @State private var pendingNotificationSettings: MyPageNotificationSettings?
 
     let onBack: () -> Void
     let onWithdraw: () -> Void
@@ -74,6 +76,10 @@ struct MyPageView: View {
                 .navigationBarBackButtonHidden(true)
                 .toolbar(.hidden, for: .navigationBar)
         }
+        .onChange(of: editRoute) { _, route in
+            guard route == nil else { return }
+            applyPendingEditIfNeeded()
+        }
         .task {
             await viewModel.fetchMyPage()
         }
@@ -94,7 +100,7 @@ struct MyPageView: View {
                         let isSaved = await viewModel.updateProfile(patchRequest)
 
                         if isSaved {
-                            viewModel.applyProfile(draft)
+                            pendingProfileDraft = draft
                         }
 
                         return isSaved
@@ -113,7 +119,7 @@ struct MyPageView: View {
                         let isSaved = await viewModel.updateNotificationSettings(patchRequest)
 
                         if isSaved {
-                            viewModel.applyNotificationSettings(draft.settingsValue)
+                            pendingNotificationSettings = draft.settingsValue
                         }
 
                         return isSaved
@@ -129,6 +135,18 @@ struct MyPageView: View {
 
     private func closeEditRoute() {
         editRoute = nil
+    }
+
+    private func applyPendingEditIfNeeded() {
+        if let pendingProfileDraft {
+            viewModel.applyProfile(pendingProfileDraft)
+            self.pendingProfileDraft = nil
+        }
+
+        if let pendingNotificationSettings {
+            viewModel.applyNotificationSettings(pendingNotificationSettings)
+            self.pendingNotificationSettings = nil
+        }
     }
 
     private func header(scale: CGFloat) -> some View {
