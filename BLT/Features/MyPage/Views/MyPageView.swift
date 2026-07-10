@@ -80,6 +80,10 @@ struct MyPageView: View {
             guard route == nil else { return }
             applyPendingEditIfNeeded()
         }
+        .onChange(of: viewModel.state != nil) { _, hasState in
+            guard hasState else { return }
+            applyPendingEditIfNeeded()
+        }
         .task {
             await viewModel.fetchMyPage()
         }
@@ -138,6 +142,8 @@ struct MyPageView: View {
     }
 
     private func applyPendingEditIfNeeded() {
+        guard viewModel.state != nil else { return }
+
         if let pendingProfileDraft {
             viewModel.applyProfile(pendingProfileDraft)
             self.pendingProfileDraft = nil
