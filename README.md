@@ -17,7 +17,7 @@ Bryki는 Apple HealthKit 수면 데이터와 PVT 검사를 기반으로 사용�
 - FCM 기반 푸시 알림
 - 일간 보고서 미리보기 및 PDF 공유
 
-## 기술 스택
+## 기술 스택(iOS)
 
 - Swift
 - SwiftUI
