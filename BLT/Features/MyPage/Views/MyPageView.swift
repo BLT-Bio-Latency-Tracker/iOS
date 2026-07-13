@@ -89,12 +89,11 @@ struct MyPageView: View {
                     onBack: {
                         closeEditRoute()
                     },
-                    onSave: { draft in
-                        let patchRequest = draft.patchRequest(comparedTo: state)
-                        let isSaved = await viewModel.updateProfile(patchRequest)
+                    onSave: { payload in
+                        let isSaved = await viewModel.updateProfile(payload.patchRequest)
 
                         if isSaved {
-                            viewModel.applyProfile(draft)
+                            viewModel.applyProfile(payload.profile)
                         }
 
                         return isSaved
@@ -108,12 +107,11 @@ struct MyPageView: View {
                     onBack: {
                         closeEditRoute()
                     },
-                    onSave: { draft in
-                        let patchRequest = draft.patchRequest(comparedTo: settings)
-                        let isSaved = await viewModel.updateNotificationSettings(patchRequest)
+                    onSave: { payload in
+                        let isSaved = await viewModel.updateNotificationSettings(payload.patchRequest)
 
                         if isSaved {
-                            viewModel.applyNotificationSettings(draft.settingsValue)
+                            viewModel.applyNotificationSettings(payload.settings)
                         }
 
                         return isSaved

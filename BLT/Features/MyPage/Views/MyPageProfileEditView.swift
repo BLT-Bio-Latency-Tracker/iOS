@@ -3,7 +3,7 @@ import SwiftUI
 struct MyPageProfileEditView: View {
     let state: MyPageState
     let onBack: () -> Void
-    let onSave: (MyPageProfileEditDraft) async -> Bool
+    let onSave: @MainActor (MyPageProfileEditSavePayload) async -> Bool
 
     @State private var draft: MyPageProfileEditDraft
     @State private var activePicker: MyPageProfileEditPicker?
@@ -19,7 +19,7 @@ struct MyPageProfileEditView: View {
     init(
         state: MyPageState,
         onBack: @escaping () -> Void,
-        onSave: @escaping (MyPageProfileEditDraft) async -> Bool
+        onSave: @escaping @MainActor (MyPageProfileEditSavePayload) async -> Bool
     ) {
         self.state = state
         self.onBack = onBack
@@ -253,8 +253,9 @@ struct MyPageProfileEditView: View {
     private func saveButton(scale: CGFloat) -> some View {
         Button {
             focusedField = nil
-            Task {
-                let isSaved = await onSave(draft)
+            let payload = draft.savePayload(comparedTo: state)
+            Task { @MainActor in
+                let isSaved = await onSave(payload)
 
                 if isSaved {
                     onBack()
@@ -351,19 +352,40 @@ struct MyPageProfileEditDraft {
     }
 
     var canSave: Bool {
-        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !MyPageStringNormalizer.trimmed(name).isEmpty
     }
 
-    func patchRequest(comparedTo state: MyPageState) -> MyPageProfilePatchRequest {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    func savePayload(comparedTo state: MyPageState) -> MyPageProfileEditSavePayload {
+        let trimmedName = MyPageStringNormalizer.trimmed(name)
+        let originalName = MyPageStringNormalizer.trimmed(state.user.name)
 
-        return MyPageProfilePatchRequest(
-            name: trimmedName == state.user.name ? nil : trimmedName,
-            birthYear: birthYear == state.profile.birthYear ? nil : birthYear,
-            gender: gender == state.profile.gender ? nil : gender,
-            jobGroup: jobGroup == state.profile.jobGroup ? nil : jobGroup
+        return MyPageProfileEditSavePayload(
+            patchRequest: MyPageProfilePatchRequest(
+                name: trimmedName == originalName ? nil : trimmedName,
+                birthYear: birthYear == state.profile.birthYear ? nil : birthYear,
+                gender: gender == state.profile.gender ? nil : gender,
+                jobGroup: jobGroup == state.profile.jobGroup ? nil : jobGroup
+            ),
+            profile: MyPageProfileEditValue(
+                name: trimmedName,
+                birthYear: birthYear,
+                gender: gender,
+                jobGroup: jobGroup
+            )
         )
     }
+}
+
+struct MyPageProfileEditSavePayload {
+    let patchRequest: MyPageProfilePatchRequest
+    let profile: MyPageProfileEditValue
+}
+
+struct MyPageProfileEditValue {
+    let name: String
+    let birthYear: Int?
+    let gender: ProfileSetupGender?
+    let jobGroup: ProfileSetupJobGroup?
 }
 
 private enum MyPageProfileEditPicker: String, Identifiable {

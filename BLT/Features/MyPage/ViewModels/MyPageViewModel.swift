@@ -120,20 +120,20 @@ final class MyPageViewModel: ObservableObject {
         }
     }
 
-    func applyProfile(_ draft: MyPageProfileEditDraft) {
+    func applyProfile(_ profile: MyPageProfileEditValue) {
         guard let state else { return }
 
         let updatedState = MyPageState(
             user: MyPageUser(
-                name: draft.name.trimmingCharacters(in: .whitespacesAndNewlines),
+                name: profile.name,
                 email: state.user.email,
                 authProvider: state.user.authProvider,
                 onboardingCompleted: state.user.onboardingCompleted
             ),
             profile: MyPageProfile(
-                birthYear: draft.birthYear,
-                gender: draft.gender,
-                jobGroup: draft.jobGroup
+                birthYear: profile.birthYear,
+                gender: profile.gender,
+                jobGroup: profile.jobGroup
             ),
             notificationSettings: state.notificationSettings
         )
@@ -186,8 +186,8 @@ final class MyPageViewModel: ObservableObject {
                 jobGroup: state.profile.jobGroup
             )
         )
-        let serverName = state.user.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let serverEmail = state.user.email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let serverName = MyPageStringNormalizer.trimmed(state.user.name)
+        let serverEmail = MyPageStringNormalizer.trimmed(state.user.email)
 
         let displayName = isPlaceholderName(serverName)
             ? cachedProfile.name
@@ -213,7 +213,7 @@ final class MyPageViewModel: ObservableObject {
     }
 
     private func isPlaceholderName(_ name: String) -> Bool {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedName = MyPageStringNormalizer.trimmed(name)
         let lowercasedName = trimmedName.lowercased()
 
         return trimmedName.isEmpty

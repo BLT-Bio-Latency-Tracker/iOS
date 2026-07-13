@@ -7,7 +7,7 @@ struct MyPageNotificationEditView: View {
 
     let settings: MyPageNotificationSettings
     let onBack: () -> Void
-    let onSave: (MyPageNotificationEditDraft) async -> Bool
+    let onSave: @MainActor (MyPageNotificationEditSavePayload) async -> Bool
 
     @State private var draft: MyPageNotificationEditDraft
     @State private var activePicker: NotificationTimePicker?
@@ -22,7 +22,7 @@ struct MyPageNotificationEditView: View {
     init(
         settings: MyPageNotificationSettings,
         onBack: @escaping () -> Void,
-        onSave: @escaping (MyPageNotificationEditDraft) async -> Bool
+        onSave: @escaping @MainActor (MyPageNotificationEditSavePayload) async -> Bool
     ) {
         self.settings = settings
         self.onBack = onBack
@@ -225,8 +225,9 @@ struct MyPageNotificationEditView: View {
 
     private func saveButton(scale: CGFloat) -> some View {
         Button {
-            Task {
-                let isSaved = await onSave(draft)
+            let payload = draft.savePayload(comparedTo: settings)
+            Task { @MainActor in
+                let isSaved = await onSave(payload)
 
                 if isSaved {
                     onBack()
@@ -462,6 +463,13 @@ struct MyPageNotificationEditDraft {
         )
     }
 
+    func savePayload(comparedTo settings: MyPageNotificationSettings) -> MyPageNotificationEditSavePayload {
+        MyPageNotificationEditSavePayload(
+            patchRequest: patchRequest(comparedTo: settings),
+            settings: settingsValue
+        )
+    }
+
     nonisolated private static func formattedTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -489,6 +497,11 @@ struct MyPageNotificationEditDraft {
 
         return nil
     }
+}
+
+struct MyPageNotificationEditSavePayload {
+    let patchRequest: MyPageNotificationPatchRequest
+    let settings: MyPageNotificationSettings
 }
 
 private enum NotificationTimePicker: String, Identifiable {

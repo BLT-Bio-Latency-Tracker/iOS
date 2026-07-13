@@ -27,7 +27,7 @@ struct MyPageUser {
     let onboardingCompleted: Bool
 
     var profileInitial: String {
-        name.trimmingCharacters(in: .whitespacesAndNewlines).first.map(String.init) ?? "B"
+        MyPageStringNormalizer.trimmed(name).first.map(String.init) ?? "B"
     }
 }
 
@@ -94,6 +94,23 @@ struct MyPageNotificationPatchRequest {
             && measurementTimeText == nil
             && bedtimeText == nil
             && channels == nil
+    }
+}
+
+enum MyPageStringNormalizer {
+    static func trimmed(_ value: String) -> String {
+        guard let firstIndex = value.firstIndex(where: { !isTrimTarget($0) }) else {
+            return ""
+        }
+        let lastIndex = value[firstIndex...].lastIndex(where: { !isTrimTarget($0) }) ?? firstIndex
+        return String(value[firstIndex...lastIndex])
+    }
+
+    private static func isTrimTarget(_ character: Character) -> Bool {
+        character == " "
+            || character == "\n"
+            || character == "\r"
+            || character == "\t"
     }
 }
 
